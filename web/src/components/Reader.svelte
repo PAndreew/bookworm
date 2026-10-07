@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { Heart, Highlighter, Share2, ChevronLeft, Type, Flame, Lock } from '@lucide/svelte';
   import { api, ApiError, type Page } from '../lib/api';
+  import ReadingCompanion from './ReadingCompanion.svelte';
 
   let { slug, title, author }: { slug: string; title: string; author: string } = $props();
 
@@ -343,6 +344,7 @@
 
   {#if toast}<div class="toast">{toast}</div>{/if}
 </div>
+<ReadingCompanion {progress} positionLabel={pageCount ? `Page ${activeIdx + 1} of ${pageCount}` : 'Opening your book'} />
 
 <style>
   .reader {

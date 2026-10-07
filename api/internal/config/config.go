@@ -14,22 +14,36 @@ type Config struct {
 	AllowOrigins []string
 	// SecureCookies must be true in production. It is derived from Env so that a
 	// deployment cannot accidentally ship non-Secure session cookies.
-	Env            string
-	SecureCookies  bool
-	TOTPEncryptKey []byte // 32 bytes, encrypts totp_secret at rest
+	Env             string
+	SecureCookies   bool
+	TOTPEncryptKey  []byte // 32 bytes, encrypts totp_secret at rest
+	OpenRouterKey   string // loaded from a mounted secret file, never sent to clients
+	OpenRouterModel string
 }
 
 func Load() (*Config, error) {
 	c := &Config{
-		Addr:        env("BW_ADDR", ":8080"),
-		DatabaseURL: env("BW_DATABASE_URL", ""),
-		Env:         env("BW_ENV", "development"),
+		Addr:            env("BW_ADDR", ":8080"),
+		DatabaseURL:     env("BW_DATABASE_URL", ""),
+		Env:             env("BW_ENV", "development"),
+		OpenRouterModel: env("BW_OPENROUTER_MODEL", "google/gemini-3.8-flash"),
 		AllowOrigins: strings.Split(
 			env("BW_ALLOW_ORIGINS", "http://localhost:4321"), ","),
 	}
 
 	if c.DatabaseURL == "" {
 		return nil, fmt.Errorf("config: BW_DATABASE_URL is required")
+	}
+
+	if file := os.Getenv("BW_OPENROUTER_KEY_FILE"); file != "" {
+		key, err := os.ReadFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("config: could not read OpenRouter secret file")
+		}
+		c.OpenRouterKey = strings.TrimSpace(string(key))
+		if c.OpenRouterKey == "" {
+			return nil, fmt.Errorf("config: OpenRouter secret file is empty")
+		}
 	}
 
 	c.SecureCookies = c.Env == "production"

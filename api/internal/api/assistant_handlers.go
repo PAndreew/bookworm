@@ -1,0 +1,53 @@
+package api
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"github.com/bookworm/api/internal/assistant"
+	"github.com/bookworm/api/internal/httpx"
+	"github.com/bookworm/api/internal/store"
+)
+
+func (s *Server) handleAssistant(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	// Keep the entire operation inside the HTTP server's 30-second write timeout.
+	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
+	defer cancel()
+	r = r.WithContext(ctx)
+	var req assistant.Request
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+	if err := httpx.DecodeJSON(w, r, &req); err != nil {
+		httpx.Error(w, 400, "bad_request", "Could not read that phrase request.")
+		return
+	}
+	if err := req.Validate(); err != nil {
+		httpx.Error(w, 400, "bad_request", err.Error())
+		return
+	}
+	if s.assistant == nil {
+		httpx.Error(w, 503, "assistant_unavailable", "The reading companion is not configured yet.")
+		return
+	}
+	err := s.store.ReserveAssistantAttempt(r.Context(), currentUser(r).ID)
+	if errors.Is(err, store.ErrAssistantLimit) {
+		w.Header().Set("Retry-After", "5")
+		httpx.Error(w, 429, "assistant_limit", "Please wait at least five seconds between requests. Daily limits are 30 per reader and 200 across Potpuri, resetting at midnight UTC.")
+		return
+	}
+	if err != nil {
+		httpx.InternalError(w, r, "handleAssistant quota", err)
+		return
+	}
+	answer, err := s.assistant.Ask(r.Context(), req)
+	if err != nil {
+		// Errors contain status codes only, never credentials, phrases or provider bodies.
+		slog.Warn("reading companion unavailable", "err", err)
+		httpx.Error(w, 503, "assistant_unavailable", "The reading companion could not answer. Please try again shortly.")
+		return
+	}
+	httpx.JSON(w, 200, map[string]string{"answer": answer, "model": s.cfg.OpenRouterModel})
+}

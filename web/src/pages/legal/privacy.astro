@@ -14,7 +14,8 @@ import Base from '../../layouts/Base.astro';
     <ul>
       <li><strong>Account:</strong> email, handle, display name, date of birth, time zone.</li>
       <li><strong>Reading:</strong> which pages you have read and when, your position in each book, your streak.</li>
-      <li><strong>Your marks:</strong> likes and highlights.</li>
+      <li><strong>Your marks:</strong> likes, highlights, and personal book ratings.</li>
+      <li><strong>Reading companion:</strong> daily request counts and the time of your last request, to enforce usage limits. We do not store your phrases or AI answers.</li>
       <li><strong>Social:</strong> friendships, and requests you have sent or received.</li>
       <li><strong>Technical:</strong> session records with approximate IP and browser, kept for security.</li>
     </ul>
@@ -41,6 +42,17 @@ import Base from '../../layouts/Base.astro';
     <h2>Who can see your reading</h2>
     <p>Your profile is visible to friends by default. You can set it to public or to only you,
     and you can hide an individual book from your profile at any time.</p>
+
+    <h2>Optional AI explanations and translations</h2>
+    <p>When you explicitly confirm and submit a phrase to Sunny, we send that phrase,
+    your chosen answer language, and explanation or translation instructions to OpenRouter
+    and Google Gemini. We do not send your account details, reading history, or the whole
+    book. Do not submit sensitive information. We request providers that disallow data
+    collection and support zero data retention; provider billing and operational metadata
+    may still be processed under their own policies.</p>
+    <p><a href="https://openrouter.ai/privacy">OpenRouter privacy policy</a> ·
+    <a href="https://policies.google.com/privacy">Google privacy policy</a>.
+    AI answers may be inaccurate; using the companion is optional.</p>
 
     <h2>How we protect it</h2>
     <ul>

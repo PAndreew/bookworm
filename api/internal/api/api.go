@@ -7,18 +7,24 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/bookworm/api/internal/assistant"
 	"github.com/bookworm/api/internal/config"
 	"github.com/bookworm/api/internal/httpx"
 	"github.com/bookworm/api/internal/store"
 )
 
 type Server struct {
-	cfg   *config.Config
-	store *store.Store
+	cfg       *config.Config
+	store     *store.Store
+	assistant *assistant.Client
 }
 
 func New(cfg *config.Config, st *store.Store) *Server {
-	return &Server{cfg: cfg, store: st}
+	s := &Server{cfg: cfg, store: st}
+	if cfg.OpenRouterKey != "" {
+		s.assistant = assistant.New(cfg.OpenRouterKey, cfg.OpenRouterModel)
+	}
+	return s
 }
 
 func (s *Server) Routes() http.Handler {
@@ -72,6 +78,7 @@ func (s *Server) Routes() http.Handler {
 			r.Post("/auth/2fa/enable", s.handle2FAEnable)
 			r.Post("/auth/2fa/disable", s.handle2FADisable)
 
+			r.Post("/assistant", s.handleAssistant)
 			r.Post("/reads", s.handleRecordRead)
 			r.Post("/pages/{id}/like", s.handleLike)
 			r.Delete("/pages/{id}/like", s.handleUnlike)

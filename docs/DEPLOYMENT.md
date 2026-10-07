@@ -9,8 +9,13 @@ to distinguish it from the original bookmarking app and preserve existing data.
 
 The frontend (Nginx), API, and PostgreSQL run in `compose.production.yml`.
 No reader or database ports are published; the frontend joins `potpuri_proxy`.
-Secrets are in `/opt/bookworm/.env` (never commit), with
+Database/TOTP secrets are in `/opt/bookworm/.env` (never commit), with
 `BOOKWORM_HOST=potpuri.cc`. Keep its TOTP encryption key with backups.
+OpenRouter uses a separate encrypted VPS credential vault, not `.env`:
+see [ASSISTANT.md](ASSISTANT.md). Production Compose requires the decrypted
+secret at `/run/potpuri-reader-secrets/openrouter_api_key`; restore/configure
+its encrypted credential and enable `potpuri-reader-secrets.service` before
+starting the stack on a new VPS.
 
 ```sh
 cd /opt/bookworm
@@ -77,7 +82,9 @@ The bookmarking database was backed up before migration under
 `/opt/backups/potpuri-before-private-*.sql.gz`. Previous `.env` and Caddy configs
 are saved alongside them as `*.before-domain-switch` and
 `Caddyfile.before-reader-switch`. These contain secrets; keep them private.
-Back up both databases and their `.env` files regularly. Never remove volumes.
+Back up both databases and their `.env` files regularly. Back up the encrypted
+OpenRouter credential together with its host encryption key to independently
+encrypted storage, as described in ASSISTANT.md. Never remove volumes.
 
 Verified after cutover:
 - Private HTTPS certificate and original app health/login page.

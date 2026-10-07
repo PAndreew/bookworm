@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -39,6 +40,7 @@ func TestRatingsAndGenres(t *testing.T) {
 	router := New(&config.Config{}, st).Routes()
 	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
 	tokens := []string{}
+	userIDs := []string{}
 	for i := 0; i < 2; i++ {
 		handle := fmt.Sprintf("r%d%s", i, suffix)
 		u, err := st.CreateUser(ctx, handle+"@example.com", handle, "Test", "unused", time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), "UTC")
@@ -54,6 +56,7 @@ func TestRatingsAndGenres(t *testing.T) {
 			t.Fatal(err)
 		}
 		tokens = append(tokens, token)
+		userIDs = append(userIDs, u.ID)
 	}
 	book := ingest.Book{Slug: "rating-test-" + suffix, Title: "Test Book", Author: "Test Author", Language: "en", License: "public_domain", Genres: []string{"fantasy", "adventure"}, Pages: chunk.Split("A short test book with immutable page anchors.")}
 	ing := ingest.New(pool)
@@ -185,4 +188,33 @@ func TestRatingsAndGenres(t *testing.T) {
 		t.Fatal("another user's ratings leaked")
 	}
 	call("GET", "/v1/me/ratings", "", "", 401)
+
+	aiRequest := `{"mode":"explain","phrase":"bonjour","language":"English","consent":true}`
+	call("POST", "/v1/assistant", aiRequest, "", 401)
+	call("POST", "/v1/assistant", `{"mode":"explain","phrase":"bonjour","language":"English","consent":false}`, tokens[0], 400)
+	call("POST", "/v1/assistant", aiRequest, tokens[0], 503) // no configured key in tests
+	defer pool.Exec(ctx, `DELETE FROM assistant_global_usage WHERE day=(now() AT TIME ZONE 'UTC')::date`)
+	if err := st.ReserveAssistantAttempt(ctx, userIDs[0]); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReserveAssistantAttempt(ctx, userIDs[0]); !errors.Is(err, store.ErrAssistantLimit) {
+		t.Fatal("cooldown not enforced")
+	}
+	var globalRequests int
+	pool.QueryRow(ctx, `SELECT requests FROM assistant_global_usage WHERE day=(now() AT TIME ZONE 'UTC')::date`).Scan(&globalRequests)
+	if globalRequests != 1 {
+		t.Fatal("failed user reservation charged global quota")
+	}
+	if _, err := pool.Exec(ctx, `UPDATE assistant_daily_usage SET requests=30,last_request_at=now()-interval '10 seconds' WHERE user_id=$1`, userIDs[0]); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReserveAssistantAttempt(ctx, userIDs[0]); !errors.Is(err, store.ErrAssistantLimit) {
+		t.Fatal("user daily cap not enforced")
+	}
+	if _, err := pool.Exec(ctx, `UPDATE assistant_global_usage SET requests=200 WHERE day=(now() AT TIME ZONE 'UTC')::date`); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReserveAssistantAttempt(ctx, userIDs[1]); !errors.Is(err, store.ErrAssistantLimit) {
+		t.Fatal("global daily cap not enforced")
+	}
 }

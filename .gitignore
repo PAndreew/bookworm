@@ -8,3 +8,8 @@ corp-ca*.crt
 .env
 .env.*
 !.env.example
+# Runtime/encrypted credentials must remain outside source control.
+*.cred
+*.cred.*
+/secrets/
+/.credentials/

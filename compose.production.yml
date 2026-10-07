@@ -23,6 +23,9 @@ services:
       BW_ENV: production
       BW_ALLOW_ORIGINS: https://${BOOKWORM_HOST:-potpuri.cc}
       BW_TOTP_KEY: ${BW_TOTP_KEY:?required}
+      BW_OPENROUTER_KEY_FILE: /run/secrets/openrouter_api_key
+      BW_OPENROUTER_MODEL: google/gemini-3.8-flash
+    secrets: [openrouter_api_key]
     networks: [internal]
     depends_on:
       db:
@@ -35,6 +38,9 @@ services:
       proxy:
         aliases: [bookworm-web]
     depends_on: [api]
+secrets:
+  openrouter_api_key:
+    file: ${OPENROUTER_SECRET_FILE:-/run/potpuri-reader-secrets/openrouter_api_key}
 volumes:
   pgdata:
 networks:

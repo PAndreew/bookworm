@@ -157,6 +157,9 @@ export const api = {
       `/books/${slug}/pages?from=${from}&limit=${limit}`,
     ),
 
+  assistant: (data: { mode: 'explain' | 'translate'; phrase: string; language: string; consent: boolean }, signal?: AbortSignal) =>
+    request<{ answer: string; model: string }>('/assistant', { method: 'POST', body: JSON.stringify(data), signal }),
+
   // ------------------------------------------------------------- reading
   recordRead: (page_id: string) => post<ReadResult>('/reads', { page_id }),
 
