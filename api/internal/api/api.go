@@ -50,6 +50,7 @@ func (s *Server) Routes() http.Handler {
 			r.Use(readLimit.Middleware)
 			r.Use(s.optionalAuth) // likes show "liked_by_me" when signed in
 			r.Get("/books", s.handleListBooks)
+			r.Get("/genres", s.handleGenres)
 			r.Get("/books/{slug}", s.handleGetBook)
 			r.Get("/books/{slug}/pages", s.handleGetPages)
 			r.Get("/quotes/{slug}", s.handleGetQuote)

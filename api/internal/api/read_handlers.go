@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 
@@ -20,15 +21,37 @@ func (s *Server) handleListBooks(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "bad_filter", "Unknown licence filter.")
 		return
 	}
-	limit := httpx.QueryInt(r, "limit", 50, 1, 100)
+	search := strings.TrimSpace(r.URL.Query().Get("q"))
+	genre := r.URL.Query().Get("genre")
+	if utf8.RuneCountInString(search) > 200 || len(genre) > 64 {
+		httpx.Error(w, http.StatusBadRequest, "bad_filter", "Search or genre is too long.")
+		return
+	}
+	limit := httpx.QueryInt(r, "limit", 24, 1, 100)
 	offset := httpx.QueryInt(r, "offset", 0, 0, 100000)
 
-	books, err := s.store.ListBooks(r.Context(), license, limit, offset)
+	// One extra metadata row determines whether another page exists.
+	books, err := s.store.ListBooks(r.Context(), license, search, genre, limit+1, offset)
 	if err != nil {
 		httpx.InternalError(w, r, "handleListBooks", err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"books": books})
+	var nextOffset *int
+	if len(books) > limit {
+		next := offset + limit
+		nextOffset = &next
+		books = books[:limit]
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"books": books, "next_offset": nextOffset})
+}
+
+func (s *Server) handleGenres(w http.ResponseWriter, r *http.Request) {
+	genres, err := s.store.Genres(r.Context())
+	if err != nil {
+		httpx.InternalError(w, r, "handleGenres", err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"genres": genres})
 }
 
 func (s *Server) handleGetBook(w http.ResponseWriter, r *http.Request) {

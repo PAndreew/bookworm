@@ -10,18 +10,25 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// ListBooks returns published books, optionally filtered by licence.
-func (s *Store) ListBooks(ctx context.Context, license string, limit, offset int) ([]Book, error) {
+// ListBooks fetches one bounded metadata page, never book text.
+func (s *Store) ListBooks(ctx context.Context, license, search, genre string, limit, offset int) ([]Book, error) {
 	const q = `
 		SELECT b.id, b.slug, b.title, b.author, b.description, b.cover_url,
 		       b.language, b.license, e.id, e.page_count, e.word_count, b.genres
 		FROM books b
 		JOIN book_editions e ON e.book_id = b.id AND e.state = 'published'
 		WHERE ($1 = '' OR b.license = $1::license_kind)
+		  AND ($2 = '' OR lower(b.title || ' ' || b.author) LIKE $2 ESCAPE '\')
+		  AND ($3 = '' OR b.genres @> ARRAY[$3]::text[])
 		ORDER BY b.title, b.id
-		LIMIT $2 OFFSET $3`
+		LIMIT $4 OFFSET $5`
 
-	rows, err := s.pool.Query(ctx, q, license, limit, offset)
+	pattern := ""
+	if search != "" {
+		// Search input is literal text, not user-supplied SQL LIKE wildcards.
+		pattern = "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(strings.ToLower(search)) + "%"
+	}
+	rows, err := s.pool.Query(ctx, q, license, pattern, genre, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -38,6 +45,26 @@ func (s *Store) ListBooks(ctx context.Context, license string, limit, offset int
 		books = append(books, b)
 	}
 	return books, rows.Err()
+}
+
+// Genres is a small independent metadata list, loaded once by the shelf.
+func (s *Store) Genres(ctx context.Context) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `SELECT DISTINCT unnest(b.genres) AS genre
+	 FROM books b JOIN book_editions e ON e.book_id=b.id AND e.state='published'
+	 ORDER BY genre`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	genres := []string{}
+	for rows.Next() {
+		var genre string
+		if err := rows.Scan(&genre); err != nil {
+			return nil, err
+		}
+		genres = append(genres, genre)
+	}
+	return genres, rows.Err()
 }
 
 func (s *Store) BookBySlug(ctx context.Context, slug string) (*Book, error) {

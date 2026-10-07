@@ -9,8 +9,17 @@
 - `GET /v1/me/ratings` returns the signed-in user's slug-to-stars map.
 - `PUT /v1/books/{slug}/rating` accepts `{"stars": 1}` through `{"stars": 5}`.
   Authentication is mandatory; invalid stars return 400, unknown books 404.
-- Public book responses include `genres`. The frontend loads every catalogue
-  page (100 books per request), not just the original first 50.
+- Public book responses include `genres`, never book text. The shelf requests
+  24 metadata records at a time, followed by explicit **Load more books**.
+- `GET /v1/books` accepts `q`, `genre`, `license`, `limit` (maximum 100) and
+  `offset`. Responses include a nullable `next_offset`. Search is literal,
+  case-insensitive title/author substring matching; filters run in PostgreSQL.
+- `GET /v1/genres` returns the independent full genre list, loaded once.
+- Migration 0004 adds stable title/ID ordering, trigram title/author search,
+  and GIN genre-array indexes. At small catalogue sizes PostgreSQL may choose
+  a cheaper sequential scan. No catalogue query touches page content.
+- Search is debounced; obsolete filter requests are cancelled and stale results
+  ignored. Reader text remains separately fetched in bounded page windows.
 
 Ratings are personal, not community averages. They are never included in public
 book responses or cached by the service worker. The shelf supports rating,
@@ -50,6 +59,6 @@ readers must check copyright law in their own jurisdiction. Source references
   Tests cover migrations, database limits, all five rating values, updates,
   authentication, user isolation, invalid requests, and immutable page anchors.
 - Chromium checks at 390px/1280px verify font/layout, hashtags, all catalogue
-  pages, filters, and ratings surviving reload and logout/login.
+  pagination, server-side filters, and ratings surviving reload and logout/login.
 
 A full production SQL backup was taken under `/opt/backups/` before migrations.

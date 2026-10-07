@@ -106,6 +106,59 @@ func TestRatingsAndGenres(t *testing.T) {
 		}
 		return rec.Body.Bytes()
 	}
+	otherBook := ingest.Book{Slug: "catalogue-test-" + suffix, Title: "Zebra Index % _", Author: "Another Author", Language: "en", License: "public_domain", Genres: []string{"science-fiction"}, Pages: chunk.Split("Another immutable book.")}
+	if _, err := ing.Publish(ctx, otherBook); err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Exec(ctx, `DELETE FROM books WHERE slug=$1`, otherBook.Slug)
+	type catalogResponse struct {
+		Books      []store.Book `json:"books"`
+		NextOffset *int         `json:"next_offset"`
+	}
+	var first catalogResponse
+	body := call("GET", "/v1/books?limit=1", "", "", 200)
+	if strings.Contains(string(body), `"content"`) || strings.Contains(string(body), `"pages"`) {
+		t.Fatal("catalogue returned full book text")
+	}
+	if err := json.Unmarshal(body, &first); err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Books) != 1 || first.NextOffset == nil || *first.NextOffset != 1 {
+		t.Fatal("first page is not bounded")
+	}
+	var second catalogResponse
+	json.Unmarshal(call("GET", "/v1/books?limit=1&offset=1", "", "", 200), &second)
+	if len(second.Books) != 1 || second.NextOffset != nil || second.Books[0].ID == first.Books[0].ID {
+		t.Fatal("pagination skipped or repeated a book")
+	}
+	for _, query := range []string{"q=INDEX", "q=%25", "q=_", "genre=science-fiction", "q=another&genre=science-fiction"} {
+		var filtered catalogResponse
+		json.Unmarshal(call("GET", "/v1/books?"+query, "", "", 200), &filtered)
+		if len(filtered.Books) != 1 || filtered.Books[0].Slug != otherBook.Slug {
+			t.Fatalf("server filter failed: %s", query)
+		}
+	}
+	for _, query := range []string{"q=missing", "q=Index&genre=fantasy", "license=licensed"} {
+		var empty catalogResponse
+		json.Unmarshal(call("GET", "/v1/books?"+query, "", "", 200), &empty)
+		if len(empty.Books) != 0 || empty.NextOffset != nil {
+			t.Fatalf("expected empty: %s", query)
+		}
+	}
+	call("GET", "/v1/books?license=invalid", "", "", 400)
+	call("GET", "/v1/books?q="+strings.Repeat("a", 201), "", "", 400)
+	var genreResponse struct {
+		Genres []string `json:"genres"`
+	}
+	json.Unmarshal(call("GET", "/v1/genres", "", "", 200), &genreResponse)
+	if len(genreResponse.Genres) != 3 {
+		t.Fatal("genre list depends on catalogue page")
+	}
+	var indexes int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM pg_indexes WHERE indexname IN ('books_title_id','books_search_trgm','books_genres_gin')`).Scan(&indexes); err != nil || indexes != 3 {
+		t.Fatalf("missing search indexes: %v", err)
+	}
+
 	endpoint := "/v1/books/" + book.Slug + "/rating"
 	call("PUT", endpoint, `{"stars":3}`, "", 401)
 	for _, body := range []string{`{"stars":0}`, `{"stars":6}`, `{"stars":1.5}`, `{"stars":"5"}`, `{}`} {

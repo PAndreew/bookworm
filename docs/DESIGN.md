@@ -9,9 +9,14 @@ The reader borrows Datamat's design language, not its decorative effects:
 - 12px card corners, subtle borders/shadows, generous card padding and grid gaps.
 - Book titles begin at the top, genre hashtags follow the metadata, personal
   1–5-star controls sit below, and locked Plus links sit at the bottom right.
-- Search and genre/access filters support the expanded catalogue.
+- Server-side search and genre/access filters support the expanded catalogue;
+  explicit loading adds 24 metadata-only cards at a time.
 - Centered landing page with a small wordmark below the rose logo; everywhere
   else the wordmark sits beside the rose.
+- “Reading tailored to our times. Read awesome/classic/serious books as a social
+  feed.” The adjective gently fades between words without changing its width.
+  Reduced-motion preference disables rotation; screen readers receive static copy.
+- An “or” separates the two landing actions.
 - Individual benefit words accented in blue (free), purple (streak), and green (Highlight).
 - No gradient backgrounds or gradient text. Reading interactions remain unchanged.
 

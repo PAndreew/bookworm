@@ -1,16 +1,18 @@
 ---
 import Base from '../layouts/Base.astro';
 import ResumeReading from '../components/ResumeReading.svelte';
+import RotatingTagline from '../components/RotatingTagline.svelte';
 ---
 
 <Base title="Potpuri — read like a feed" bare>
   <main>
     <section class="hero">
       <h1 class="brand-heading"><img src="/rose.svg" alt="" width="48" height="48" /><span class="brand-text">Potpuri</span></h1>
-      <p class="tag">Books, one page at a time.<br />Like a feed, except it's literature.</p>
+      <RotatingTagline client:load />
 
       <div class="cta-row">
         <a class="primary" href="/signup">Start reading</a>
+        <span class="or">or</span>
         <a class="secondary" href="/app">Browse the shelf</a>
       </div>
 
@@ -44,8 +46,9 @@ import ResumeReading from '../components/ResumeReading.svelte';
   }
   .hero { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
   h1 { flex-direction: column; justify-content: center; gap: 12px; margin: 0 0 24px; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
-  .tag { margin: 0 0 32px; font-size: 1.15rem; color: var(--text-dim); line-height: 1.7; }
-  .cta-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+  .cta-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .or { color: var(--text-faint); font-size: 0.85rem; }
+  @media (max-width: 560px) { .cta-row { flex-direction: column; gap: 10px; } }
   .primary, .secondary { padding: 14px 28px; border-radius: var(--radius-pill); font-weight: 600; transition: background 0.2s, border-color 0.2s; }
   .primary { background: var(--accent); color: #fff; }
   .primary:hover { background: var(--accent-hover); }

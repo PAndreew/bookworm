@@ -17,10 +17,17 @@
   let message = $state('');
   let catalogError = $state('');
 
+  let genres = $state<string[]>([]);
+  let ready = $state(false);
+  let retry = $state(0);
+  let nextOffset = $state<number | null>(null);
+  let loadingMore = $state(false);
+  let revision = 0;
+
   onMount(async () => {
-    const [booksRes, meRes] = await Promise.allSettled([api.books(), api.me()]);
-    if (booksRes.status === 'fulfilled') books = booksRes.value.books;
-    else catalogError = 'The shelf could not load. Please refresh to try again.';
+    ready = true;
+    const [genresRes, meRes] = await Promise.allSettled([api.genres(), api.me()]);
+    if (genresRes.status === 'fulfilled') genres = genresRes.value.genres;
     if (meRes.status === 'fulfilled') {
       signedIn = true;
       tier = meRes.value.user.tier;
@@ -29,15 +36,52 @@
       if (ratingsRes.status === 'fulfilled') ratings = ratingsRes.value.ratings;
       else message = 'Your ratings could not load. Please refresh before rating.';
     }
-    loading = false;
   });
 
-  const genres = $derived([...new Set(books.flatMap(b => b.genres))].sort());
-  const shown = $derived(books.filter(b =>
-    (filter === 'all' || b.license === filter) &&
-    (!genre || b.genres.includes(genre)) &&
-    `${b.title} ${b.author}`.toLowerCase().includes(search.toLowerCase())
-  ));
+  function query() {
+    return { license: filter === 'all' ? undefined : filter, genre, q: search.trim() };
+  }
+
+  $effect(() => {
+    if (!ready) return;
+    const options = query();
+    void retry;
+    const id = ++revision;
+    const controller = new AbortController();
+    loading = true;
+    loadingMore = false;
+    catalogError = '';
+    nextOffset = null;
+    const timer = setTimeout(async () => {
+      try {
+        const result = await api.books(options, controller.signal);
+        if (id !== revision) return;
+        books = result.books;
+        nextOffset = result.next_offset;
+      } catch {
+        if (id === revision && !controller.signal.aborted) catalogError = 'The shelf could not load. Please try again.';
+      } finally {
+        if (id === revision && !controller.signal.aborted) loading = false;
+      }
+    }, options.q ? 250 : 0);
+    return () => { clearTimeout(timer); controller.abort(); };
+  });
+
+  async function loadMore() {
+    if (loadingMore || nextOffset === null) return;
+    const id = revision;
+    loadingMore = true;
+    try {
+      const result = await api.books({ ...query(), offset: nextOffset });
+      if (id !== revision) return;
+      books = [...books, ...result.books];
+      nextOffset = result.next_offset;
+    } catch {
+      if (id === revision) message = 'More books could not load. Please try again.';
+    } finally {
+      if (id === revision) loadingMore = false;
+    }
+  }
   const locked = (b: Book) => b.license === 'licensed' && tier === 'free';
 
   /** Pseudo-random, stable, high-contrast pastels. */
@@ -86,7 +130,7 @@
     <button class:on={filter === 'licensed'} aria-pressed={filter === 'licensed'} onclick={() => (filter = 'licensed')}>Plus</button>
   </div>
   <div class="discovery">
-    <input type="search" aria-label="Search books or authors" placeholder="Find a book or author" bind:value={search} />
+    <input type="search" aria-label="Search books or authors" placeholder="Find a book or author" maxlength="200" bind:value={search} />
     <select aria-label="Filter by genre" bind:value={genre}>
       <option value="">All genres</option>
       {#each genres as name}<option value={name}>#{name}</option>{/each}
@@ -98,11 +142,12 @@
     <div class="grid">{#each Array(4) as _}<div class="skeleton"></div>{/each}</div>
   {:else if catalogError}
     <p class="empty" role="alert">{catalogError}</p>
-  {:else if shown.length === 0}
+    <button class="load-more" onclick={() => retry++}>Try again</button>
+  {:else if books.length === 0}
     <p class="empty">No books match. Try another genre or search.</p>
   {:else}
     <div class="grid">
-      {#each shown as book (book.id)}
+      {#each books as book (book.id)}
         <article class="card" style="background:{cover(book.slug)}">
           <a class="book-link" href={`/read/${book.slug}`}>
             <h2 class="t">{book.title}</h2>
@@ -127,6 +172,9 @@
         </article>
       {/each}
     </div>
+    {#if nextOffset !== null}
+      <button class="load-more" disabled={loadingMore} onclick={loadMore}>{loadingMore ? 'Loading…' : 'Load more books'}</button>
+    {/if}
   {/if}
 </div>
 
@@ -164,5 +212,7 @@
   .lock { display: flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: var(--radius-pill); background: var(--bg); font-size: 0.66rem; color: var(--accent); font-weight: 600; }
   .skeleton { min-height: 270px; border-radius: var(--radius); background: var(--bg-card); animation: pulse 1.4s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: 0.5; } }
+  .load-more { display: block; margin: 24px auto 0; padding: 12px 24px; border: 1px solid var(--border-bright); border-radius: var(--radius-pill); background: var(--bg); color: var(--text); }
+  .load-more:disabled { opacity: 0.6; cursor: wait; }
   .empty { color: var(--text-faint); text-align: center; padding: 40px 0; }
 </style>

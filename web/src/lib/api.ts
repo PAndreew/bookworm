@@ -134,16 +134,15 @@ export const api = {
     request<{ user: User }>('/me', { method: 'PATCH', body: JSON.stringify(data) }),
 
   // ------------------------------------------------------------- catalog
-  books: async (license?: string) => {
-    const books: Book[] = [];
-    for (let offset = 0; ; offset += 100) {
-      const query = new URLSearchParams({ limit: '100', offset: String(offset) });
-      if (license) query.set('license', license);
-      const batch = await request<{ books: Book[] }>(`/books?${query}`);
-      books.push(...batch.books);
-      if (batch.books.length < 100) return { books };
-    }
+  books: (options: { license?: string; q?: string; genre?: string; offset?: number } = {}, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ limit: '24', offset: String(options.offset ?? 0) });
+    if (options.license) query.set('license', options.license);
+    if (options.q) query.set('q', options.q);
+    if (options.genre) query.set('genre', options.genre);
+    return request<{ books: Book[]; next_offset: number | null }>(`/books?${query}`, { signal });
   },
+
+  genres: () => request<{ genres: string[] }>('/genres'),
 
   ratings: () => request<{ ratings: Record<string, number> }>('/me/ratings'),
   rateBook: (slug: string, stars: number) =>
