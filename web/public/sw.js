@@ -1,4 +1,4 @@
-// Bookworm service worker.
+// Potpuri service worker.
 //
 // Deliberately conservative about what it caches:
 //   - the app shell and static assets: cache-first, so the PWA opens offline;
@@ -11,7 +11,7 @@
 // object to. The API marks what is safe to keep with `Cache-Control: public` on
 // public-domain responses; we do not guess.
 
-const VERSION = 'bw-v1';
+const VERSION = 'potpuri-reader-v2';
 const SHELL = `${VERSION}-shell`;
 const BOOKS = `${VERSION}-books`;
 

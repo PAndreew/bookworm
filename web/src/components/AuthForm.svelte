@@ -75,7 +75,7 @@
 
 <div class="shell">
   <div class="card">
-    <h1><span class="brand-text">Bookworm</span></h1>
+    <h1 class="brand-heading"><img src="/rose.svg" alt="" width="40" height="40" /><span class="brand-text">Potpuri</span></h1>
 
     {#if needs2FA}
       <p class="sub">Enter the code from your authenticator app.</p>
@@ -121,7 +121,7 @@
             <span>Date of birth</span>
             <input bind:value={birthdate} type="date" max={maxBirthdate} required />
           </label>
-          <p class="hint">Bookworm is for ages 13 and over.</p>
+          <p class="hint">Potpuri is for ages 13 and over.</p>
         {/if}
 
         <input

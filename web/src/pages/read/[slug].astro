@@ -28,6 +28,6 @@ const { slug } = Astro.params;
 const { title, author, description } = Astro.props;
 ---
 
-<Base title={`${title} — Bookworm`} description={description} bare>
+<Base title={`${title} — Potpuri`} description={description} bare>
   <Reader slug={slug!} title={title} author={author} client:load />
 </Base>

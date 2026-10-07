@@ -1,6 +1,6 @@
 {
-  "name": "Bookworm",
-  "short_name": "Bookworm",
+  "name": "Potpuri",
+  "short_name": "Potpuri",
   "description": "Read books like a feed. Keep a streak. Share the lines worth keeping.",
   "start_url": "/app",
   "scope": "/",

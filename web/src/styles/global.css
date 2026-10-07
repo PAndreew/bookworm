@@ -1,4 +1,4 @@
-/* Bookworm design tokens.
+/* Potpuri reader design tokens.
  *
  * Black, orange, purple. The gradients are gentle on purpose: this is a reading
  * app, and a loud background competes with the text it is meant to carry.
@@ -116,6 +116,13 @@ button {
     scroll-behavior: auto !important;
   }
 }
+
+.brand-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-heading img { flex-shrink: 0; }
 
 .brand-text {
   background: var(--grad-brand);

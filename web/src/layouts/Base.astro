@@ -9,7 +9,7 @@ interface Props {
 }
 
 const {
-  title = 'Bookworm',
+  title = 'Potpuri',
   description = 'Read books like a feed. Keep a streak. Share the lines worth keeping.',
   bare = false,
 } = Astro.props;
@@ -29,6 +29,7 @@ const path = Astro.url.pathname;
     <meta name="description" content={description} />
 
     <meta name="theme-color" content="#0a0a0c" />
+    <link rel="icon" href="/rose.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
