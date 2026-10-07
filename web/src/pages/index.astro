@@ -20,9 +20,9 @@ import ReadingCompanion from '../components/ReadingCompanion.svelte';
       <ResumeReading client:load />
 
       <ul class="points">
-        <li>Every public-domain book, <strong>free</strong>. No limit, no trial, no card.</li>
-        <li>Keep a <strong class="streak-word">streak</strong>. Three pages a day. Your friends can see it.</li>
-        <li>Keep the lines worth keeping. <strong class="highlight-word">Highlight</strong>, and share as a quote.</li>
+        <li>Every public-domain book, <strong>free</strong>. No limit, no trial, no card.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></li>
+        <li>Keep a <strong class="streak-word">streak</strong>. Three text cards a day. Your friends can see it.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></li>
+        <li>Keep the lines worth keeping. <strong class="highlight-word">Highlight</strong>, and share as a quote.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></li>
       </ul>
     </section>
 
@@ -58,6 +58,7 @@ import ReadingCompanion from '../components/ReadingCompanion.svelte';
   .secondary:hover { background: var(--bg-card); border-color: var(--accent); }
   .points { list-style: none; padding: 0; margin: 44px 0 0; display: flex; flex-direction: column; gap: 18px; max-width: 540px; }
   .points li { font-size: 0.95rem; color: var(--text-dim); line-height: 1.7; }
+  .sunny-anchor { display: inline-block; width: 36px; height: 32px; vertical-align: middle; }
   .points strong { color: var(--accent); font-weight: 600; }
   .points .streak-word { color: #7e22ce; }
   .points .highlight-word { color: #15803d; }

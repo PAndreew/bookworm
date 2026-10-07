@@ -18,6 +18,10 @@ func (s *Server) handleAssistant(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
 	defer cancel()
 	r = r.WithContext(ctx)
+	if currentUser(r).Tier == store.TierFree {
+		httpx.Error(w, http.StatusPaymentRequired, "upgrade_required", "Sunny's AI explanations and translations are included with Plus and Pro.")
+		return
+	}
 	var req assistant.Request
 	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
 	if err := httpx.DecodeJSON(w, r, &req); err != nil {

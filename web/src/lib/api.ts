@@ -27,11 +27,16 @@ export interface Book {
   license: 'public_domain' | 'licensed';
   edition_id: string;
   page_count: number;
+  card_count: number;
   word_count: number;
   genres: string[];
 }
 
 export interface Page {
+  card_id?: string;
+  kind?: 'text' | 'title' | 'chapter';
+  source_idx?: number;
+  start_off?: number;
   id: string;
   idx: number;
   chapter_title: string | null;
@@ -125,8 +130,8 @@ export const api = {
   me: () =>
     request<{
       user: User;
-      last_read: { slug: string; title: string; page_idx: number } | null;
-      quota: { limit: number; used: number; resets_at: string };
+      last_read: { slug: string; title: string; page_idx: number; card_idx: number | null } | null;
+      quota: { limit: number; used: number; resets_at: string; period: 'day' | 'month' };
       streak: { current: number; longest: number; at_risk: boolean };
     }>('/me'),
 
@@ -161,6 +166,9 @@ export const api = {
     request<{ answer: string; model: string }>('/assistant', { method: 'POST', body: JSON.stringify(data), signal }),
 
   // ------------------------------------------------------------- reading
+  cards: (slug: string, from = 0, limit = 12, sourceFrom = 0) =>
+    request<{ pages: Page[]; page_count: number }>(`/books/${encodeURIComponent(slug)}/cards?card_from=${from}&source_from=${sourceFrom}&limit=${limit}`),
+  recordCardRead: (card_id: string) => post<ReadResult>('/card-reads', { card_id }),
   recordRead: (page_id: string) => post<ReadResult>('/reads', { page_id }),
 
   like: (pageId: string) => post<{ liked: boolean }>(`/pages/${pageId}/like`),

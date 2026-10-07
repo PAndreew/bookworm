@@ -2,8 +2,8 @@
 
 Books rendered as a social feed. Go API, Astro + Svelte PWA, Postgres.
 
-Every public-domain book is free and unmetered. Plus and Pro add a daily page
-allowance for licensed titles. Reading three pages a day keeps a streak; friends
+Every public-domain book is free and unmetered. Plus adds 30 licensed text cards/day; Pro adds 1,000/month. Both include Sunny AI.
+Reading three text cards a day keeps a streak; friends
 can see what you are reading if you let them; any passage can be highlighted and
 shared as a quote link.
 
@@ -108,16 +108,19 @@ docs/LEGAL.md             the honest version of the legal position
 
 ## The one design decision to understand
 
-**A page is immutable once published.** Pages are the UI card, the billing unit,
-and the anchor for every like and highlight. Re-chunking a book would orphan every
-annotation ever made on it.
+**A source page is immutable once published.** It anchors every existing like and
+highlight. The separate `reader_cards` presentation layer balances smaller screen
+cards without changing source text or losing annotations. Title/chapter cards are
+unmetered; only text cards count. See [docs/READER-CARDS.md](docs/READER-CARDS.md).
 
 So `chunk.Version` is pinned into each `book_editions` row. Changing the chunking
 algorithm means bumping that constant, which creates a *new* edition and leaves the
 old one serving its existing readers. Ingest is idempotent: re-running it with the
 same version touches metadata only, never pages.
 
-If you change `internal/chunk`, bump `chunk.Version`. The tests enforce determinism
+If you change the source `chunk.Split` algorithm, bump `chunk.Version`.
+Presentation-only `Cards`/`FitLines` changes use a separately versioned layout with
+bookmark/coverage preservation, not destructive source re-chunking. The tests enforce determinism
 but cannot catch a silent re-chunk.
 
 ## Tiers
@@ -125,13 +128,15 @@ but cannot catch a silent re-chunk.
 |                     | Free      | Plus      | Pro       |
 |---------------------|-----------|-----------|-----------|
 | Public-domain books | unlimited | unlimited | unlimited |
-| Licensed pages/day  | 0         | 30        | 150       |
+| Licensed text cards | 0         | 30/day    | 1,000/month |
+| Sunny AI            | no        | yes       | yes       |
 
-Allowances reset at midnight **in the user's own timezone**, and re-reading a page
-you already read today is free — the meter must not punish normal reading.
+Allowances reset **in the user's own timezone**: Plus daily, Pro on the first of
+each calendar month. Re-reading within the quota period is free; title/chapter
+cards never count toward allowance or streaks.
 
-Metering happens on `POST /v1/reads` when a page has held the screen for ~1.8s, not
-on fetch. Metering on fetch would bill people for prefetch and for swiping back.
+Metering happens on `POST /v1/card-reads` when a text card has held the screen for
+~1.8s, not on fetch. Metering on fetch would bill people for prefetch and for swiping back.
 
 ## Tests
 

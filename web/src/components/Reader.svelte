@@ -46,8 +46,10 @@
       }
       const requested = Number(new URLSearchParams(window.location.search).get('from') ?? 0);
       const from = Number.isSafeInteger(requested) && requested >= 0 ? requested : 0;
-      const res = await api.pages(slug, from, 12);
-      activeIdx = from;
+      const requestedCard = Number(new URLSearchParams(window.location.search).get('card') ?? -1);
+      const hasCard = Number.isSafeInteger(requestedCard) && requestedCard >= 0;
+      const res = await api.cards(slug, hasCard ? requestedCard : 0, 12, hasCard ? 0 : from);
+      activeIdx = res.pages[0]?.idx ?? 0;
       pages = res.pages;
       pageCount = res.page_count;
     } catch (e) {
@@ -78,12 +80,12 @@
       (entries) => {
         for (const entry of entries) {
           const el = entry.target as HTMLElement;
-          const id = el.dataset.pageId!;
+          const id = el.dataset.cardId!;
           const idx = Number(el.dataset.idx);
 
           if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
             activeIdx = idx;
-            if (!recorded.has(id) && !dwellTimers.has(id)) {
+            if (el.dataset.kind === 'text' && !recorded.has(id) && !dwellTimers.has(id)) {
               dwellTimers.set(id, window.setTimeout(() => markRead(id), DWELL_MS));
             }
             // Prefetch before the reader reaches the end of the window.
@@ -100,7 +102,7 @@
       { threshold: [0.6] },
     );
 
-    container.querySelectorAll('[data-page-id]').forEach((el) => observer!.observe(el));
+    container.querySelectorAll('[data-card-id]').forEach((el) => observer!.observe(el));
   });
 
   let loadingMore = false;
@@ -109,7 +111,7 @@
     if (loadingMore || next >= pageCount) return;
     loadingMore = true;
     try {
-      const res = await api.pages(slug, next, 10);
+      const res = await api.cards(slug, next, 10);
       pages = [...pages, ...res.pages];
     } catch {
       // Silent: the reader still has pages in hand, and a failed prefetch
@@ -125,7 +127,7 @@
     recorded.add(pageId);
 
     try {
-      const res = await api.recordRead(pageId);
+      const res = await api.recordCardRead(pageId);
       if (res.streak_extended) {
         streak = res.streak_days;
         streakPulse = true;
@@ -142,15 +144,16 @@
   async function toggleLike(page: Page) {
     // Optimistic: the heart must answer instantly, or it feels broken.
     const wasLiked = page.liked_by_me;
-    page.liked_by_me = !wasLiked;
-    page.like_count += wasLiked ? -1 : 1;
+    const siblings = pages.filter(p => p.id === page.id);
+    const before = siblings.map(p => ({ p, liked: p.liked_by_me, count: p.like_count }));
+    const nextCount = Math.max(0, page.like_count + (wasLiked ? -1 : 1));
+    for (const p of siblings) { p.liked_by_me = !wasLiked; p.like_count = nextCount; }
     pages = pages;
 
     try {
       wasLiked ? await api.unlike(page.id) : await api.like(page.id);
     } catch {
-      page.liked_by_me = wasLiked;
-      page.like_count += wasLiked ? 1 : -1;
+      for (const saved of before) { saved.p.liked_by_me = saved.liked; saved.p.like_count = saved.count; }
       pages = pages;
       showToast('Could not save that like.');
     }
@@ -171,9 +174,9 @@
     pre.selectNodeContents(body);
     pre.setEnd(range.startContainer, range.startOffset);
 
-    const start = pre.toString().length;
+    const start = Array.from(pre.toString()).length;
     const text = range.toString();
-    return { start, end: start + text.length, text };
+    return { start, end: start + Array.from(text).length, text };
   }
 
   async function highlight(page: Page, pageEl: HTMLElement, share: boolean) {
@@ -186,8 +189,8 @@
     try {
       const res = await api.createHighlight({
         page_id: page.id,
-        start_off: sel.start,
-        end_off: sel.end,
+        start_off: (page.start_off ?? 0) + sel.start,
+        end_off: (page.start_off ?? 0) + sel.end,
         quote: sel.text,
         share,
       });
@@ -279,13 +282,10 @@
     </div>
   {:else}
     <div class="feed" bind:this={container}>
-      {#each pages as page (page.id)}
-        <article class="page" data-page-id={page.id} data-idx={page.idx}>
-          {#if page.chapter_title}
-            <div class="chapter">{page.chapter_title}</div>
-          {/if}
-
-          <div class="body" data-body>{page.content}</div>
+      {#each pages as page (page.card_id)}
+        <article class="page" data-page-id={page.id} data-card-id={page.card_id} data-kind={page.kind} data-idx={page.idx}>
+          {#if page.kind === 'text'}
+          <div class="body" data-body>{page.content}<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></div>
 
           <div class="actions">
             <button
@@ -314,7 +314,13 @@
               <Share2 size={24} />
             </button>
           </div>
-
+          {:else}
+            <div class="heading-card" class:book-title={page.kind === 'title'}>
+              <p class="heading-label">{page.kind === 'title' ? 'Your next read' : 'Chapter'}</p>
+              <h2>{page.content}<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></h2>
+              <p class="heading-note">This card doesn’t count toward your allowance.</p>
+            </div>
+          {/if}
           <div class="page-num">{page.idx + 1} / {pageCount}</div>
         </article>
       {/each}
@@ -324,16 +330,16 @@
   {#if blocked}
     <div class="paywall" role="alertdialog" aria-labelledby="pw-title">
       <div class="paywall-card">
-        <h2 id="pw-title">That is today's reading</h2>
+        <h2 id="pw-title">Your licensed reading allowance</h2>
         <p>{blocked.message}</p>
         {#if blocked.resetsAt}
           <p class="dim">
-            Your pages come back at
-            {new Date(blocked.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
+            Your licensed cards reset on
+            {new Date(blocked.resetsAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}.
           </p>
         {/if}
         <a class="cta" href="/app/upgrade">See Plus and Pro</a>
-        <button class="ghost" onclick={() => (blocked = null)}>Keep browsing</button>
+        <a class="ghost" href="/app">Browse free books</a>
       </div>
     </div>
   {/if}
@@ -344,7 +350,7 @@
 
   {#if toast}<div class="toast">{toast}</div>{/if}
 </div>
-<ReadingCompanion {progress} positionLabel={pageCount ? `Page ${activeIdx + 1} of ${pageCount}` : 'Opening your book'} />
+<ReadingCompanion {progress} cardIndex={activeIdx} positionLabel={pageCount ? `Card ${activeIdx + 1} of ${pageCount}` : 'Opening your book'} />
 
 <style>
   .reader {
@@ -449,22 +455,26 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    /* The right padding clears the action rail: text must never run under the
-     * like and share buttons. */
-    padding: 28px 78px 92px 22px;
+    padding: 18px 22px 90px;
     background: var(--bg);
   }
 
-  /* On a wide screen the rail sits beside the column rather than over it. */
+  /* Full-width text above a horizontal bottom action bar. */
   @media (min-width: 680px) {
     .page {
-      padding: 40px 96px 92px 40px;
+      padding: 28px 40px 90px;
     }
     .body {
       max-width: 34em;
       margin: 0 auto;
     }
   }
+
+  .heading-card { width: 100%; max-width: 38rem; margin: auto; text-align: center; }
+  .heading-card h2 { overflow-wrap: anywhere; white-space: pre-line; font-size: clamp(1.3rem, 4vw, 2rem); line-height: 1.45; }
+  .heading-label { color: var(--accent); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; }
+  .heading-note { font-size: 0.75rem; color: var(--text-faint); margin-top: 24px; }
+  .sunny-anchor { display: inline-block; width: 36px; height: 32px; vertical-align: middle; }
 
   .chapter {
     font-size: 0.72rem;
@@ -477,9 +487,10 @@
 
   .body {
     font-family: var(--font-read);
-    font-size: calc(var(--reader-size) * var(--scale));
-    line-height: var(--reader-leading);
+    font-size: calc(clamp(16px, 2.7dvh, 18px) * var(--scale));
+    line-height: 1.55;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
     /* A long page at a large text size scrolls inside its own card rather than
      * being re-chunked: accessibility wins over a perfect single screen. */
     overflow-y: auto;
@@ -495,15 +506,16 @@
 
   .actions {
     position: absolute;
-    right: 14px;
-    bottom: 50%;
-    transform: translateY(50%);
+    left: 50%;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
     display: flex;
-    flex-direction: column;
-    gap: 18px;
+    flex-direction: row;
+    gap: 14px;
   }
 
   .action {
+    position: relative;
     display: grid;
     place-items: center;
     width: 48px;
@@ -531,8 +543,8 @@
 
   .page-num {
     position: absolute;
-    bottom: 60px;
-    left: 22px;
+    bottom: calc(74px + env(safe-area-inset-bottom));
+    left: 16px;
     font-size: 0.72rem;
     color: var(--text-faint);
   }

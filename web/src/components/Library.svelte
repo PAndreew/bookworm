@@ -152,7 +152,7 @@
           <a class="book-link" href={`/read/${book.slug}`}>
             <h2 class="t">{book.title}</h2>
             <div class="a">{book.author}</div>
-            <div class="p">{book.page_count} pages</div>
+            <div class="p">{book.card_count || book.page_count} cards</div>
             <div class="genres">{#each book.genres as tag}<span>#{tag}</span>{/each}</div>
           </a>
           <div class="rating" role="group" aria-label={`Your rating for ${book.title}`}>

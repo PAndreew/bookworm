@@ -2,9 +2,17 @@
   import { onMount, tick } from 'svelte';
   import { api, ApiError } from '../lib/api';
 
-  let { progress, positionLabel }: { progress?: number; positionLabel?: string } = $props();
+  let { progress, positionLabel, cardIndex }: { progress?: number; positionLabel?: string; cardIndex?: number } = $props();
   let documentProgress = $state(0);
-  let viewport = $state(390);
+  let x = $state(0);
+  let y = $state(0);
+  let visible = $state(false);
+  let remeasure = () => {};
+  $effect(() => {
+    progress; cardIndex;
+    const frame = requestAnimationFrame(() => remeasure());
+    return () => cancelAnimationFrame(frame);
+  });
   let reducedMotion = $state(false);
   let icon = $state<SVGSVGElement | null>(null);
   let dialog = $state<HTMLDialogElement | null>(null);
@@ -16,12 +24,11 @@
   let answer = $state('');
   let error = $state('');
   let busy = $state(false);
-  let auth = $state<'checking' | 'signed-in' | 'signed-out'>('checking');
+  let auth = $state<'checking' | 'signed-in' | 'signed-out' | 'upgrade'>('checking');
   let controller: AbortController | null = null;
   let lastHop = 0;
   let hop: Animation | null = null;
   const percent = $derived(Math.max(0, Math.min(100, progress ?? documentProgress)));
-  const left = $derived(16 + (Math.max(0, viewport - 84) * percent / 100));
 
   function jump() {
     if (reducedMotion || !icon || performance.now() - lastHop < 450) return;
@@ -41,14 +48,23 @@
     motion.addEventListener('change', updateMotion);
     let frame = 0;
     function update() {
-      viewport = window.innerWidth;
       const total = document.documentElement.scrollHeight - window.innerHeight;
       documentProgress = total > 0 ? (window.scrollY / total) * 100 : 0;
+      const markers = progress !== undefined
+        ? Array.from(document.querySelectorAll(`.feed [data-idx="${cardIndex ?? 0}"] [data-sunny-anchor]`))
+        : Array.from(document.querySelectorAll('main [data-sunny-anchor]'));
+      const rects = markers.filter(el => {
+        const box = el.closest('[data-body]')?.getBoundingClientRect();
+        const rect = el.getBoundingClientRect();
+        return !box || (rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1);
+      }).map(el => el.getBoundingClientRect()).filter(r => r.top >= 60 && r.bottom <= window.innerHeight - 12);
+      rects.sort((a, b) => Math.abs(a.top - window.innerHeight * 0.68) - Math.abs(b.top - window.innerHeight * 0.68));
+      visible = rects.length > 0;
+      if (visible) { x = rects[0].left + 2; y = rects[0].top; }
     }
-    function scroll() {
-      jump();
-      if (!frame) frame = requestAnimationFrame(() => { frame = 0; update(); });
-    }
+    remeasure = update;
+    function schedule() { if (!frame) frame = requestAnimationFrame(() => { frame = 0; update(); }); }
+    function scroll() { jump(); schedule(); }
     function selection() {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || !sel.rangeCount) return;
@@ -61,16 +77,22 @@
     update();
     const resize = new ResizeObserver(update);
     resize.observe(document.documentElement);
+    const mutations = new MutationObserver(schedule);
+    const surface = document.querySelector('.reader') ?? document.querySelector('main');
+    if (surface) mutations.observe(surface, { childList: true, subtree: true, attributes: true });
     window.addEventListener('scroll', scroll, { capture: true, passive: true });
     window.addEventListener('resize', update, { passive: true });
+    document.fonts.addEventListener('loadingdone', schedule);
     document.addEventListener('selectionchange', selection);
     return () => {
       cancelAnimationFrame(frame);
       hop?.cancel();
       controller?.abort();
       resize.disconnect();
+      mutations.disconnect();
       window.removeEventListener('scroll', scroll, true);
       window.removeEventListener('resize', update);
+      document.fonts.removeEventListener('loadingdone', schedule);
       document.removeEventListener('selectionchange', selection);
       motion.removeEventListener('change', updateMotion);
     };
@@ -82,7 +104,7 @@
     auth = 'checking';
     await tick();
     dialog?.showModal();
-    try { await api.me(); auth = 'signed-in'; }
+    try { const me = await api.me(); auth = me.user.tier === 'free' ? 'upgrade' : 'signed-in'; }
     catch { auth = 'signed-out'; }
   }
 
@@ -104,11 +126,10 @@
   }
 </script>
 
-<div class="journey" aria-hidden="true"><div style="width:{percent}%"></div></div>
-<button class="mascot" style="left:{left}px" onclick={open}
+<button class="mascot" style="left:{x}px;top:{y}px;visibility:{visible ? 'visible' : 'hidden'}" onclick={open}
   aria-label={`Ask Sunny, your reading companion. ${positionLabel ? positionLabel + '. ' : ''}${Math.round(percent)}% through ${progress === undefined ? 'this page' : 'this book'}.`}
   title={`Ask Sunny · ${positionLabel ?? Math.round(percent) + '% page progress'}`}>
-  <svg bind:this={icon} width="52" height="52" viewBox="0 0 64 64" aria-hidden="true">
+  <svg bind:this={icon} width="32" height="32" viewBox="0 0 64 64" aria-hidden="true">
     <circle cx="32" cy="32" r="30" fill="#facc15" />
     <ellipse cx="23" cy="26" rx="3.5" ry="6" fill="#111" />
     <ellipse cx="41" cy="26" rx="3.5" ry="6" fill="#111" />
@@ -120,7 +141,8 @@
   <header><h2 id="sunny-title">Ask Sunny</h2><button class="close" type="button" onclick={close} aria-label="Close reading companion">×</button></header>
   <p class="intro">Select a phrase, then tap Sunny—or paste one below.</p>
   {#if auth === 'checking'}<p role="status">Checking sign-in…</p>{/if}
-  {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> to explain or translate phrases.</p>{/if}
+  {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> with Plus or Pro to explain or translate phrases.</p>{/if}
+  {#if auth === 'upgrade'}<p class="sign-in">AI explanations and translations are a paid feature. <a href="/app/upgrade">See Plus and Pro</a>.</p>{/if}
   <form onsubmit={ask}>
     <label for="sunny-phrase">Phrase</label>
     <textarea id="sunny-phrase" bind:value={phrase} maxlength="1200" rows="3" required placeholder="For example: c’est la vie" />
@@ -133,13 +155,12 @@
   </form>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   <div class="answer" role="status" aria-live="polite">{answer}</div>
-  <p class="note">Gemini 3.8 Flash · AI can make mistakes. 30 requests per reader/day, with a shared daily limit. Requests—including failed attempts—count. Please don’t send sensitive information.</p>
+  <p class="note">Gemini 3.8 Flash · Plus and Pro only · AI can make mistakes. 30 requests per reader/day, with a shared daily limit. Requests—including failed attempts—count. Please don’t send sensitive information.</p>
 </dialog>
 
 <style>
-  .journey { position: fixed; left: 32px; right: 32px; bottom: calc(5px + env(safe-area-inset-bottom)); height: 2px; background: #fef9c3; pointer-events: none; z-index: 35; }
-  .journey div { height: 100%; background: #eab308; transition: width 300ms ease; }
-  .mascot { position: fixed; bottom: calc(9px + env(safe-area-inset-bottom)); width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; background: transparent; z-index: 36; transition: left 400ms ease; touch-action: manipulation; }
+  .mascot { position: fixed; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; z-index: 36; transition: top 280ms ease, left 180ms ease; touch-action: manipulation; }
+  .mascot::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
   .mascot svg { display: block; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.1)); }
   .mascot:hover svg { filter: drop-shadow(0 3px 5px rgba(0,0,0,0.18)); }
   dialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 24px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); overflow-y: auto; box-shadow: var(--shadow-lift); }
@@ -162,5 +183,5 @@
   .answer:empty { display: none; }
   .error { color: #be123c; font-size: 0.85rem; line-height: 1.5; }
   .note { font-size: 0.7rem; color: var(--text-faint); line-height: 1.6; margin-bottom: 0; }
-  @media (prefers-reduced-motion: reduce) { .mascot, .journey div { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .mascot { transition: none; } }
 </style>

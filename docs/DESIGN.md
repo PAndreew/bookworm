@@ -18,7 +18,16 @@ The reader borrows Datamat's design language, not its decorative effects:
   Reduced-motion preference disables rotation; screen readers receive static copy.
 - An “or” separates the two landing actions.
 - Individual benefit words accented in blue (free), purple (streak), and green (Highlight).
-- No gradient backgrounds or gradient text. Reading interactions remain unchanged.
+- No gradient backgrounds or gradient text.
+- Reader text spans the available width above horizontal bottom actions. Balanced
+  text cards fit common phone screens at default type size; separate title/chapter
+  cards are unmetered. Original annotations and positions retain their anchors.
+- Sunny is a small 32px yellow circle with black oval eyes and a semicircle smile,
+  sitting after the last text character and hopping vertically as cards/paragraphs
+  change. There is no horizontal mascot track. Reduced motion disables movement.
+- Sunny AI requires Plus/Pro, explicit consent, and server-side membership checks.
+  Pro includes 1,000 licensed text cards/calendar month; public books stay unlimited.
+  Detailed behavior and regression coverage: [READER-CARDS.md](READER-CARDS.md).
 
 Tokens live in `web/src/styles/global.css`. Existing `--orange`, `--purple`,
 and `--grad-*` component tokens are compatibility aliases for solid colors,

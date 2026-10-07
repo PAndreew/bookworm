@@ -1,90 +1,61 @@
-// Optional browser regression: install Playwright, then run against a served web build.
-// All API calls are mocked: this test needs no credentials and spends no AI credits.
+// No credentials/AI spend: mock every API against a served frontend build.
 const assert = require('node:assert/strict');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.TEST_BASE_URL || 'http://localhost:4321';
-
 (async () => {
-  const browser = await chromium.launch({
-    ...(process.env.PLAYWRIGHT_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE } : {}),
-    args: ['--no-sandbox'],
+ const browser = await chromium.launch({ ...(process.env.PLAYWRIGHT_EXECUTABLE ? {executablePath:process.env.PLAYWRIGHT_EXECUTABLE} : {}), args:['--no-sandbox'] });
+ for (const [width,height] of [[320,568],[390,600],[1280,720]]) {
+  const ctx=await browser.newContext({viewport:{width,height},serviceWorkers:'block'});
+  const page=await ctx.newPage();const errors=[];const ai=[];const reads=[];const marks=[];
+  let tier='free';page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/v1/**',async route=>{
+   const request=route.request(),url=new URL(request.url());let body={};
+   if(url.pathname==='/v1/me')body={user:{tier},last_read:null};
+   else if(url.pathname.endsWith('/cards')){
+    const from=Number(url.searchParams.get('card_from')||url.searchParams.get('source_from')||0);
+    const prose=('Bonjour, mon ami. '+ 'This is a balanced sentence with familiar words. '.repeat(7)).slice(0,360);
+    body={page_count:1536,pages:Array.from({length:12},(_,i)=>({card_id:`card-${from+i}`,id:`source-${Math.floor((from+i)/3)}`,idx:from+i,source_idx:Math.floor((from+i)/3),start_off:50,kind:from+i===0?'title':from+i===1?'chapter':'text',content:from+i===0?'Test Book\nTest Author':from+i===1?'CHAPTER 1.':prose,char_count:360,like_count:0,liked_by_me:false}))};
+   }else if(url.pathname==='/v1/assistant'){ai.push(request.postDataJSON());body={answer:'Bonjour means hello.',model:'google/gemini-3.8-flash'};}
+   else if(url.pathname==='/v1/card-reads'){reads.push(request.postDataJSON());body={streak_extended:false};}
+   else if(url.pathname==='/v1/highlights'){marks.push(request.postDataJSON());body={highlight:{id:'mark'}};}
+   else if(url.pathname.startsWith('/v1/books/'))body={book:{title:'Test Book',author:'Tester'}};
+   await route.fulfill({json:body});
   });
-  for (const width of [390, 1280]) {
-    const context = await browser.newContext({ viewport: { width, height: 600 }, serviceWorkers: 'block' });
-    const page = await context.newPage();
-    const errors = [];
-    const requests = [];
-    page.on('pageerror', e => errors.push(e.message));
-    await page.route('**/v1/**', async route => {
-      const request = route.request();
-      const url = new URL(request.url());
-      let body = {};
-      if (url.pathname === '/v1/me') body = { user: { id: 'test', tier: 'free' } };
-      else if (url.pathname.endsWith('/pages')) {
-        const from = Number(url.searchParams.get('from') || 0);
-        body = { page_count: 1536, pages: Array.from({ length: Math.min(12, 1536 - from) }, (_, i) => ({
-          id: `page-${from+i}`, idx: from+i, content: 'Bonjour, mon ami. This is a deterministic book page for testing the reading companion.', chapter_title: null, like_count: 0, liked_by_me: false,
-        })) };
-      } else if (url.pathname === '/v1/assistant') {
-        requests.push(request.postDataJSON());
-        body = { answer: 'Bonjour means hello.', model: 'google/gemini-3.8-flash' };
-      } else if (url.pathname === '/v1/reads') body = { streak_extended: false };
-      else if (url.pathname.startsWith('/v1/books/')) body = { book: { title: 'Test Book', author: 'Test Author' } };
-      await route.fulfill({ json: body });
-    });
-    await page.goto(base, { waitUntil: 'networkidle' });
-    await page.waitForSelector('.mascot');
-    assert.equal(await page.locator('.mascot ellipse').count(), 2);
-    await page.setViewportSize({ width, height: 360 }); // force a scrollable landing
-    const first = await page.locator('.mascot').boundingBox();
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    await page.waitForTimeout(650);
-    const last = await page.locator('.mascot').boundingBox();
-    assert(last.x > first.x + 20, 'landing mascot did not track scroll');
-    await page.locator('.mascot').click();
-    await page.keyboard.press('Escape');
-    assert.equal(await page.locator('dialog').isVisible(), false);
-
-    await page.setViewportSize({ width, height: 600 });
-    await page.goto(base + '/read/moby-dick/?from=100', { waitUntil: 'networkidle' });
-    await page.waitForSelector('[data-body]');
-    const before = await page.locator('.mascot').getAttribute('aria-label');
-    const xBefore = (await page.locator('.mascot').boundingBox()).x;
-    await page.evaluate(() => { const feed = document.querySelector('.feed'); feed.scrollTop = feed.clientHeight * 8; });
-    await page.waitForTimeout(800);
-    assert.notEqual(await page.locator('.mascot').getAttribute('aria-label'), before, 'exact page label did not advance');
-    assert((await page.locator('.mascot').boundingBox()).x > xBefore, 'book progress position did not advance');
-    const selected = await page.evaluate(() => {
-      const feed = document.querySelector('.feed');
-      const node = feed.querySelectorAll('[data-body]')[Math.round(feed.scrollTop / feed.clientHeight)].firstChild;
-      const range = document.createRange(); range.setStart(node, 0); range.setEnd(node, 16);
-      const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
-      document.dispatchEvent(new Event('selectionchange'));
-      return selection.toString().trim();
-    });
-    await page.locator('.mascot').click();
-    assert.equal(await page.getByLabel('Phrase', { exact: true }).inputValue(), selected);
-    assert(await page.getByRole('button', { name: 'Explain phrase', exact: true }).isDisabled(), 'consent was bypassed');
-    await page.getByRole('checkbox').check();
-    await page.getByRole('button', { name: 'Explain phrase', exact: true }).click();
-    await page.waitForFunction(() => document.querySelector('.answer').textContent === 'Bonjour means hello.');
-    assert.deepEqual(requests[0], { mode: 'explain', phrase: selected, language: 'English', consent: true });
-    await page.getByLabel('Help me', { exact: true }).selectOption('translate');
-    await page.getByRole('button', { name: 'Translate phrase', exact: true }).click();
-    await page.waitForTimeout(200);
-    assert.equal(requests[1].mode, 'translate');
-    await page.keyboard.press('Escape');
-    assert.equal(await page.locator('dialog').isVisible(), false);
-    assert.deepEqual(errors, []);
-    console.log(`${width}px: scroll progress, exact page label, selection, consent, explain/translate, Escape passed`);
-    await context.close();
-  }
-  const reduced = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 390, height: 360 }, serviceWorkers: 'block' });
-  const page = await reduced.newPage();
-  await page.goto(base, { waitUntil: 'networkidle' });
-  await page.evaluate(() => window.scrollTo(0, 9999));
-  await page.waitForTimeout(150);
-  assert.equal(await page.locator('.mascot svg').evaluate(el => el.getAnimations().length), 0);
-  await browser.close();
-  console.log('Reduced motion: no hopping');
-})().catch(err => { console.error(err); process.exit(1); });
+  await page.goto(base,{waitUntil:'networkidle'});
+  await page.locator('.mascot').waitFor({state:'visible'});
+  assert.equal((await page.locator('.mascot').boundingBox()).width,32);
+  assert.equal(await page.locator('.journey').count(),0,'old horizontal track remained');
+  await page.locator('.mascot').click();await page.getByRole('link',{name:'See Plus and Pro',exact:true}).waitFor();
+  assert(await page.getByRole('button',{name:'Explain phrase',exact:true}).isDisabled());
+  await page.keyboard.press('Escape');tier='pro';
+  await page.goto(base+'/read/moby-dick/?card=0',{waitUntil:'networkidle'});
+  await page.waitForSelector('[data-kind="title"]');await page.waitForTimeout(1900);
+  assert.equal(reads.length,0,'title card counted as read');
+  await page.evaluate(()=>{let f=document.querySelector('.feed');f.scrollTop=f.clientHeight;});await page.waitForTimeout(2100);
+  assert.equal(reads.length,0,'chapter card counted as read');
+  await page.evaluate(()=>{let f=document.querySelector('.feed');f.scrollTop=f.clientHeight*2;});await page.waitForTimeout(900);
+  const geometry=await page.evaluate(()=>{
+   const article=document.querySelector('[data-idx="2"]'),body=article.querySelector('[data-body]'),marker=article.querySelector('[data-sunny-anchor]').getBoundingClientRect(),sunny=document.querySelector('.mascot').getBoundingClientRect(),actions=article.querySelector('.actions').getBoundingClientRect();
+   return {overflow:body.scrollHeight-body.clientHeight,marker:{x:marker.x,y:marker.y},sunny:{x:sunny.x,y:sunny.y},actions:{x:actions.x,y:actions.y,width:actions.width,height:actions.height},bodyBottom:body.getBoundingClientRect().bottom};
+  });
+  assert(geometry.overflow<=1,`default text overflows at ${width}px: ${geometry.overflow}`);
+  assert(Math.abs(geometry.sunny.y-geometry.marker.y)<2,'Sunny not sitting on final line');
+  assert(Math.abs(geometry.sunny.x-geometry.marker.x-2)<2,'Sunny not following sentence end');
+  assert(geometry.actions.width>geometry.actions.height*2,'controls not horizontal');
+  assert(geometry.actions.y>geometry.bodyBottom,'controls cover text');
+  const selected=await page.evaluate(()=>{const node=document.querySelector('[data-idx="2"] [data-body]').firstChild;const range=document.createRange();range.setStart(node,0);range.setEnd(node,16);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);document.dispatchEvent(new Event('selectionchange'));return sel.toString().trim();});
+  await page.locator('.mascot').click();assert.equal(await page.getByLabel('Phrase',{exact:true}).inputValue(),selected);
+  assert(await page.getByRole('button',{name:'Explain phrase',exact:true}).isDisabled());await page.getByRole('checkbox').check();
+  await page.getByRole('button',{name:'Explain phrase',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.answer').textContent==='Bonjour means hello.');
+  assert.deepEqual(ai[0],{mode:'explain',phrase:selected,language:'English',consent:true});
+  await page.getByLabel('Help me',{exact:true}).selectOption('translate');await page.getByRole('button',{name:'Translate phrase',exact:true}).click();await page.waitForTimeout(200);assert.equal(ai[1].mode,'translate');await page.keyboard.press('Escape');
+  // Re-select and verify absolute original-page offsets, not local card offsets.
+  await page.evaluate(()=>{const node=document.querySelector('[data-idx="2"] [data-body]').firstChild;const r=document.createRange();r.setStart(node,0);r.setEnd(node,16);const s=window.getSelection();s.removeAllRanges();s.addRange(r);});
+  await page.locator('[data-idx="2"]').getByRole('button',{name:'Highlight the selected text',exact:true}).click();await page.waitForTimeout(250);
+  assert.equal(marks[0].start_off,50);assert.equal(marks[0].end_off,66);assert.equal(marks[0].page_id,'source-0');
+  assert.deepEqual(errors,[]);console.log(`${width}×${height}: inline 32px Sunny, no overflow, bottom controls, unmetered headings, paid AI, original annotation offsets passed`);
+  if(process.env.SCREENSHOT_DIR)await page.screenshot({path:`${process.env.SCREENSHOT_DIR}/sunny-${width}.png`});
+  await ctx.close();
+ }
+ const ctx=await browser.newContext({reducedMotion:'reduce',viewport:{width:390,height:600},serviceWorkers:'block'});const p=await ctx.newPage();await p.goto(base,{waitUntil:'networkidle'});await p.evaluate(()=>window.dispatchEvent(new Event('scroll')));await p.waitForTimeout(100);assert.equal(await p.locator('.mascot svg').evaluate(e=>e.getAnimations().length),0);await browser.close();console.log('Reduced motion: no hopping');
+})().catch(e=>{console.error(e);process.exit(1)});

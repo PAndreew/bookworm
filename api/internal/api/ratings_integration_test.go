@@ -191,6 +191,10 @@ func TestRatingsAndGenres(t *testing.T) {
 
 	aiRequest := `{"mode":"explain","phrase":"bonjour","language":"English","consent":true}`
 	call("POST", "/v1/assistant", aiRequest, "", 401)
+	call("POST", "/v1/assistant", aiRequest, tokens[1], 402)
+	if _, err := pool.Exec(ctx, `UPDATE users SET tier='pro' WHERE id=$1`, userIDs[0]); err != nil {
+		t.Fatal(err)
+	}
 	call("POST", "/v1/assistant", `{"mode":"explain","phrase":"bonjour","language":"English","consent":false}`, tokens[0], 400)
 	call("POST", "/v1/assistant", aiRequest, tokens[0], 503) // no configured key in tests
 	defer pool.Exec(ctx, `DELETE FROM assistant_global_usage WHERE day=(now() AT TIME ZONE 'UTC')::date`)

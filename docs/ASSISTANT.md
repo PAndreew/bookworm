@@ -1,20 +1,23 @@
 # Sunny: reading companion
 
 Sunny is a yellow circle with black oval eyes and a black semicircle smile. On
-landing, its bottom-track position follows document scroll. In the reader, it
-follows the current immutable page index / total book page count. Scroll events
+landing and in the reader, its 32px circle follows an inline marker at the end
+of the current paragraph/card, hopping vertically rather than along a bottom
+track. See [READER-CARDS.md](READER-CARDS.md) for non-destructive pagination,
+original annotation preservation and monthly licensed-card usage. Scroll events
 trigger short hops, not continuous animation. Reduced-motion preference disables
 hops and sliding transitions. Its accessible label/tooltip includes the exact
 reader page, so rounding a percentage never hides small progress changes.
 
 Click Sunny after selecting book text, or paste a phrase. The native dialog supports
 keyboard focus trapping, Escape/close, explanation, translation and output language.
-The user must sign in and explicitly confirm sending the phrase to the provider.
+The user must sign in with Plus or Pro and explicitly confirm sending the phrase
+to the provider. Free accounts are blocked server-side before any provider call.
 Results are plain text, never interpreted HTML. Closing cancels the browser request.
 
 ## API and privacy
 
-`POST /v1/assistant` requires an authenticated, completed-2FA session:
+`POST /v1/assistant` requires a paid Plus/Pro authenticated, completed-2FA session:
 
 ```json
 {"mode":"explain","phrase":"c'est la vie","language":"English","consent":true}
@@ -33,7 +36,7 @@ Model: **`google/gemini-3.8-flash`**, confirmed in OpenRouter's model catalogue.
 Output is limited to 800 tokens. A 25-second request deadline fits inside the API's
 30-second HTTP write timeout. Failed responses/timeouts expose only safe errors.
 
-Atomic PostgreSQL reservations cap attempts at **30 per reader/day**, **200 across
+Atomic PostgreSQL reservations cap attempts at **30 per paid reader/day**, **200 across
 the app/day**, and **one per reader per five seconds**, resetting at midnight UTC.
 These caps survive restarts/replicas. Failed provider attempts still count, bounding
 upstream retries/cost. Usage rows store counts/timestamps only. OpenRouter account

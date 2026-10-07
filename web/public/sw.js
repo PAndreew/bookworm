@@ -11,7 +11,7 @@
 // object to. The API marks what is safe to keep with `Cache-Control: public` on
 // public-domain responses; we do not guess.
 
-const VERSION = 'potpuri-reader-v8';
+const VERSION = 'potpuri-reader-v10';
 const SHELL = `${VERSION}-shell`;
 const BOOKS = `${VERSION}-books`;
 

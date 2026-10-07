@@ -21,6 +21,7 @@ starting the stack on a new VPS.
 cd /opt/bookworm
 docker compose -f compose.production.yml up -d --build
 docker compose -f compose.production.yml exec api ingest -all
+docker compose -f compose.production.yml exec -T api cards
 curl -fsS https://potpuri.cc/healthz
 ```
 
@@ -50,6 +51,11 @@ Validate before reloading:
 docker exec potpuri-caddy caddy validate --config /etc/caddy/Caddyfile
 docker exec potpuri-caddy caddy reload --config /etc/caddy/Caddyfile
 ```
+
+Reader layout, annotation preservation, paid AI and Pro’s 1,000 licensed text
+cards/month are described in [READER-CARDS.md](READER-CARDS.md). Run `api cards`
+after catalogue ingestion; this builds/refines only the presentation layer, never
+replaces original page anchors.
 
 ## Original bookmarking app: private only
 

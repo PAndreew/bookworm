@@ -14,7 +14,7 @@ import (
 func (s *Store) ListBooks(ctx context.Context, license, search, genre string, limit, offset int) ([]Book, error) {
 	const q = `
 		SELECT b.id, b.slug, b.title, b.author, b.description, b.cover_url,
-		       b.language, b.license, e.id, e.page_count, e.word_count, b.genres
+		       b.language, b.license, e.id, e.page_count, e.word_count, b.genres, e.reader_card_count
 		FROM books b
 		JOIN book_editions e ON e.book_id = b.id AND e.state = 'published'
 		WHERE ($1 = '' OR b.license = $1::license_kind)
@@ -39,7 +39,7 @@ func (s *Store) ListBooks(ctx context.Context, license, search, genre string, li
 		var b Book
 		if err := rows.Scan(&b.ID, &b.Slug, &b.Title, &b.Author, &b.Description,
 			&b.CoverURL, &b.Language, &b.License, &b.EditionID, &b.PageCount,
-			&b.WordCount, &b.Genres); err != nil {
+			&b.WordCount, &b.Genres, &b.CardCount); err != nil {
 			return nil, err
 		}
 		books = append(books, b)
@@ -70,7 +70,7 @@ func (s *Store) Genres(ctx context.Context) ([]string, error) {
 func (s *Store) BookBySlug(ctx context.Context, slug string) (*Book, error) {
 	const q = `
 		SELECT b.id, b.slug, b.title, b.author, b.description, b.cover_url,
-		       b.language, b.license, e.id, e.page_count, e.word_count, b.genres
+		       b.language, b.license, e.id, e.page_count, e.word_count, b.genres, e.reader_card_count
 		FROM books b
 		JOIN book_editions e ON e.book_id = b.id AND e.state = 'published'
 		WHERE b.slug = $1`
@@ -78,7 +78,7 @@ func (s *Store) BookBySlug(ctx context.Context, slug string) (*Book, error) {
 	var b Book
 	err := s.pool.QueryRow(ctx, q, slug).Scan(&b.ID, &b.Slug, &b.Title, &b.Author,
 		&b.Description, &b.CoverURL, &b.Language, &b.License, &b.EditionID,
-		&b.PageCount, &b.WordCount, &b.Genres)
+		&b.PageCount, &b.WordCount, &b.Genres, &b.CardCount)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -158,7 +158,7 @@ func (s *Store) MeteredPagesToday(ctx context.Context, userID string, localDay t
 }
 
 func (s *Store) PagesReadToday(ctx context.Context, userID string, localDay time.Time) (int, error) {
-	const q = `SELECT count(*) FROM page_reads WHERE user_id = $1 AND local_day = $2`
+	const q = `SELECT (SELECT count(*) FROM page_reads WHERE user_id = $1 AND local_day = $2) + (SELECT count(*) FROM card_reads WHERE user_id = $1 AND local_day = $2 AND NOT inherited)`
 	var n int
 	err := s.pool.QueryRow(ctx, q, userID, localDay).Scan(&n)
 	return n, err
@@ -197,7 +197,7 @@ func (s *Store) RecordRead(ctx context.Context, userID, pageID, editionID string
 		ON CONFLICT (user_id, edition_id) DO UPDATE
 		SET last_page_idx = EXCLUDED.last_page_idx,
 		    furthest_idx  = GREATEST(reading_progress.furthest_idx, EXCLUDED.furthest_idx),
-		    last_read_at  = now()`,
+		    last_read_at  = now(), last_card_idx = NULL`,
 		userID, editionID, idx); err != nil {
 		return err
 	}

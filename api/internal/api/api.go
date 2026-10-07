@@ -59,6 +59,7 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/genres", s.handleGenres)
 			r.Get("/books/{slug}", s.handleGetBook)
 			r.Get("/books/{slug}/pages", s.handleGetPages)
+			r.Get("/books/{slug}/cards", s.handleGetCards)
 			r.Get("/quotes/{slug}", s.handleGetQuote)
 		})
 
@@ -80,6 +81,7 @@ func (s *Server) Routes() http.Handler {
 
 			r.Post("/assistant", s.handleAssistant)
 			r.Post("/reads", s.handleRecordRead)
+			r.Post("/card-reads", s.handleCardRead)
 			r.Post("/pages/{id}/like", s.handleLike)
 			r.Delete("/pages/{id}/like", s.handleUnlike)
 

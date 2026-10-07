@@ -4,7 +4,7 @@
   import { api, ApiError, type User } from '../lib/api';
 
   let user = $state<User | null>(null);
-  let quota = $state({ limit: 0, used: 0, resets_at: '' });
+  let quota = $state({ limit: 0, used: 0, resets_at: '', period: 'day' });
   let streak = $state({ current: 0, longest: 0, at_risk: false, pages_today: 0, pages_required: 3 });
   let loading = $state(true);
   let needsAuth = $state(false);
@@ -118,23 +118,23 @@
       </div>
       <div class="stat">
         <div class="v">{streak.pages_today}</div>
-        <div class="l">pages today</div>
+        <div class="l">text cards today</div>
       </div>
     </div>
 
     {#if quota.limit > 0}
       <section class="box">
-        <h2>Today's Plus pages</h2>
+        <h2>{quota.period === 'month' ? 'This month’s licensed cards' : 'Today’s licensed cards'}</h2>
         <div class="bar"><div class="fill" style="width:{(quota.used / quota.limit) * 100}%"></div></div>
         <p class="dim">
           {quota.used} of {quota.limit} used · resets at
-          {new Date(quota.resets_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {quota.period === 'month' ? new Date(quota.resets_at).toLocaleDateString() : new Date(quota.resets_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </p>
       </section>
     {:else}
       <section class="box">
         <h2>Free plan</h2>
-        <p class="dim">Every public-domain book, with no limit. Plus adds 30 pages a day of newer titles.</p>
+        <p class="dim">Every public-domain book, with no limit. Plus adds 30 licensed text cards a day. Pro includes 1,000 a month. Both include Sunny’s AI.</p>
         <a class="cta" href="/app/upgrade">See Plus and Pro</a>
       </section>
     {/if}

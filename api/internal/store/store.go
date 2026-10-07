@@ -60,6 +60,7 @@ type Book struct {
 	License     string   `json:"license"`
 	EditionID   string   `json:"edition_id"`
 	PageCount   int      `json:"page_count"`
+	CardCount   int      `json:"card_count"`
 	WordCount   int      `json:"word_count"`
 	Genres      []string `json:"genres"`
 }

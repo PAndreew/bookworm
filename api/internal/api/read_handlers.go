@@ -136,6 +136,10 @@ func (s *Server) handleRecordRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if meta.License != "public_domain" {
+		httpx.Error(w, http.StatusConflict, "reader_upgrade", "Please reload to use the current card reader.")
+		return
+	}
 	now := time.Now()
 	localDay := store.LocalDay(user.Timezone, now)
 
@@ -201,7 +205,9 @@ func limitMessage(reason string) string {
 	case "upgrade_required":
 		return "This book is available on Plus and Pro."
 	case "daily_limit_reached":
-		return "That is your reading for today. Your pages reset at midnight."
+		return "That is your licensed reading for today. Your cards reset at midnight. Public-domain books remain unlimited."
+	case "monthly_limit_reached":
+		return "You have used your 1,000 licensed text cards this month. Your allowance resets on the first of next month. Public-domain books remain unlimited."
 	default:
 		return "You cannot read that right now."
 	}
@@ -330,7 +336,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	localDay := store.LocalDay(user.Timezone, now)
 
-	used, err := s.store.MeteredPagesToday(r.Context(), user.ID, localDay)
+	used, err := s.store.LicensedUsage(r.Context(), user.ID, user.Tier, user.Timezone, now)
 	if err != nil {
 		httpx.InternalError(w, r, "handleMe", err)
 		return
@@ -357,9 +363,10 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"user":      user,
 		"last_read": position,
 		"quota": map[string]any{
-			"limit":     user.Tier.DailyLicensedPageLimit(),
+			"limit":     user.Tier.LicensedCardLimit(),
 			"used":      used,
-			"resets_at": store.NextResetAt(user.Timezone, now),
+			"period":    map[bool]string{true: "month", false: "day"}[user.Tier == store.TierPro],
+			"resets_at": func() time.Time { _, next := user.Tier.QuotaPeriod(user.Timezone, now); return next }(),
 		},
 		"streak": map[string]any{
 			"current": shown,

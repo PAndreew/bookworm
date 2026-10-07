@@ -1,4 +1,6 @@
-# Bookworm — Decision Record (v1)
+# Bookworm — Decision Record
+
+Current reader-card refinements and quota semantics: [READER-CARDS.md](READER-CARDS.md).
 
 ## Locked by the user
 - **Klarna** = slick subscription UX only. Stripe subscriptions, no ledger, no BNPL.
@@ -9,12 +11,14 @@
 ## Decided by me (defaults — say the word and I'll change any of them)
 
 ### The page unit — the most load-bearing decision
-A "page" is a **paragraph-aware chunk targeting ~900 characters**. It never splits a
+An immutable **source page** is a paragraph-aware chunk targeting ~900 characters. It never splits a
 paragraph unless that paragraph alone exceeds 1400 chars, in which case it splits on
 sentence boundaries.
 
-Why this matters more than it looks: the page is simultaneously the UI card, the
-billing unit, and the anchor for every like and highlight. **Chunks are immutable once
+The source page remains the anchor for every existing like and highlight. The
+separate reader-card layer now provides balanced ~300–360-character screen cards,
+with a 400-character and conservative line budget. Title/chapter cards are separate
+and unmetered; source pages themselves are no longer the UI/billing unit. **Chunks are immutable once
 an edition is published.** Re-chunking would orphan every like and highlight ever made.
 So:
 - `book_editions` carries a `chunker_version`. Changing the algorithm creates a *new*
@@ -22,7 +26,7 @@ So:
 - Every page stores a `content_sha256`, so ingest is idempotent and verifiable.
 
 ### Reader
-- Vertical snap-swipe, one page per screen — the TikTok feel.
+- Vertical snap-swipe, one reader card per screen — the TikTok feel.
 - Font scale is user-settable. If a page overflows at a large scale that single card
   scrolls internally rather than being re-chunked. Accessibility beats pixel purity.
 - A discovery "For You" feed across books is **v2**. The schema supports it already
@@ -30,7 +34,7 @@ So:
 
 ### Social
 - Friends = **mutual accept**. Fits "friends + streaks" better than asymmetric follow.
-- Streak = **3+ pages read in a day**, day boundary in the **user's own timezone**
+- Streak = **3+ text cards read in a day**, day boundary in the **user's own timezone**
   (stored per user as an IANA name). Freezes are a Plus perk: the column exists,
   the UI is v2.
 - Account visibility: `public` | `friends` | `private`, default **friends**.
@@ -43,10 +47,15 @@ So:
 |                      | Free      | Plus      | Pro       |
 |----------------------|-----------|-----------|-----------|
 | Public-domain books  | unlimited | unlimited | unlimited |
-| Licensed pages/day   | 0         | 30        | 150       |
+| Licensed text cards  | 0         | 30/day    | 1,000/month |
+| Sunny AI              | no        | yes       | yes       |
 | Price                | €0        | €4.99/mo  | €9.99/mo  |
 
-Resets at midnight in the user's timezone. No rollover. At the cap you get an
+Plus resets at local midnight; Pro resets on the first of the next calendar month
+in the user's timezone. Public-domain books stay unlimited. Title/chapter cards do
+not consume allowance or extend streaks. Re-reading within a quota period is free.
+Sunny sits at paragraph/card endings, hops vertically, and requires Plus/Pro for AI.
+No rollover. At the cap you get an
 interstitial ("resumes in 4h / upgrade"), never a mid-sentence cut — the page you are
 on always completes.
 
