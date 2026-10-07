@@ -4,9 +4,11 @@ The reader borrows Datamat's design language, not its decorative effects:
 
 - Self-hosted Geist body text and Quicksand headings/wordmark.
 - White and neutral gray surfaces, dark ink, blue (`#2563eb`) actions.
-- Solid pale blue and yellow book-cover tiles, inspired by Datamat's service cards.
+- Single pastel book cards with black text, no nested covers or monograms.
+  Colors use a stable slug-derived hue at 65% saturation and 91% lightness.
 - 12px card corners, subtle borders/shadows, generous card padding and grid gaps.
-- Centered landing page with only individual benefit words accented in blue.
+- Centered landing page with a small wordmark below the rose logo.
+- Individual benefit words accented in blue (free), purple (streak), and green (Highlight).
 - No gradient backgrounds or gradient text. Reading interactions remain unchanged.
 
 Tokens live in `web/src/styles/global.css`. Existing `--orange`, `--purple`,

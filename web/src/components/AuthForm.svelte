@@ -167,7 +167,7 @@
   }
   h1 {
     margin: 0 0 6px;
-    font-size: 2rem;
+    font-size: 1.4rem;
     font-weight: 750;
     letter-spacing: -0.03em;
     text-align: center;

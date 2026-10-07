@@ -33,22 +33,11 @@
   const shown = $derived(filter === 'all' ? books : books.filter((b) => b.license === filter));
   const locked = (b: Book) => b.license === 'licensed' && tier === 'free';
 
-  /** Stable Datamat pastel covers for books without publisher artwork. */
+  /** Pseudo-random pastels, stable across visits and filters. */
   function cover(slug: string) {
     let h = 0;
     for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
-    return ['#fef9c3', '#dbeafe', '#bfdbfe', '#fef08a'][h % 4];
-  }
-
-  /** First letters of the title: a cheap, legible cover mark. */
-  function initials(title: string) {
-    return title
-      .replace(/^(the|a|an)\s+/i, '')
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((w) => w[0])
-      .join('')
-      .toUpperCase();
+    return `hsl(${h % 360} 65% 91%)`;
   }
 </script>
 
@@ -91,19 +80,10 @@
   {:else}
     <div class="grid">
       {#each shown as book (book.id)}
-        <a class="card" href={`/read/${book.slug}`}>
-          <div class="cover">
-            {#if book.cover_url}
-              <img src={book.cover_url} alt="" loading="lazy" />
-            {:else}
-              <div class="generated" style="background:{cover(book.slug)}">
-                <span class="initials">{initials(book.title)}</span>
-              </div>
-            {/if}
-            {#if locked(book)}
-              <div class="lock"><Lock size={13} /> Plus</div>
-            {/if}
-          </div>
+        <a class="card" href={`/read/${book.slug}`} style="background:{cover(book.slug)}">
+          {#if locked(book)}
+            <div class="lock"><Lock size={13} /> Plus</div>
+          {/if}
           <div class="meta">
             <div class="t">{book.title}</div>
             <div class="a">{book.author}</div>
@@ -131,7 +111,7 @@
   }
   h1 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1rem;
     font-weight: 750;
     letter-spacing: -0.02em;
   }
@@ -201,9 +181,11 @@
   .card {
     display: flex;
     flex-direction: column;
-    padding: 16px;
-    background: var(--bg);
-    border: 1px solid var(--border);
+    justify-content: flex-end;
+    min-height: 200px;
+    padding: 20px;
+    color: #000;
+    border: 1px solid transparent;
     border-radius: var(--radius);
     box-shadow: 0 2px 6px rgba(17, 24, 39, 0.04);
     transition: box-shadow 0.2s, border-color 0.2s;
@@ -212,41 +194,11 @@
     border-color: var(--border-bright);
     box-shadow: var(--shadow-lift);
   }
-  .meta { flex: 1; }
-  .cover {
-    position: relative;
-    aspect-ratio: 4 / 3;
-    border-radius: var(--radius);
-    overflow: hidden;
-    background: var(--grad-card);
-    border: 1px solid var(--border);
-    margin-bottom: 16px;
-  }
-  .cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .generated {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    display: grid;
-    place-items: center;
-    overflow: hidden;
-  }
-  .initials {
-    font-size: 2.1rem;
-    font-weight: 750;
-    color: var(--text);
-    font-family: var(--font-heading);
-    letter-spacing: -0.03em;
-  }
+  .meta { margin-top: auto; }
 
   .lock {
-    position: absolute;
-    top: 8px;
-    right: 8px;
+    align-self: flex-start;
+    margin-bottom: 20px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -267,17 +219,17 @@
   }
   .a {
     font-size: 0.78rem;
-    color: var(--text-dim);
-    margin-top: 2px;
+    color: #000;
+    margin-top: 8px;
   }
   .p {
     font-size: 0.7rem;
-    color: var(--text-faint);
-    margin-top: 3px;
+    color: #000;
+    margin-top: 6px;
   }
 
   .skeleton {
-    aspect-ratio: 2 / 3;
+    min-height: 200px;
     border-radius: var(--radius);
     background: var(--bg-card);
     animation: pulse 1.4s ease-in-out infinite;
