@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import ResumeReading from '../components/ResumeReading.svelte';
 ---
 
 <Base title="Bookworm — read like a feed" bare>
@@ -12,6 +13,8 @@ import Base from '../layouts/Base.astro';
         <a class="primary" href="/signup">Start reading</a>
         <a class="secondary" href="/app">Browse the shelf</a>
       </div>
+
+      <ResumeReading client:load />
 
       <ul class="points">
         <li><strong>Every public-domain book, free.</strong> No limit, no trial, no card.</li>

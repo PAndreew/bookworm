@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bookworm
+      POSTGRES_DB: bookworm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U bookworm -d bookworm]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      BW_ADDR: ':8080'
+      BW_DATABASE_URL: postgres://bookworm:${POSTGRES_PASSWORD}@db:5432/bookworm?sslmode=disable
+      BW_ENV: production
+      BW_ALLOW_ORIGINS: https://${BOOKWORM_HOST:-currantfeed.cc}
+      BW_TOTP_KEY: ${BW_TOTP_KEY:?required}
+    networks: [internal]
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    build: ./web
+    restart: unless-stopped
+    networks:
+      internal:
+      proxy:
+        aliases: [bookworm-web]
+    depends_on: [api]
+volumes:
+  pgdata:
+networks:
+  internal:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-potpuri_proxy}

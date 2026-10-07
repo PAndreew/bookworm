@@ -318,6 +318,12 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	position, err := s.store.LastRead(r.Context(), user.ID)
+	if err != nil {
+		httpx.InternalError(w, r, "handleMe", err)
+		return
+	}
+
 	// Report the streak as the user would see it today, not the stored number.
 	shown := st.CurrentDays
 	if !st.IsAlive(localDay) {
@@ -325,7 +331,8 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"user": user,
+		"user":      user,
+		"last_read": position,
 		"quota": map[string]any{
 			"limit":     user.Tier.DailyLicensedPageLimit(),
 			"used":      used,

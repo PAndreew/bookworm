@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import ResumeReading from './ResumeReading.svelte';
   import { Flame, Lock } from '@lucide/svelte';
   import { api, ApiError, type Book } from '../lib/api';
 
@@ -78,6 +79,8 @@
       {streak.current > 0 ? `to keep your ${streak.current} day streak` : 'to start a streak'}
     </div>
   {/if}
+
+  <ResumeReading />
 
   <div class="filters">
     <button class:on={filter === 'all'} onclick={() => (filter = 'all')}>All</button>

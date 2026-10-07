@@ -124,6 +124,7 @@ export const api = {
   me: () =>
     request<{
       user: User;
+      last_read: { slug: string; title: string; page_idx: number } | null;
       quota: { limit: number; used: number; resets_at: string };
       streak: { current: number; longest: number; at_risk: boolean };
     }>('/me'),

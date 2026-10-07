@@ -20,6 +20,8 @@ RUN apk add --no-cache ca-certificates tzdata
 RUN adduser -D -u 10001 bookworm
 USER bookworm
 
+WORKDIR /app
+COPY --from=build /src/seed ./seed
 COPY --from=build /out/server /usr/local/bin/server
 COPY --from=build /out/ingest /usr/local/bin/ingest
 

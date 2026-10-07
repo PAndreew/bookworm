@@ -37,7 +37,16 @@
     if (saved) fontScale = parseFloat(saved);
 
     try {
-      const res = await api.pages(slug, 0, 12);
+      if (!slug) {
+        slug = decodeURIComponent(window.location.pathname.split('/')[2] ?? '');
+        const { book } = await api.book(slug);
+        title = book.title;
+        author = book.author;
+      }
+      const requested = Number(new URLSearchParams(window.location.search).get('from') ?? 0);
+      const from = Number.isSafeInteger(requested) && requested >= 0 ? requested : 0;
+      const res = await api.pages(slug, from, 12);
+      activeIdx = from;
       pages = res.pages;
       pageCount = res.page_count;
     } catch (e) {
@@ -77,7 +86,7 @@
               dwellTimers.set(id, window.setTimeout(() => markRead(id), DWELL_MS));
             }
             // Prefetch before the reader reaches the end of the window.
-            if (idx >= pages.length - 4) loadMore();
+            if (idx >= (pages.at(-1)?.idx ?? 0) - 3) loadMore();
           } else {
             const t = dwellTimers.get(id);
             if (t) {
@@ -95,10 +104,11 @@
 
   let loadingMore = false;
   async function loadMore() {
-    if (loadingMore || pages.length >= pageCount) return;
+    const next = (pages.at(-1)?.idx ?? -1) + 1;
+    if (loadingMore || next >= pageCount) return;
     loadingMore = true;
     try {
-      const res = await api.pages(slug, pages.length, 10);
+      const res = await api.pages(slug, next, 10);
       pages = [...pages, ...res.pages];
     } catch {
       // Silent: the reader still has pages in hand, and a failed prefetch
