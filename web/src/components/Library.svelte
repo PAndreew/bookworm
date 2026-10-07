@@ -33,17 +33,11 @@
   const shown = $derived(filter === 'all' ? books : books.filter((b) => b.license === filter));
   const locked = (b: Book) => b.license === 'licensed' && tier === 'free';
 
-  /** Gutenberg ships almost no cover art, so generate one. The hue is derived
-   * from the slug, which keeps a book's cover stable across sessions and
-   * devices without storing anything. */
+  /** Stable Datamat pastel covers for books without publisher artwork. */
   function cover(slug: string) {
     let h = 0;
     for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
-    // Narrow bands on purpose: wider ranges wander into yellow and blue, which
-    // reads as a different product. Orange 20-44, purple 268-292, through pink.
-    const a = 20 + (h % 24);
-    const b = 268 + ((h >> 8) % 24);
-    return `linear-gradient(145deg, hsl(${a} 94% 56%) 0%, hsl(${b} 78% 60%) 100%)`;
+    return ['#fef9c3', '#dbeafe', '#bfdbfe', '#fef08a'][h % 4];
   }
 
   /** First letters of the title: a cheap, legible cover mark. */
@@ -104,7 +98,6 @@
             {:else}
               <div class="generated" style="background:{cover(book.slug)}">
                 <span class="initials">{initials(book.title)}</span>
-                <span class="spine"></span>
               </div>
             {/if}
             {#if locked(book)}
@@ -202,20 +195,32 @@
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 16px;
+    gap: 24px;
   }
 
   .card {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 6px rgba(17, 24, 39, 0.04);
+    transition: box-shadow 0.2s, border-color 0.2s;
   }
+  .card:hover {
+    border-color: var(--border-bright);
+    box-shadow: var(--shadow-lift);
+  }
+  .meta { flex: 1; }
   .cover {
     position: relative;
-    aspect-ratio: 2 / 3;
+    aspect-ratio: 4 / 3;
     border-radius: var(--radius);
     overflow: hidden;
     background: var(--grad-card);
     border: 1px solid var(--border);
-    margin-bottom: 9px;
+    margin-bottom: 16px;
   }
   .cover img {
     width: 100%;
@@ -233,18 +238,9 @@
   .initials {
     font-size: 2.1rem;
     font-weight: 750;
-    color: rgba(255, 255, 255, 0.94);
+    color: var(--text);
+    font-family: var(--font-heading);
     letter-spacing: -0.03em;
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
-  }
-  /* A hint of a book spine, so the tile reads as a cover and not a swatch. */
-  .spine {
-    position: absolute;
-    left: 10%;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: rgba(0, 0, 0, 0.16);
   }
 
   .lock {
@@ -256,7 +252,7 @@
     gap: 4px;
     padding: 4px 9px;
     border-radius: var(--radius-pill);
-    background: rgba(10, 10, 12, 0.82);
+    background: var(--bg);
     backdrop-filter: blur(6px);
     font-size: 0.66rem;
     color: var(--orange);
@@ -264,7 +260,8 @@
   }
 
   .t {
-    font-weight: 600;
+    font-family: var(--font-heading);
+    font-weight: 700;
     font-size: 0.88rem;
     line-height: 1.3;
   }

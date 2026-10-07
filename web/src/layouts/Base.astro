@@ -18,7 +18,7 @@ const path = Astro.url.pathname;
 ---
 
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta
@@ -28,19 +28,15 @@ const path = Astro.url.pathname;
     <title>{title}</title>
     <meta name="description" content={description} />
 
-    <meta name="theme-color" content="#0a0a0c" />
+    <meta name="theme-color" content="#ffffff" />
     <link rel="icon" href="/rose.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap"
-    />
+    <link rel="preload" href="/fonts/GeistVF.woff" as="font" type="font/woff" crossorigin />
+    <link rel="preload" href="/fonts/Quicksand.ttf" as="font" type="font/ttf" crossorigin />
   </head>
 
   <body>
@@ -89,7 +85,7 @@ const path = Astro.url.pathname;
         right: 0;
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        background: rgba(20, 20, 24, 0.92);
+        background: var(--bg);
         backdrop-filter: blur(16px);
         border-top: 1px solid var(--border);
         padding-bottom: env(safe-area-inset-bottom);
@@ -106,7 +102,7 @@ const path = Astro.url.pathname;
         transition: color 0.15s ease;
       }
       .tabs a.on {
-        color: var(--orange);
+        color: var(--accent);
       }
     </style>
   </body>

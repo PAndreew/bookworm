@@ -450,7 +450,7 @@
     /* The right padding clears the action rail: text must never run under the
      * like and share buttons. */
     padding: 28px 78px 92px 22px;
-    background-image: var(--grad-card);
+    background: var(--bg);
   }
 
   /* On a wide screen the rail sits beside the column rather than over it. */
@@ -488,7 +488,7 @@
     display: none;
   }
   .body::selection {
-    background: rgba(255, 122, 26, 0.3);
+    background: var(--selection);
   }
 
   .actions {
@@ -508,7 +508,7 @@
     height: 48px;
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
-    background: rgba(20, 20, 24, 0.72);
+    background: var(--bg-raised);
     backdrop-filter: blur(10px);
     color: var(--text);
     transition: transform 0.15s ease, color 0.15s ease;

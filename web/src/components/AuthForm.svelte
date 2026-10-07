@@ -230,7 +230,7 @@
     border-radius: var(--radius-sm);
     background: rgba(255, 77, 109, 0.1);
     border: 1px solid rgba(255, 77, 109, 0.3);
-    color: #ff8fa3;
+    color: #be123c;
     font-size: 0.84rem;
   }
 
