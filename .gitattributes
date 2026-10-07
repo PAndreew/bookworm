@@ -1,0 +1,13 @@
+# Normalise line endings in the repository to LF.
+#
+# This matters here specifically: the API builds and runs in Linux containers,
+# and a shell script or Dockerfile checked out with CRLF fails with errors that
+# look nothing like their cause ("/bin/sh^M: bad interpreter").
+* text=auto eol=lf
+
+# Binary files must never be touched.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff  binary
+*.woff2 binary

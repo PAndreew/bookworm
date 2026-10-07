@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.astro/
+.scratch/
+corp-ca*.crt
+*.log
+.DS_Store

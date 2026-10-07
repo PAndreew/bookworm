@@ -1,0 +1,112 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** The reader hides the tab bar: it is a full-screen surface. */
+  bare?: boolean;
+}
+
+const {
+  title = 'Bookworm',
+  description = 'Read books like a feed. Keep a streak. Share the lines worth keeping.',
+  bare = false,
+} = Astro.props;
+
+const path = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
+    />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <meta name="theme-color" content="#0a0a0c" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap"
+    />
+  </head>
+
+  <body>
+    <slot />
+
+    {
+      !bare && (
+        <nav class="tabs">
+          <a href="/app" class={path === '/app' ? 'on' : ''}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+            <span>Library</span>
+          </a>
+          <a href="/app/friends" class={path.startsWith('/app/friends') ? 'on' : ''}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Friends</span>
+          </a>
+          <a href="/app/highlights" class={path.startsWith('/app/highlights') ? 'on' : ''}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
+            <span>Quotes</span>
+          </a>
+          <a href="/app/me" class={path.startsWith('/app/me') ? 'on' : ''}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>You</span>
+          </a>
+        </nav>
+      )
+    }
+
+    <script>
+      // Register the service worker so the app is installable and public-domain
+      // books stay readable offline.
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {
+            // An unregistered worker only costs offline support; never block the app.
+          });
+        });
+      }
+    </script>
+
+    <style>
+      .tabs {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        background: rgba(20, 20, 24, 0.92);
+        backdrop-filter: blur(16px);
+        border-top: 1px solid var(--border);
+        padding-bottom: env(safe-area-inset-bottom);
+        z-index: 30;
+      }
+      .tabs a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        padding: 9px 0 7px;
+        color: var(--text-faint);
+        font-size: 0.66rem;
+        transition: color 0.15s ease;
+      }
+      .tabs a.on {
+        color: var(--orange);
+      }
+    </style>
+  </body>
+</html>

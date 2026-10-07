@@ -1,0 +1,81 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+
+<Base title="Privacy — Bookworm" bare>
+  <main>
+    <a class="back" href="/">← Bookworm</a>
+    <h1>Privacy</h1>
+    <p class="meta">Last updated October 2026</p>
+
+    <p class="draft">A working draft. Have a lawyer review this before launch.</p>
+
+    <h2>What we hold</h2>
+    <ul>
+      <li><strong>Account:</strong> email, handle, display name, date of birth, time zone.</li>
+      <li><strong>Reading:</strong> which pages you have read and when, your position in each book, your streak.</li>
+      <li><strong>Your marks:</strong> likes and highlights.</li>
+      <li><strong>Social:</strong> friendships, and requests you have sent or received.</li>
+      <li><strong>Technical:</strong> session records with approximate IP and browser, kept for security.</li>
+    </ul>
+
+    <h2>Why we hold it</h2>
+    <p>To run the service you asked for: remembering your place, counting your daily pages,
+    keeping your streak, and showing friends what you are reading when you allow it. The legal
+    basis is performance of our contract with you. Security logging rests on our legitimate
+    interest in keeping accounts safe.</p>
+
+    <h2>Date of birth</h2>
+    <p>We ask for it to confirm you are old enough to use Bookworm, and we keep it so we do not
+    have to ask again. It is not shown to anyone else.</p>
+
+    <h2>What we do not do</h2>
+    <ul>
+      <li>No advertising, and no sale of your data.</li>
+      <li>No third-party analytics on what you read.</li>
+      <li>No profiling of minors.</li>
+    </ul>
+    <p>What a person reads can reveal a great deal about them. We treat reading history as
+    sensitive even where the law does not require it.</p>
+
+    <h2>Who can see your reading</h2>
+    <p>Your profile is visible to friends by default. You can set it to public or to only you,
+    and you can hide an individual book from your profile at any time.</p>
+
+    <h2>How we protect it</h2>
+    <ul>
+      <li>Passwords are hashed with Argon2id and are never recoverable.</li>
+      <li>Two-factor secrets are encrypted before they are stored.</li>
+      <li>Session cookies are HttpOnly, and only a hash of each session is stored.</li>
+    </ul>
+
+    <h2>Your rights</h2>
+    <p>You can access, correct, export or delete your data. Email
+    <a href="mailto:privacy@bookworm.example">privacy@bookworm.example</a> and we will respond
+    within one month. You may also complain to your local data protection authority.</p>
+
+    <h2>Keeping</h2>
+    <p>We keep your data while your account is open. Closing your account removes your personal
+    data; anonymous aggregate counts, such as how many people liked a page, may remain.</p>
+
+    <nav class="links">
+      <a href="/legal/terms">Terms</a>
+      <a href="/legal/takedown">Report a work</a>
+    </nav>
+  </main>
+</Base>
+
+<style>
+  main { max-width: 680px; margin: 0 auto; padding: 28px 22px 70px; padding-top: calc(28px + env(safe-area-inset-top)); }
+  .back { font-size: 0.84rem; color: var(--text-faint); }
+  h1 { font-size: 1.7rem; font-weight: 740; letter-spacing: -0.02em; margin: 18px 0 4px; }
+  .meta { color: var(--text-faint); font-size: 0.8rem; margin: 0 0 22px; }
+  .draft { padding: 12px 14px; border-radius: var(--radius-sm); background: rgba(255,176,32,0.09); border: 1px solid rgba(255,176,32,0.28); color: var(--warn); font-size: 0.83rem; margin-bottom: 26px; }
+  h2 { font-size: 1rem; font-weight: 640; margin: 26px 0 8px; }
+  p, li { color: var(--text-dim); font-size: 0.91rem; line-height: 1.65; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  strong { color: var(--text); }
+  a { color: var(--orange); }
+  .links { display: flex; gap: 18px; padding-top: 30px; margin-top: 30px; border-top: 1px solid var(--border); font-size: 0.84rem; }
+</style>

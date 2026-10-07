@@ -1,0 +1,43 @@
+CHAPTER ONE
+
+A Brief History of Being Late
+
+Before 1840, every town in Britain kept its own time, and nobody thought this strange.
+
+Noon in Bristol fell about ten minutes after noon in London, because the sun got there later, and that was simply what noon meant: the moment the sun stood highest over your particular patch of ground. Town clocks were set by sundial. A clockmaker travelling from Exeter to Norwich would adjust his watch as he went, the way you might adjust for altitude.
+
+This worked perfectly well for several thousand years. It stopped working in roughly a decade, and the thing that broke it was the railway timetable.
+
+The problem was not that trains were fast, though they were. The problem was that a timetable is a promise made in a single language, and Britain had several hundred dialects of noon. A train leaving Bristol at 10:00 Bristol time and arriving in London at 12:00 London time had taken either two hours or two hours and ten minutes, depending on which clock you believed — and when two trains were approaching the same single-track section, that ambiguity was not a curiosity. It was a collision.
+
+The Great Western Railway solved it in 1840 by the simple expedient of ignoring the sun. Every station on the line would keep London time, distributed by messengers carrying watches and, later, by telegraph. Railway time was not more accurate than local time. It was not even, in any meaningful sense, more *correct*. It was merely the same everywhere, and sameness turned out to be worth more than accuracy.
+
+It took another forty-eight years for the rest of the country to give in. There is a famous clock face in Bristol's Corn Exchange with two minute hands, one black and one red, ten minutes apart — the local hour and the railway hour, kept side by side for decades by people who had not yet decided which reality they lived in.
+
+I find that clock enormously moving, and I think about it constantly, because we are living inside the same argument.
+
+CHAPTER TWO
+
+The Tyranny of the Shared Calendar
+
+Consider what a calendar invitation actually is.
+
+Formally, it is a proposal: a block of time, a list of people, a subject line. Socially, it is something closer to a claim staked on someone else's attention, and its remarkable property is that it is accepted by default. The burden falls entirely on the person who would rather not go, who must either attend something they believe to be a waste or perform a small act of social aggression by declining.
+
+No individual designed this. It emerged, the way railway time emerged, from a sequence of local decisions that were each perfectly sensible.
+
+But the second-order effect is strange. If anyone can claim an hour of anyone's time, and the claim is honoured by default, then the scarce resource is not time — it is *unclaimed* time, and unclaimed time is precisely what is required for any work that cannot be done in thirty-minute increments.
+
+Paul Graham made the useful distinction between the maker's schedule and the manager's schedule: the maker needs half a day, the manager thinks in hours, and a single meeting dropped into the middle of a maker's afternoon does not cost an hour, it costs the afternoon. That is true as far as it goes. What it understates is that the two schedules are not merely different preferences. They are in direct competition for the same substance, and one of them has a tool that automatically wins.
+
+I want to be careful here, because the obvious conclusion is wrong.
+
+The obvious conclusion is that meetings are bad and should be abolished, and anyone who has worked in an organisation that genuinely tried this knows what happens next. The meetings do not disappear. They reappear as a hundred asynchronous threads, each demanding to be read, each generating the specific anxiety of a conversation you might already be too late to join. The coordination work is conserved. You have simply converted a scheduled cost into an unscheduled one, and unscheduled costs are harder to see, which is not the same as being smaller.
+
+What actually helps is more boring, and I will spend most of this book on it: making the claim on someone's attention *visible as a cost* at the moment it is made.
+
+Not forbidden. Visible.
+
+The Bristol clock did not force anyone to choose. It put both hands on the same face, where everyone could see the gap, and let the argument happen in the open for forty-eight years until it resolved itself.
+
+That is slower than a rule, and it is the only approach I have ever seen survive contact with an actual organisation.

@@ -1,0 +1,17 @@
+{
+  "name": "bookworm-web",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/svelte": "^9.0.1",
+    "@lucide/svelte": "^1.52.0",
+    "astro": "^7.3.5",
+    "svelte": "^5.57.1"
+  }
+}

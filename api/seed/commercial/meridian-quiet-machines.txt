@@ -1,0 +1,49 @@
+INTRODUCTION
+
+The Thermostat Problem
+
+In 1948, a heating engineer named Albert Voss installed a thermostat in a Manchester primary school and created, without meaning to, one of the most instructive failures in the history of automatic systems.
+
+The thermostat worked. That was the problem.
+
+Voss had been asked to solve a straightforward complaint: the school was too cold in the mornings and too hot by midday, because the caretaker stoked the boiler at seven and then went to do other things. A thermostat would hold the building at a steady sixty-five degrees without anyone having to think about it. Voss fitted the device in the main corridor, calibrated it carefully, and went home.
+
+Within a month, the school was colder than it had ever been.
+
+The reason took him most of a winter to find, and when he found it he wrote it up in a trade journal in terms that still read as slightly stunned. The thermostat was in the corridor. The corridor had the front door at one end. Every time a child came in from the playground, a blast of February air crossed the sensor, the thermostat concluded the building was freezing, and the boiler roared into life — heating the classrooms, which were already warm, to a temperature that made the children drowsy and the teachers furious. The teachers opened the windows. The building lost heat. The corridor, now genuinely cold, called for still more.
+
+The system was working exactly as designed. It was measuring temperature accurately and responding correctly. It had simply been given a question — *what is the temperature in this corridor?* — that bore only an accidental relationship to the question anyone actually cared about, which was *are the children comfortable?*
+
+I have spent eighteen years building automatic systems, and I have watched Voss's thermostat reinvent itself perhaps forty times. It is never recognised. It arrives dressed as something modern and is greeted as a new kind of problem, and it is not a new kind of problem, it is a corridor with a door in it.
+
+A recommendation engine optimises for time spent, because time spent is measurable and satisfaction is not, and in eighteen months it has taught itself to serve the content people cannot look away from rather than the content they are glad to have seen.
+
+A hospital measures the proportion of patients seen within four hours, and the four-hour mark becomes a cliff that the whole institution organises itself around, and a patient at three hours and fifty minutes becomes more urgent than a sicker patient at two hours.
+
+A delivery firm measures drops per hour and discovers, slowly and expensively, that it has built a machine for producing damaged parcels and injured drivers.
+
+In each case the instrument is accurate. In each case the number it reports is true. And in each case the number has quietly replaced the thing it was standing in for, because the number is available and the thing is not.
+
+CHAPTER ONE
+
+Proxies and the Things They Stand For
+
+Every measurement is a proxy. This is not a flaw to be engineered away; it is the nature of measurement. You cannot measure whether a school is a good school. You can measure attendance, examination results, the proportion of pupils progressing to further study, teacher retention — and each of these is a shadow cast by the thing you care about, from one particular angle, under one particular light.
+
+Trouble starts not when we use proxies, which is unavoidable, but when we forget that is what we are doing.
+
+The forgetting has a reliable shape. It goes like this.
+
+**Stage one: the proxy is introduced, and everybody knows it is a proxy.** The new measure is discussed in meetings with appropriate caveats. People say things like "of course, this doesn't capture everything" and mean it. Decisions are made with the number as one input among several.
+
+**Stage two: the proxy becomes convenient.** It is in the weekly report. It can be charted. It makes a good slide. Nobody has decided it matters more than the other inputs, but it is the one that is always to hand, and the others require someone to go and find out.
+
+**Stage three: the proxy becomes the target.** Someone's performance is assessed against it. A budget moves because of it. At this point the caveats are still spoken aloud, but they have become ritual — the thing you say before doing what the number tells you.
+
+**Stage four: the proxy becomes the thing.** New staff arrive who have never known the measure as anything but the definition. The original question has not been answered or abandoned; it has simply stopped being asked, because asking it would require admitting that nobody has known the answer for several years.
+
+What makes this progression so hard to interrupt is that no stage is obviously wrong. Each step is a small, defensible act of practicality. Nobody decides to confuse the map with the territory. They merely notice, repeatedly, that the map is easier to carry.
+
+The engineer's instinct at this point is to reach for a better proxy, and sometimes that is right. But a better proxy decays the same way, only more slowly. The durable fix is not a cleverer number. It is an institution that keeps asking the original question out loud, in rooms where it can be answered badly, often enough that somebody notices when the answer stops matching the chart.
+
+That is harder than it sounds, and it is most of what this book is about.

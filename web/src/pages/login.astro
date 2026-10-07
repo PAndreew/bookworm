@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro';
+import AuthForm from '../components/AuthForm.svelte';
+---
+
+<Base title="Sign in — Bookworm" bare>
+  <AuthForm mode="login" client:load />
+</Base>

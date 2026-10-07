@@ -1,0 +1,109 @@
+---
+import Base from '../../layouts/Base.astro';
+
+// A shared quote must open for someone with no account: this is the link that
+// travels outside the app.
+//
+// One catch-all page serves every slug. Quote slugs are created by users at
+// runtime, so there is no set of paths to enumerate at build time; the page is
+// a static shell and fetches the quote client-side. That also means a quote
+// removed after a takedown stops resolving immediately, with no rebuild.
+export const prerender = true;
+export function getStaticPaths() {
+  return [{ params: { slug: undefined } }];
+}
+---
+
+<Base title="A quote on Bookworm" bare>
+  <main>
+    <div id="card" class="card">
+      <div class="loading">Loading…</div>
+    </div>
+
+    <a class="cta" href="/signup">Read it on Bookworm</a>
+    <a class="alt" href="/app">Browse the shelf</a>
+  </main>
+</Base>
+
+<script>
+  const slug = location.pathname.split('/').filter(Boolean).pop();
+  const card = document.getElementById('card')!;
+
+  const esc = (s: string) =>
+    s.replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+    );
+
+  fetch(`/v1/quotes/${slug}`)
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then(({ quote }) => {
+      card.innerHTML = `
+        <blockquote>${esc(quote.quote)}</blockquote>
+        <div class="src">${esc(quote.book_title)}<span>${esc(quote.author)}</span></div>`;
+    })
+    .catch(() => {
+      card.innerHTML = `<p class="gone">This quote is no longer available.</p>`;
+    });
+</script>
+
+<style>
+  main {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    padding: 28px 22px;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .card {
+    padding: 32px 26px;
+    border-radius: var(--radius);
+    background: var(--grad-card);
+    border: 1px solid var(--border-bright);
+    box-shadow: var(--shadow-lift);
+  }
+
+  .card :global(blockquote) {
+    margin: 0 0 20px;
+    font-family: var(--font-read);
+    font-size: 1.3rem;
+    line-height: 1.62;
+    white-space: pre-wrap;
+  }
+  .card :global(.src) {
+    font-size: 0.86rem;
+    font-weight: 600;
+    padding-top: 15px;
+    border-top: 1px solid var(--border);
+  }
+  .card :global(.src span) {
+    display: block;
+    font-weight: 400;
+    color: var(--text-faint);
+    font-size: 0.8rem;
+    margin-top: 2px;
+  }
+  .card :global(.gone),
+  .loading {
+    color: var(--text-faint);
+    text-align: center;
+    margin: 0;
+  }
+
+  .cta {
+    padding: 14px;
+    border-radius: var(--radius-pill);
+    background: var(--grad-brand);
+    color: #fff;
+    font-weight: 650;
+    text-align: center;
+  }
+  .alt {
+    text-align: center;
+    font-size: 0.84rem;
+    color: var(--text-faint);
+  }
+</style>
