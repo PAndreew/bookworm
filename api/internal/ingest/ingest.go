@@ -18,6 +18,7 @@ type Book struct {
 	Title       string
 	Author      string
 	Description string
+	Genres      []string
 	CoverURL    string
 	Language    string
 	License     string // public_domain | licensed
@@ -60,6 +61,9 @@ func (i *Ingester) Publish(ctx context.Context, b Book) (Result, error) {
 	if len(b.Pages) == 0 {
 		return Result{}, errors.New("ingest: refusing to publish a book with no pages")
 	}
+	if err := ValidateGenres(b.Genres); err != nil {
+		return Result{}, err
+	}
 	if b.License != "public_domain" && b.License != "licensed" {
 		return Result{}, fmt.Errorf("ingest: unknown licence %q", b.License)
 	}
@@ -84,6 +88,12 @@ func (i *Ingester) Publish(ctx context.Context, b Book) (Result, error) {
 		b.License, b.SourceRef, b.PublisherID).Scan(&bookID)
 	if err != nil {
 		return Result{}, fmt.Errorf("ingest: upserting book: %w", err)
+	}
+
+	if b.Genres != nil {
+		if _, err := tx.Exec(ctx, `UPDATE books SET genres=$2 WHERE id=$1`, bookID, b.Genres); err != nil {
+			return Result{}, fmt.Errorf("ingest: updating genres: %w", err)
+		}
 	}
 
 	// Already have this edition? Leave its pages exactly as they are and say so.

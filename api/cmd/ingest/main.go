@@ -30,6 +30,7 @@ import (
 
 func main() {
 	var (
+		expand     = flag.Bool("expand", false, "add 100+ genre-tagged public-domain books from the curated catalogue")
 		seed       = flag.Bool("seed", false, "ingest the curated starter shelf (needs internet)")
 		seedLocal  = flag.Bool("seed-local", false, "ingest the offline sample texts in ./seed")
 		gutenberg  = flag.Int("gutenberg", 0, "ingest one Project Gutenberg book by id")
@@ -66,6 +67,11 @@ func main() {
 	ing := ingest.New(pool)
 
 	switch {
+	case *expand:
+		if err := expandShelf(ctx, ing); err != nil {
+			log.Fatal(err)
+		}
+
 	case *all:
 		if err := seedShelf(ctx, ing); err != nil {
 			log.Fatal(err)

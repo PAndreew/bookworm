@@ -2,12 +2,16 @@
 
 The reader borrows Datamat's design language, not its decorative effects:
 
-- Self-hosted Geist body text and Quicksand headings/wordmark.
+- Self-hosted Geist body text and Fraunces headings/wordmark: a friendly serif.
 - White and neutral gray surfaces, dark ink, blue (`#2563eb`) actions.
 - Single pastel book cards with black text, no nested covers or monograms.
   Colors use a stable slug-derived hue at 65% saturation and 91% lightness.
 - 12px card corners, subtle borders/shadows, generous card padding and grid gaps.
-- Centered landing page with a small wordmark below the rose logo.
+- Book titles begin at the top, genre hashtags follow the metadata, personal
+  1–5-star controls sit below, and locked Plus links sit at the bottom right.
+- Search and genre/access filters support the expanded catalogue.
+- Centered landing page with a small wordmark below the rose logo; everywhere
+  else the wordmark sits beside the rose.
 - Individual benefit words accented in blue (free), purple (streak), and green (Highlight).
 - No gradient backgrounds or gradient text. Reading interactions remain unchanged.
 

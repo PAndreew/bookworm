@@ -1,0 +1,55 @@
+# Genres, ratings and the expanded shelf
+
+## Data and API
+
+- `books.genres` is a non-null text array, capped at five tags by PostgreSQL.
+  Ingest accepts unique lowercase hyphenated names (`historical-fiction`).
+- `book_ratings` stores one personal integer rating (1–5) per user/book.
+  Updating a rating replaces that user's previous choice, not anyone else's.
+- `GET /v1/me/ratings` returns the signed-in user's slug-to-stars map.
+- `PUT /v1/books/{slug}/rating` accepts `{"stars": 1}` through `{"stars": 5}`.
+  Authentication is mandatory; invalid stars return 400, unknown books 404.
+- Public book responses include `genres`. The frontend loads every catalogue
+  page (100 books per request), not just the original first 50.
+
+Ratings are personal, not community averages. They are never included in public
+book responses or cached by the service worker. The shelf supports rating,
+search, access filters and genre filters; hashtags show each book's genres.
+
+## Public-domain expansion
+
+`api/cmd/ingest/catalogue.csv` curates 127 additional Gutenberg sources across
+fiction, poetry, drama, philosophy, science, history, biography, travel and more.
+Run from `/opt/bookworm`:
+
+```sh
+docker compose -f compose.production.yml exec api ingest -expand
+```
+
+The importer downloads sequentially with a pause between publications, verifies
+Gutenberg text markers and source title metadata, strips boilerplate, and publishes
+immutable pages. It skips already-published source IDs. Retry is safe: it never
+replaces existing editions or resets annotations/progress. A run fails if fewer
+than 100 curated expansion sources are available.
+
+The initial source audit also retained seven additional genuine Gutenberg works
+with corrected titles, authors, genres and (for the Spanish Don Quijote) language.
+Migration 0003 fixes metadata only; its source texts/page anchors stay intact.
+The deployed shelf contains 134 more public-domain entries than the starter shelf.
+Some sources are alternative editions of the same work.
+
+Project Gutenberg's public-domain determinations apply to the United States;
+readers must check copyright law in their own jurisdiction. Source references
+(`gutenberg:<id>`) remain attached to every imported book for provenance.
+
+## Verification
+
+- `go test ./...` covers the curated manifest and genre validation.
+- Run database/HTTP regression tests with a **disposable** PostgreSQL database:
+  `TEST_DATABASE_URL=postgres://... go test ./...`.
+  Tests cover migrations, database limits, all five rating values, updates,
+  authentication, user isolation, invalid requests, and immutable page anchors.
+- Chromium checks at 390px/1280px verify font/layout, hashtags, all catalogue
+  pages, filters, and ratings surviving reload and logout/login.
+
+A full production SQL backup was taken under `/opt/backups/` before migrations.

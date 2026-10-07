@@ -50,17 +50,18 @@ func (u *User) PasswordHash() string { return u.passwordHash }
 func (u *User) TOTPSecret() []byte   { return u.totpSecret }
 
 type Book struct {
-	ID          string  `json:"id"`
-	Slug        string  `json:"slug"`
-	Title       string  `json:"title"`
-	Author      string  `json:"author"`
-	Description string  `json:"description"`
-	CoverURL    *string `json:"cover_url"`
-	Language    string  `json:"language"`
-	License     string  `json:"license"`
-	EditionID   string  `json:"edition_id"`
-	PageCount   int     `json:"page_count"`
-	WordCount   int     `json:"word_count"`
+	ID          string   `json:"id"`
+	Slug        string   `json:"slug"`
+	Title       string   `json:"title"`
+	Author      string   `json:"author"`
+	Description string   `json:"description"`
+	CoverURL    *string  `json:"cover_url"`
+	Language    string   `json:"language"`
+	License     string   `json:"license"`
+	EditionID   string   `json:"edition_id"`
+	PageCount   int      `json:"page_count"`
+	WordCount   int      `json:"word_count"`
+	Genres      []string `json:"genres"`
 }
 
 type Page struct {

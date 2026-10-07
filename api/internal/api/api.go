@@ -63,6 +63,8 @@ func (s *Server) Routes() http.Handler {
 
 			r.Post("/auth/logout", s.handleLogout)
 			r.Get("/me", s.handleMe)
+			r.Get("/me/ratings", s.handleRatings)
+			r.Put("/books/{slug}/rating", s.handleRateBook)
 			r.Patch("/me", s.handleUpdateMe)
 
 			r.Post("/auth/2fa/setup", s.handle2FASetup)

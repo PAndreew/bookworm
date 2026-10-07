@@ -14,11 +14,11 @@ import (
 func (s *Store) ListBooks(ctx context.Context, license string, limit, offset int) ([]Book, error) {
 	const q = `
 		SELECT b.id, b.slug, b.title, b.author, b.description, b.cover_url,
-		       b.language, b.license, e.id, e.page_count, e.word_count
+		       b.language, b.license, e.id, e.page_count, e.word_count, b.genres
 		FROM books b
 		JOIN book_editions e ON e.book_id = b.id AND e.state = 'published'
 		WHERE ($1 = '' OR b.license = $1::license_kind)
-		ORDER BY b.title
+		ORDER BY b.title, b.id
 		LIMIT $2 OFFSET $3`
 
 	rows, err := s.pool.Query(ctx, q, license, limit, offset)
@@ -32,7 +32,7 @@ func (s *Store) ListBooks(ctx context.Context, license string, limit, offset int
 		var b Book
 		if err := rows.Scan(&b.ID, &b.Slug, &b.Title, &b.Author, &b.Description,
 			&b.CoverURL, &b.Language, &b.License, &b.EditionID, &b.PageCount,
-			&b.WordCount); err != nil {
+			&b.WordCount, &b.Genres); err != nil {
 			return nil, err
 		}
 		books = append(books, b)
@@ -43,7 +43,7 @@ func (s *Store) ListBooks(ctx context.Context, license string, limit, offset int
 func (s *Store) BookBySlug(ctx context.Context, slug string) (*Book, error) {
 	const q = `
 		SELECT b.id, b.slug, b.title, b.author, b.description, b.cover_url,
-		       b.language, b.license, e.id, e.page_count, e.word_count
+		       b.language, b.license, e.id, e.page_count, e.word_count, b.genres
 		FROM books b
 		JOIN book_editions e ON e.book_id = b.id AND e.state = 'published'
 		WHERE b.slug = $1`
@@ -51,7 +51,7 @@ func (s *Store) BookBySlug(ctx context.Context, slug string) (*Book, error) {
 	var b Book
 	err := s.pool.QueryRow(ctx, q, slug).Scan(&b.ID, &b.Slug, &b.Title, &b.Author,
 		&b.Description, &b.CoverURL, &b.Language, &b.License, &b.EditionID,
-		&b.PageCount, &b.WordCount)
+		&b.PageCount, &b.WordCount, &b.Genres)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}

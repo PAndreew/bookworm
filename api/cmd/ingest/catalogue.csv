@@ -1,0 +1,128 @@
+id|title|author|genres
+1260|Jane Eyre|Charlotte Brontë|romance,gothic,classic
+768|Wuthering Heights|Emily Brontë|romance,gothic,classic
+161|Sense and Sensibility|Jane Austen|romance,classic,social-fiction
+158|Emma|Jane Austen|romance,classic,humor
+105|Persuasion|Jane Austen|romance,classic
+121|Northanger Abbey|Jane Austen|romance,gothic,humor
+141|Mansfield Park|Jane Austen|romance,classic,social-fiction
+1400|Great Expectations|Charles Dickens|classic,social-fiction
+730|Oliver Twist|Charles Dickens|classic,social-fiction,crime
+766|David Copperfield|Charles Dickens|classic,coming-of-age
+580|The Pickwick Papers|Charles Dickens|humor,classic
+46|A Christmas Carol|Charles Dickens|fantasy,classic,short-stories
+1023|Bleak House|Charles Dickens|classic,mystery,social-fiction
+786|Hard Times|Charles Dickens|classic,social-fiction
+883|Our Mutual Friend|Charles Dickens|classic,mystery
+145|Middlemarch|George Eliot|classic,social-fiction,romance
+550|Silas Marner|George Eliot|classic,social-fiction
+6688|The Mill on the Floss|George Eliot|classic,coming-of-age
+599|Vanity Fair|William Makepeace Thackeray|classic,satire,social-fiction
+521|The Life and Adventures of Robinson Crusoe|Daniel Defoe|adventure,classic,sea-stories
+1727|The Odyssey|Homer|poetry,mythology,adventure
+6130|The Iliad|Homer|poetry,mythology,war
+2600|War and Peace|Leo Tolstoy|historical-fiction,war,classic
+1399|Anna Karenina|Leo Tolstoy|romance,classic,social-fiction
+2554|Crime and Punishment|Fyodor Dostoyevsky|psychological,crime,classic
+28054|The Brothers Karamazov|Fyodor Dostoyevsky|philosophy,psychological,classic
+600|Notes from the Underground|Fyodor Dostoyevsky|philosophy,psychological
+2638|The Idiot|Fyodor Dostoyevsky|classic,psychological
+7178|Swann's Way|Marcel Proust|classic,psychological
+1184|The Count of Monte Cristo|Alexandre Dumas|adventure,historical-fiction
+1257|The Three Musketeers|Alexandre Dumas|adventure,historical-fiction
+135|Les Misérables|Victor Hugo|historical-fiction,classic,social-fiction
+2610|Notre-Dame de Paris|Victor Hugo|historical-fiction,gothic
+996|Don Quixote|Miguel de Cervantes|adventure,satire,classic
+3600|Essays|Michel de Montaigne|essays,philosophy
+1232|The Prince|Niccolò Machiavelli|politics,philosophy,history
+1497|The Republic|Plato|philosophy,politics
+2680|Meditations|Marcus Aurelius|philosophy
+45109|The Enchiridion|Epictetus|philosophy
+1998|Thus Spake Zarathustra|Friedrich Nietzsche|philosophy
+4363|Beyond Good and Evil|Friedrich Nietzsche|philosophy
+3207|Leviathan|Thomas Hobbes|philosophy,politics
+7370|Second Treatise of Government|John Locke|philosophy,politics
+3420|A Vindication of the Rights of Woman|Mary Wollstonecraft|essays,politics,philosophy
+61|The Communist Manifesto|Karl Marx and Friedrich Engels|politics,history
+3300|An Inquiry into the Nature and Causes of the Wealth of Nations|Adam Smith|economics,history
+1228|On the Origin of Species|Charles Darwin|science,nature
+944|The Voyage of the Beagle|Charles Darwin|travel,science,nature
+205|Walden|Henry David Thoreau|nature,essays,philosophy
+71|On the Duty of Civil Disobedience|Henry David Thoreau|essays,politics,philosophy
+2944|Essays, First Series|Ralph Waldo Emerson|essays,philosophy
+140|The Jungle|Upton Sinclair|social-fiction,classic
+408|The Souls of Black Folk|W. E. B. Du Bois|essays,history,social-science
+20203|Autobiography of Benjamin Franklin|Benjamin Franklin|biography,history
+23|Narrative of the Life of Frederick Douglass|Frederick Douglass|biography,history
+203|Uncle Tom's Cabin|Harriet Beecher Stowe|historical-fiction,social-fiction
+514|Little Women|Louisa May Alcott|coming-of-age,children,classic
+45|Anne of Green Gables|Lucy Maud Montgomery|children,coming-of-age
+51|Anne of the Island|Lucy Maud Montgomery|romance,coming-of-age
+113|The Secret Garden|Frances Hodgson Burnett|children,classic
+1874|The Railway Children|E. Nesbit|children,adventure
+16|Peter Pan|J. M. Barrie|children,fantasy,adventure
+55|The Wonderful Wizard of Oz|L. Frank Baum|children,fantasy,adventure
+12|Through the Looking-Glass|Lewis Carroll|children,fantasy
+236|The Jungle Book|Rudyard Kipling|children,adventure,short-stories
+2781|Just So Stories|Rudyard Kipling|children,short-stories,fantasy
+14838|The Tale of Peter Rabbit|Beatrix Potter|children
+289|The Wind in the Willows|Kenneth Grahame|children,fantasy
+503|The Blue Fairy Book|Andrew Lang|children,fantasy,folklore
+2591|Grimms' Fairy Tales|Jacob and Wilhelm Grimm|children,fantasy,folklore
+35|The Time Machine|H. G. Wells|science-fiction,adventure
+36|The War of the Worlds|H. G. Wells|science-fiction,adventure
+5230|The Invisible Man|H. G. Wells|science-fiction,horror
+159|The Island of Doctor Moreau|H. G. Wells|science-fiction,horror
+164|Twenty Thousand Leagues under the Sea|Jules Verne|science-fiction,adventure,sea-stories
+18857|A Journey to the Centre of the Earth|Jules Verne|science-fiction,adventure
+103|Around the World in Eighty Days|Jules Verne|adventure,travel
+1268|The Mysterious Island|Jules Verne|adventure,science-fiction
+62|A Princess of Mars|Edgar Rice Burroughs|science-fiction,adventure,fantasy
+78|Tarzan of the Apes|Edgar Rice Burroughs|adventure
+120|Treasure Island|Robert Louis Stevenson|adventure,children,sea-stories
+43|The Strange Case of Dr. Jekyll and Mr. Hyde|Robert Louis Stevenson|gothic,horror,psychological
+421|Kidnapped|Robert Louis Stevenson|adventure,historical-fiction
+74|The Adventures of Tom Sawyer|Mark Twain|adventure,coming-of-age,humor
+76|Adventures of Huckleberry Finn|Mark Twain|adventure,classic,social-fiction
+86|A Connecticut Yankee in King Arthur's Court|Mark Twain|fantasy,satire,humor
+215|The Call of the Wild|Jack London|adventure,nature
+910|White Fang|Jack London|adventure,nature
+1074|The Sea-Wolf|Jack London|adventure,sea-stories
+2852|The Hound of the Baskervilles|Arthur Conan Doyle|mystery,crime,gothic
+244|A Study in Scarlet|Arthur Conan Doyle|mystery,crime
+2097|The Sign of the Four|Arthur Conan Doyle|mystery,crime
+834|The Memoirs of Sherlock Holmes|Arthur Conan Doyle|mystery,crime,short-stories
+221|The Return of Sherlock Holmes|Arthur Conan Doyle|mystery,crime,short-stories
+1155|The Secret Adversary|Agatha Christie|mystery,crime
+863|The Mysterious Affair at Styles|Agatha Christie|mystery,crime
+155|The Moonstone|Wilkie Collins|mystery,crime,classic
+583|The Woman in White|Wilkie Collins|mystery,gothic
+2147|The Works of Edgar Allan Poe, Volume 1|Edgar Allan Poe|horror,gothic,short-stories
+2148|The Works of Edgar Allan Poe, Volume 2|Edgar Allan Poe|horror,gothic,short-stories
+41|The Legend of Sleepy Hollow|Washington Irving|horror,folklore,short-stories
+160|The Awakening and Selected Short Stories|Kate Chopin|classic,short-stories,social-fiction
+25344|The Scarlet Letter|Nathaniel Hawthorne|classic,historical-fiction
+77|The House of the Seven Gables|Nathaniel Hawthorne|gothic,classic
+219|Heart of Darkness|Joseph Conrad|classic,psychological
+5658|Lord Jim|Joseph Conrad|classic,sea-stories
+2814|Dubliners|James Joyce|short-stories,classic
+4300|Ulysses|James Joyce|classic,psychological
+4217|A Portrait of the Artist as a Young Man|James Joyce|coming-of-age,classic
+5200|Metamorphosis|Franz Kafka|fantasy,psychological,classic
+2500|Siddhartha|Hermann Hesse|philosophy,classic
+166|Summer|Edith Wharton|romance,classic,social-fiction
+2542|A Doll's House|Henrik Ibsen|drama,social-fiction
+844|The Importance of Being Earnest|Oscar Wilde|drama,humor,satire
+1514|A Midsummer Night's Dream|William Shakespeare|drama,fantasy,romance
+1513|Romeo and Juliet|William Shakespeare|drama,romance
+1524|Hamlet|William Shakespeare|drama,classic
+1533|Macbeth|William Shakespeare|drama,classic
+1526|Twelfth Night|William Shakespeare|drama,humor,romance
+132|The Art of War|Sun Tzu|history,philosophy,war
+217|Sons and Lovers|D. H. Lawrence|classic,romance,psychological
+16328|Beowulf|Anonymous|poetry,mythology,fantasy
+1322|Leaves of Grass|Walt Whitman|poetry,classic
+12242|Poems by Emily Dickinson, Three Series, Complete|Emily Dickinson|poetry
+1065|The Raven|Edgar Allan Poe|poetry,gothic
+1080|A Modest Proposal|Jonathan Swift|satire,essays
+829|Gulliver's Travels|Jonathan Swift|satire,fantasy,adventure

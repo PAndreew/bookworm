@@ -28,6 +28,7 @@ export interface Book {
   edition_id: string;
   page_count: number;
   word_count: number;
+  genres: string[];
 }
 
 export interface Page {
@@ -133,8 +134,22 @@ export const api = {
     request<{ user: User }>('/me', { method: 'PATCH', body: JSON.stringify(data) }),
 
   // ------------------------------------------------------------- catalog
-  books: (license?: string) =>
-    request<{ books: Book[] }>('/books' + (license ? `?license=${license}` : '')),
+  books: async (license?: string) => {
+    const books: Book[] = [];
+    for (let offset = 0; ; offset += 100) {
+      const query = new URLSearchParams({ limit: '100', offset: String(offset) });
+      if (license) query.set('license', license);
+      const batch = await request<{ books: Book[] }>(`/books?${query}`);
+      books.push(...batch.books);
+      if (batch.books.length < 100) return { books };
+    }
+  },
+
+  ratings: () => request<{ ratings: Record<string, number> }>('/me/ratings'),
+  rateBook: (slug: string, stars: number) =>
+    request<{ stars: number }>(`/books/${encodeURIComponent(slug)}/rating`, {
+      method: 'PUT', body: JSON.stringify({ stars }),
+    }),
 
   book: (slug: string) => request<{ book: Book }>(`/books/${slug}`),
 
