@@ -12,6 +12,7 @@ import (
 )
 
 func (s *Server) handleListFriends(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	friends, err := s.store.ListFriends(r.Context(), currentUser(r).ID)
 	if err != nil {
 		httpx.InternalError(w, r, "handleListFriends", err)
@@ -21,6 +22,7 @@ func (s *Server) handleListFriends(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handlePendingFriends(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	pending, err := s.store.ListPendingRequests(r.Context(), currentUser(r).ID)
 	if err != nil {
 		httpx.InternalError(w, r, "handlePendingFriends", err)
@@ -130,6 +132,7 @@ func (s *Server) handleSearchUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	handle := strings.ToLower(chi.URLParam(r, "handle"))
 
 	profile, err := s.store.ProfileFor(r.Context(), currentUser(r).ID, handle)
@@ -145,6 +148,7 @@ func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleFriendFeed(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	activity, err := s.store.FriendActivity(r.Context(), currentUser(r).ID,
 		httpx.QueryInt(r, "limit", 30, 1, 100))
 	if err != nil {

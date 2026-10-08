@@ -4,7 +4,7 @@
   import { api, ApiError, type Page, type Translation } from '../lib/api';
   import ReadingCompanion from './ReadingCompanion.svelte';
 
-  import { guestPages, type GuestBook } from '../lib/guest-books';
+  import { guestPages, guestTranslation, type GuestBook } from '../lib/guest-books';
   let { slug, title, author, preview }: { slug: string; title: string; author: string; preview?: GuestBook } = $props();
   let previewFinished = $state(false);
 
@@ -48,8 +48,12 @@
   });
   async function translateCurrentCard(language: string, signal?: AbortSignal) {
     const id = activePage?.card_id;
-    if (preview || !id || activePage?.kind !== 'text') throw new Error('Choose a text card to translate.');
-    const result = await api.translateCard(id, language, signal);
+    if (!id || activePage?.kind !== 'text') throw new Error('Choose a text card to translate.');
+    const prepared = guestTranslation(preview, activeIdx);
+    if (preview && (!prepared || language !== 'French')) return;
+    const result = preview
+      ? { cached: true, translation: { language: 'French' as const, content: prepared, model: 'Prepared demo — no AI' } }
+      : await api.translateCard(id, language, signal);
     translations[id] = [...(translations[id] ?? []).filter(t => t.language !== language), result.translation];
     if (activePage?.card_id === id) preferredLanguage = language;
     showToast(result.cached ? 'Showing saved translation.' : 'AI translation saved.');
@@ -348,7 +352,7 @@
         <article class="page" data-page-id={page.id} data-card-id={page.card_id} data-kind={page.kind} data-idx={page.idx}>
           {#if page.kind === 'text'}
           {#if cardTranslation(page)}<span class="ai-badge">AI translation</span>{/if}
-          {#if !preview && translations[page.card_id ?? '']?.length}
+          {#if translations[page.card_id ?? '']?.length}
             <select class="card-language" aria-label="Card language" value={cardTranslation(page)?.language ?? 'Original'} onchange={(e) => preferredLanguage = e.currentTarget.value}>
               <option value="Original">Original</option>
               {#each translations[page.card_id ?? ''] as t}<option value={t.language}>{t.language}</option>{/each}
@@ -425,7 +429,8 @@
 </div>
 {#if !previewFinished}
 <ReadingCompanion {progress} cardIndex={activeIdx} positionLabel={pageCount ? `Card ${activeIdx + 1} of ${pageCount}` : 'Opening your book'}
-  onTranslateCard={!preview && activePage?.kind === 'text' ? translateCurrentCard : undefined}
+  onTranslateCard={activePage?.kind === 'text' ? translateCurrentCard : undefined}
+  demoTranslation={!!guestTranslation(preview, activeIdx)} demoTranslated={!!activePage && !!cardTranslation(activePage)}
   experience={preview ? 'demo' : 'live'} demoWord={preview?.pages[activeIdx]?.word ?? ''} demoDefinition={preview?.pages[activeIdx]?.definition ?? ''} />
 {/if}
 

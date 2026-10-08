@@ -2,8 +2,11 @@
   import { onMount } from 'svelte';
   import { Flame, UserPlus, Check, X, Search } from '@lucide/svelte';
   import { api, ApiError } from '../lib/api';
+  import Avatar from './Avatar.svelte';
 
   let friends = $state<any[]>([]);
+  let ranking = $state<'common_books' | 'streak_days' | 'pages_30_days'>('common_books');
+  const rankedFriends = $derived([...friends].sort((a, b) => (b[ranking] ?? 0) - (a[ranking] ?? 0) || a.handle.localeCompare(b.handle)));
   let pending = $state<any[]>([]);
   let activity = $state<any[]>([]);
   let loading = $state(true);
@@ -94,6 +97,7 @@
         <h2>Results</h2>
         {#each results as u (u.id)}
           <div class="row">
+            <Avatar seed={u.id ?? u.handle} />
             <div class="who">
               <div class="name">{u.display_name}</div>
               <div class="handle">@{u.handle}</div>
@@ -113,6 +117,7 @@
         <h2>Requests</h2>
         {#each pending as p (p.id)}
           <div class="row">
+            <Avatar seed={p.id ?? p.handle} />
             <div class="who">
               <div class="name">{p.display_name}</div>
               <div class="handle">@{p.handle} · {p.incoming ? 'wants to be friends' : 'request sent'}</div>
@@ -139,15 +144,23 @@
     {#if friends.length > 0}
       <section>
         <h2>Your friends</h2>
-        {#each friends as f (f.id)}
-          <a class="row" href={`/app/u/${f.handle}`}>
+        <div class="rankings" aria-label="Rank friends">
+          <button class:active={ranking === 'common_books'} aria-pressed={ranking === 'common_books'} onclick={() => ranking = 'common_books'}>Common books</button>
+          <button class:active={ranking === 'streak_days'} aria-pressed={ranking === 'streak_days'} onclick={() => ranking = 'streak_days'}>Streak</button>
+          <button class:active={ranking === 'pages_30_days'} aria-pressed={ranking === 'pages_30_days'} onclick={() => ranking = 'pages_30_days'}>Pages · 30 days</button>
+        </div>
+        {#each rankedFriends as f (f.id)}
+          <a class="row friend" href={`/app/u/${encodeURIComponent(f.handle)}`}>
+            <Avatar seed={f.id ?? f.handle} />
             <div class="who">
               <div class="name">{f.display_name}</div>
               <div class="handle">@{f.handle}</div>
             </div>
-            {#if f.streak_days > 0}
-              <div class="streak"><Flame size={14} /> {f.streak_days}</div>
-            {/if}
+            <div class="metric">
+              {#if ranking === 'common_books'}<strong>{f.common_books ?? 0}</strong><span>books in common</span>
+              {:else if ranking === 'streak_days'}<strong><Flame size={14} /> {f.streak_days ?? 0}</strong><span>day streak</span>
+              {:else}<strong>{f.pages_30_days ?? 0}</strong><span>pages · 30 days</span>{/if}
+            </div>
           </a>
         {/each}
       </section>
@@ -231,7 +244,15 @@
     border: 1px solid var(--border);
     margin-bottom: 8px;
   }
+  .who { flex: 1; min-width: 0; }
+  .rankings { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .rankings button { padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border); background: #fff; color: var(--text-dim); font: inherit; font-size: .78rem; cursor: pointer; }
+  .rankings button.active { background: #e4f4ee; border-color: #9ccfbd; color: #245c48; }
+  .metric { text-align: right; flex-shrink: 0; }
+  .metric strong { display: flex; justify-content: flex-end; align-items: center; gap: 4px; font-size: 1rem; }
+  .metric span { display: block; font-size: .65rem; color: var(--text-faint); }
   .name {
+    overflow-wrap: anywhere;
     font-weight: 600;
     font-size: 0.9rem;
   }

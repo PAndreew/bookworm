@@ -127,23 +127,63 @@ type Friend struct {
 	Handle      string `json:"handle"`
 	DisplayName string `json:"display_name"`
 	StreakDays  int    `json:"streak_days"`
+	CommonBooks int    `json:"common_books"`
+	Pages30Days int    `json:"pages_30_days"`
 	// Incoming distinguishes "they asked you" from "you asked them" on pending rows.
 	Incoming bool `json:"incoming,omitempty"`
 }
 
-// ListFriends returns accepted friends with their current streaks.
+// ListFriends ranks actual reading, not bookmarks or navigation. Reading counts
+// respect the friend's profile/book privacy. Days use each reader's local dates;
+// migrated inherited card credits never inflate activity.
 func (s *Store) ListFriends(ctx context.Context, userID string) ([]Friend, error) {
 	const q = `
-		SELECT u.id, u.handle, u.display_name, COALESCE(st.current_days, 0)
-		FROM friendships f
-		JOIN users u ON u.id = CASE WHEN f.requester_id = $1
-		                            THEN f.addressee_id ELSE f.requester_id END
-		LEFT JOIN streaks st ON st.user_id = u.id
-		WHERE (f.requester_id = $1 OR f.addressee_id = $1)
-		  AND f.state = 'accepted'
-		  AND u.deleted_at IS NULL
-		ORDER BY st.current_days DESC NULLS LAST, u.handle`
-	return s.queryFriends(ctx, q, userID)
+	WITH peers AS (
+	 SELECT u.* FROM friendships f JOIN users u ON u.id =
+	 CASE WHEN f.requester_id=$1 THEN f.addressee_id ELSE f.requester_id END
+	 WHERE (f.requester_id=$1 OR f.addressee_id=$1) AND f.state='accepted' AND u.deleted_at IS NULL
+	), participants AS (SELECT id FROM peers UNION SELECT $1::uuid),
+	reads AS (
+	 SELECT pr.user_id,p.edition_id,pr.local_day FROM page_reads pr JOIN pages p ON p.id=pr.page_id
+	 WHERE pr.user_id IN (SELECT id FROM participants)
+	 UNION ALL
+	 SELECT cr.user_id,c.edition_id,cr.local_day FROM card_reads cr JOIN reader_cards c ON c.id=cr.card_id
+	 WHERE NOT cr.inherited AND cr.user_id IN (SELECT id FROM participants)
+	), read_books AS (
+	 SELECT DISTINCT r.user_id,e.book_id FROM reads r JOIN book_editions e ON e.id=r.edition_id
+	 JOIN users u ON u.id=r.user_id LEFT JOIN reading_progress rp ON rp.user_id=r.user_id AND rp.edition_id=r.edition_id
+	 WHERE r.user_id=$1 OR (u.visibility<>'private' AND NOT COALESCE(rp.is_private,false))
+	), common AS (
+	 SELECT r.user_id,count(*) AS n FROM read_books r
+	 JOIN read_books mine ON mine.user_id=$1 AND mine.book_id=r.book_id
+	 GROUP BY r.user_id
+	), recent AS (
+	 SELECT r.user_id,count(*) AS n FROM reads r JOIN peers u ON u.id=r.user_id
+	 LEFT JOIN reading_progress rp ON rp.user_id=r.user_id AND rp.edition_id=r.edition_id
+	 WHERE u.visibility<>'private' AND NOT COALESCE(rp.is_private,false)
+	 AND r.local_day BETWEEN (now() AT TIME ZONE u.timezone)::date-29 AND (now() AT TIME ZONE u.timezone)::date
+	 GROUP BY r.user_id
+	)
+	SELECT u.id,u.handle,u.display_name,
+	 CASE WHEN st.last_day >= (now() AT TIME ZONE u.timezone)::date-1 THEN COALESCE(st.current_days,0) ELSE 0 END,
+	 COALESCE(common.n,0),COALESCE(recent.n,0)
+	FROM peers u LEFT JOIN streaks st ON st.user_id=u.id
+	LEFT JOIN common ON common.user_id=u.id LEFT JOIN recent ON recent.user_id=u.id
+	ORDER BY COALESCE(common.n,0) DESC,u.handle`
+	rows, err := s.pool.Query(ctx, q, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Friend{}
+	for rows.Next() {
+		var f Friend
+		if err := rows.Scan(&f.ID, &f.Handle, &f.DisplayName, &f.StreakDays, &f.CommonBooks, &f.Pages30Days); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
 }
 
 // ListPendingRequests returns pending requests involving this user, flagged by
@@ -199,6 +239,7 @@ func (s *Store) queryFriends(ctx context.Context, q string, args ...any) ([]Frie
 // --------------------------------------------------------------- profiles
 
 type Profile struct {
+	ID          string `json:"id"`
 	Handle      string `json:"handle"`
 	DisplayName string `json:"display_name"`
 	Visibility  string `json:"visibility"`
@@ -248,6 +289,7 @@ func (s *Store) ProfileFor(ctx context.Context, viewerID, handle string) (*Profi
 	}
 
 	p := &Profile{
+		ID:          target.ID,
 		Handle:      target.Handle,
 		DisplayName: target.DisplayName,
 		Visibility:  target.Visibility,

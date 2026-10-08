@@ -21,8 +21,10 @@ Finishing the preview offers signup; normal public-domain reading remains free.
 
 All pages use **the real `ReadingCompanion.svelte`** for Puri's position, scroll
 hops, card-change hops, three-frame blink and reduced-motion behavior. Landing
-`experience="facts"` uses a non-clickable image and five random turquoise trivia
-bubbles. Preview `experience="demo"` uses a small `PuriCoach.svelte` bubble with
+`experience="facts"` retains the non-clickable mascot and scroll behavior, but
+has no trivia bubbles or timers. The headline is “Read timeless classics, bit by
+bit.” with a locally hosted, OFL-licensed Pacifico font for “timeless classics.”
+Preview `experience="demo"` uses a small `PuriCoach.svelte` bubble with
 an exact suggested word, correction for other selections, and a prepared answer.
 Only an exact case-insensitive selection from the book text enables Explain.
 The bubble is anchored to Puri with a pointing tail and waits 550ms after the
@@ -32,15 +34,20 @@ or unmount. Reduced-motion mode uses no settling delay. Neither mode opens the
 paid AI dialog or calls `/assistant`. Full readers retain
 the normal paid explanation/translation dialog.
 
-On the landing page, scroll events immediately hide both Puri and the bubble.
+On the landing page, scroll events immediately hide Puri.
 After 180ms without scrolling, Puri measures the final marker and relocates
 immediately with one hop—no CSS glide or hops during momentum scrolling.
 Resize/font observers cannot bypass a pending scroll pause; timers are cancelled
 on unmount. The full reader's movement is unchanged.
 
-Facts appear after a random 3.5–6 seconds, remain for ten seconds, and return
-after a random 20–35-second pause. No immediate repeat. Reduced motion disables
-hops and blink; timers and listeners are removed on unmount.
+After the first word-explanation step, card 3 (index 2) teaches full-card
+translation. Click Puri, then Translate card, to show a prepared French version
+in the same reader with its AI translation badge and Original/French dropdown.
+This uses the actual translation state/rendering, not a separate demo interface,
+and makes no API calls. `guest-translations.json` stores the exact source beside
+the translation; a changed snapshot disables mismatched demo translations rather
+than translating the wrong text. Other cards retain word coaching. Reduced motion
+disables hops and blink; movement timers and listeners are removed on unmount.
 
 `ops/build-guest-samples.py` refreshes `web/src/lib/guest-books.json` from public
 catalogue/card endpoints, validating all forty cards and their curated words.
@@ -60,8 +67,8 @@ target account and four books, respects blocks, refuses identity conflicts,
 and never resets existing bookmarks on reruns.
 
 Tests: `web/tests/guest-onboarding.browser.cjs` compares actual library/preview
-geometry at 320/390/1280px, checks exact-word coaching, disabled actions, the
-limit and zero preview API calls. `web/tests/glim.browser.cjs` checks landing
+geometry at 320/390/1280px, checks exact-word coaching, prepared full-card
+translation/Original switching, disabled actions, the limit and zero preview API calls. `web/tests/glim.browser.cjs` checks landing
 hops, non-clickability, blink frames and reduced motion.
 `web/tests/puri-bubble.browser.cjs` checks settling, nearby bubble geometry,
 rapid-navigation hint cancellation and reduced motion.

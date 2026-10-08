@@ -3,6 +3,7 @@
   import { Shield, ShieldCheck, LogOut, Eye } from '@lucide/svelte';
   import { api, ApiError, type User } from '../lib/api';
   import Membership from './Membership.svelte';
+  import Avatar from './Avatar.svelte';
 
   let user = $state<User | null>(null);
   let loading = $state(true);
@@ -106,7 +107,8 @@
     <p class="empty">Loading…</p>
   {:else if user}
     <header class="head">
-      <div>
+      <Avatar seed={user.id ?? user.handle} size={48} />
+      <div class="identity">
         <h1>{user.display_name}</h1>
         <div class="handle">@{user.handle}</div>
       </div>
@@ -188,6 +190,8 @@
     font-weight: 740;
     letter-spacing: -0.02em;
   }
+  .identity { flex: 1; min-width: 0; }
+  .head { gap: 12px; }
   .handle {
     color: var(--text-faint);
     font-size: 0.84rem;

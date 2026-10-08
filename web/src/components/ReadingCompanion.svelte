@@ -3,9 +3,10 @@
   import { api, ApiError } from '../lib/api';
 
   import PuriCoach from './PuriCoach.svelte';
-  let { progress, positionLabel, cardIndex, experience = 'live', demoWord = '', demoDefinition = '', onTranslateCard }: {
+  let { progress, positionLabel, cardIndex, experience = 'live', demoWord = '', demoDefinition = '', demoTranslation = false, demoTranslated = false, onTranslateCard }: {
     progress?: number; positionLabel?: string; cardIndex?: number;
     experience?: 'live' | 'facts' | 'demo'; demoWord?: string; demoDefinition?: string;
+    demoTranslation?: boolean; demoTranslated?: boolean;
     onTranslateCard?: (language: string, signal?: AbortSignal) => Promise<void>;
   } = $props();
   let coaching = $state(false);
@@ -20,7 +21,7 @@
   const coachLeft = $derived(Math.max(16, Math.min(x - 278, viewportWidth - 326)));
   const below = $derived(y < 200);
   $effect(() => {
-    x; y; cardIndex; demoWord; hopRevision;
+    x; y; cardIndex; demoWord; demoTranslated; hopRevision;
     settled = false;
     if (!visible || experience === 'live' || landingScrolling) return;
     // The hop lasts 450ms; position transitions last at most 280ms.
@@ -188,10 +189,11 @@
   </span>
 </svelte:element>
 
-{#if experience !== 'live'}
-  <div class="coach" class:below class:facts={experience === 'facts'}
+{#if experience === 'demo'}
+  <div class="coach" class:below
     style="left:{coachLeft}px;top:{below ? y + 44 : y - 12}px;--tail-x:{x + 16 - coachLeft}px;visibility:{visible && settled ? 'visible' : 'hidden'}">
-    <PuriCoach facts={experience === 'facts'} word={demoWord} definition={demoDefinition} selection={selected} expanded={coaching} />
+    <PuriCoach word={demoWord} definition={demoDefinition} selection={selected} expanded={coaching}
+      translation={demoTranslation} translated={demoTranslated} onTranslate={() => onTranslateCard?.('French') ?? Promise.resolve()} />
   </div>
 {/if}
 
