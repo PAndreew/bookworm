@@ -1,11 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Flame, Shield, ShieldCheck, LogOut, Eye } from '@lucide/svelte';
+  import { Shield, ShieldCheck, LogOut, Eye } from '@lucide/svelte';
   import { api, ApiError, type User } from '../lib/api';
 
   let user = $state<User | null>(null);
-  let quota = $state({ limit: 0, used: 0, resets_at: '', period: 'day' });
-  let streak = $state({ current: 0, longest: 0, at_risk: false, pages_today: 0, pages_required: 3 });
   let loading = $state(true);
   let needsAuth = $state(false);
   let toast = $state<string | null>(null);
@@ -23,9 +21,6 @@
     try {
       const me = await api.me();
       user = me.user;
-      quota = me.quota;
-      const s = await api.streak();
-      streak = s;
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) needsAuth = true;
     } finally {
@@ -107,37 +102,7 @@
       <div class="tier">{user.tier}</div>
     </header>
 
-    <div class="stats">
-      <div class="stat">
-        <div class="v"><Flame size={17} /> {streak.current}</div>
-        <div class="l">day streak</div>
-      </div>
-      <div class="stat">
-        <div class="v">{streak.longest}</div>
-        <div class="l">longest</div>
-      </div>
-      <div class="stat">
-        <div class="v">{streak.pages_today}</div>
-        <div class="l">text cards today</div>
-      </div>
-    </div>
-
-    {#if quota.limit > 0}
-      <section class="box">
-        <h2>{quota.period === 'month' ? 'This month’s licensed cards' : 'Today’s licensed cards'}</h2>
-        <div class="bar"><div class="fill" style="width:{(quota.used / quota.limit) * 100}%"></div></div>
-        <p class="dim">
-          {quota.used} of {quota.limit} used · resets at
-          {quota.period === 'month' ? new Date(quota.resets_at).toLocaleDateString() : new Date(quota.resets_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
-      </section>
-    {:else}
-      <section class="box">
-        <h2>Free plan</h2>
-        <p class="dim">Every public-domain book, with no limit. Plus adds 30 licensed text cards a day. Pro includes 1,000 a month. Both include Sunny’s AI.</p>
-        <a class="cta" href="/app/upgrade">See Plus and Pro</a>
-      </section>
-    {/if}
+    <a class="cta" href="/app/upgrade">See Plus and Pro</a>
 
     <section class="box">
       <h2><Eye size={15} /> Who can see your reading</h2>
@@ -256,10 +221,7 @@
   }
 
   .box {
-    padding: 16px;
-    border-radius: var(--radius-sm);
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    padding: 16px 0;
     margin-bottom: 12px;
   }
   h2 {
@@ -397,6 +359,18 @@
     color: var(--text-faint);
     font-size: 0.88rem;
   }
+
+  .seg button, .cta, .ghost, .danger, .signout {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    color: var(--accent);
+    padding: 10px 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .seg button.on { font-weight: 700; text-decoration-thickness: 2px; }
+  .danger { color: #be123c; }
 
   footer {
     display: flex;

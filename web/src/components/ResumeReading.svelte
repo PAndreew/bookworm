@@ -16,8 +16,8 @@
 {/if}
 
 <style>
-  .resume { display: flex; flex-direction: column; gap: 4px; padding: 14px 20px; margin: 16px 0; border-radius: var(--radius-sm); background: var(--card-blue); border: 1px solid var(--border); color: var(--text); }
-  .resume:hover { border-color: var(--accent); }
+  .resume { display: flex; flex-direction: column; gap: 4px; padding: 14px 0; margin: 16px 0; color: var(--text); }
+  .resume:hover strong { text-decoration: underline; text-underline-offset: 3px; }
   strong { color: var(--accent); }
   span { font-size: 0.85rem; color: var(--text-dim); }
 </style>

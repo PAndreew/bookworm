@@ -11,8 +11,8 @@ reader page, so rounding a percentage never hides small progress changes.
 
 Click Sunny after selecting book text, or paste a phrase. The native dialog supports
 keyboard focus trapping, Escape/close, explanation, translation and output language.
-The user must sign in with Plus or Pro and explicitly confirm sending the phrase
-to the provider. Free accounts are blocked server-side before any provider call.
+The user must sign in with Plus or Pro. Submitting a phrase sends it to the
+provider by default, without a separate consent checkbox. Free accounts are blocked server-side before any provider call.
 Results are plain text, never interpreted HTML. Closing cancels the browser request.
 
 ## API and privacy

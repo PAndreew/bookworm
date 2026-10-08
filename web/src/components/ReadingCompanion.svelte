@@ -20,7 +20,6 @@
   let phrase = $state('');
   let mode = $state<'explain' | 'translate'>('explain');
   let language = $state('English');
-  let consent = $state(false);
   let answer = $state('');
   let error = $state('');
   let busy = $state(false);
@@ -118,7 +117,7 @@
     answer = '';
     controller = new AbortController();
     try {
-      const result = await api.assistant({ mode, phrase, language, consent }, controller.signal);
+      const result = await api.assistant({ mode, phrase, language, consent: true }, controller.signal);
       answer = result.answer;
     } catch (e) {
       if (!controller.signal.aborted) error = e instanceof ApiError ? e.message : 'Could not connect. Please try again.';
@@ -150,12 +149,10 @@
       <div><label for="sunny-mode">Help me</label><select id="sunny-mode" bind:value={mode}><option value="explain">Explain this phrase</option><option value="translate">Translate this phrase</option></select></div>
       <div><label for="sunny-language">Answer in</label><select id="sunny-language" bind:value={language}>{#each ['English', 'Romanian', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Polish', 'Japanese', 'Chinese', 'Arabic'] as name}<option>{name}</option>{/each}</select></div>
     </div>
-    <label class="consent"><input type="checkbox" bind:checked={consent} required /> <span>Send this phrase to OpenRouter / Google Gemini. Only the text above and your chosen language are sent, not the whole book.</span></label>
-    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || !consent || !phrase.trim()}>{busy ? 'Thinking…' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
+    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || !phrase.trim()}>{busy ? 'Thinking…' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
   </form>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   <div class="answer" role="status" aria-live="polite">{answer}</div>
-  <p class="note">Gemini 3.8 Flash · Plus and Pro only · AI can make mistakes. 30 requests per reader/day, with a shared daily limit. Requests—including failed attempts—count. Please don’t send sensitive information.</p>
 </dialog>
 
 <style>
@@ -167,7 +164,7 @@
   dialog::backdrop { background: rgba(17,24,39,0.35); }
   header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   h2 { font-size: 1.4rem; margin: 0; }
-  .close { width: 36px; height: 36px; border: none; border-radius: 50%; background: var(--bg-raised); color: var(--text); font-size: 1.5rem; }
+  .close { width: 36px; height: 36px; border: none; border-radius: 50%; background: transparent; color: var(--text); font-size: 1.5rem; }
   .intro, .sign-in { font-size: 0.86rem; line-height: 1.6; color: var(--text-dim); }
   .sign-in a { color: var(--accent); text-decoration: underline; }
   label { display: block; margin-bottom: 6px; font-size: 0.82rem; font-weight: 500; }
@@ -177,7 +174,7 @@
   .options > div { min-width: 0; }
   .consent { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0; font-size: 0.76rem; line-height: 1.6; color: var(--text-dim); }
   .consent input { margin-top: 4px; flex-shrink: 0; }
-  .submit { width: 100%; padding: 12px; border: 0; border-radius: var(--radius-pill); background: var(--accent); color: white; font-weight: 600; }
+  .submit { width: 100%; padding: 12px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; margin-top: 12px; }
   .submit:disabled { opacity: 0.55; cursor: default; }
   .answer { margin-top: 18px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; font-size: 0.9rem; }
   .answer:empty { display: none; }
