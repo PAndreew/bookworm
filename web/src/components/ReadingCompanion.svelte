@@ -2,21 +2,28 @@
   import { onMount, tick } from 'svelte';
   import { api, ApiError } from '../lib/api';
 
-  let { progress, positionLabel, cardIndex }: { progress?: number; positionLabel?: string; cardIndex?: number } = $props();
+  import PuriCoach from './PuriCoach.svelte';
+  let { progress, positionLabel, cardIndex, experience = 'live', demoWord = '', demoDefinition = '' }: {
+    progress?: number; positionLabel?: string; cardIndex?: number;
+    experience?: 'live' | 'facts' | 'demo'; demoWord?: string; demoDefinition?: string;
+  } = $props();
+  let coaching = $state(false);
+  $effect(() => { cardIndex; demoWord; selected = ''; coaching = false; });
   let documentProgress = $state(0);
   let x = $state(0);
   let y = $state(0);
+  let coachTop = $state(0);
   let visible = $state(false);
   let remeasure = () => {};
   $effect(() => {
     progress; cardIndex;
-    const frame = requestAnimationFrame(() => remeasure());
+    const frame = requestAnimationFrame(() => { jump(); remeasure(); });
     return () => cancelAnimationFrame(frame);
   });
   let reducedMotion = $state(false);
   let icon = $state<HTMLSpanElement | null>(null);
   let dialog = $state<HTMLDialogElement | null>(null);
-  let selected = '';
+  let selected = $state('');
   let phrase = $state('');
   let mode = $state<'explain' | 'translate'>('explain');
   let language = $state('English');
@@ -59,7 +66,13 @@
       }).map(el => el.getBoundingClientRect()).filter(r => r.top >= 60 && r.bottom <= window.innerHeight - 12);
       rects.sort((a, b) => Math.abs(a.top - window.innerHeight * 0.68) - Math.abs(b.top - window.innerHeight * 0.68));
       visible = rects.length > 0;
-      if (visible) { x = rects[0].left + 2; y = rects[0].top; }
+      if (visible) {
+        x = rects[0].left + 2; y = rects[0].top;
+        // Put coaching above the book text, not over the word to select.
+        coachTop = experience === 'demo'
+          ? document.querySelector(`.feed [data-idx="${cardIndex ?? 0}"] [data-body]`)?.getBoundingClientRect().top ?? y
+          : y;
+      }
     }
     remeasure = update;
     function schedule() { if (!frame) frame = requestAnimationFrame(() => { frame = 0; update(); }); }
@@ -98,6 +111,7 @@
   });
 
   async function open() {
+    if (experience !== 'live') { coaching = !coaching; return; }
     if (selected) { phrase = selected; answer = ''; selected = ''; }
     error = '';
     auth = 'checking';
@@ -111,7 +125,7 @@
 
   async function ask(event: SubmitEvent) {
     event.preventDefault();
-    if (busy || auth !== 'signed-in') return;
+    if (experience !== 'live' || busy || auth !== 'signed-in') return;
     busy = true;
     error = '';
     answer = '';
@@ -125,15 +139,23 @@
   }
 </script>
 
-<button class="mascot" style="left:{x}px;top:{y}px;visibility:{visible ? 'visible' : 'hidden'}" onclick={open}
-  aria-label={`Ask Puri, your reading companion. ${positionLabel ? positionLabel + '. ' : ''}${Math.round(percent)}% through ${progress === undefined ? 'this page' : 'this book'}.`}
-  title={`Ask Puri · ${positionLabel ?? Math.round(percent) + '% page progress'}`}>
+<svelte:element this={experience === 'facts' ? 'span' : 'button'} class="mascot" class:facts={experience === 'facts'}
+  style="left:{x}px;top:{y}px;visibility:{visible ? 'visible' : 'hidden'}" onclick={experience === 'facts' ? undefined : open}
+  role={experience === 'facts' ? 'img' : undefined}
+  aria-label={experience === 'facts' ? 'Puri, your reading companion' : experience === 'demo' ? 'Click Puri' : `Ask Puri, your reading companion. ${positionLabel ? positionLabel + '. ' : ''}${Math.round(percent)}% through ${progress === undefined ? 'this page' : 'this book'}.`}
+  title={experience === 'live' ? `Ask Puri · ${positionLabel ?? Math.round(percent) + '% page progress'}` : 'Puri'}>
   <span class="glim" bind:this={icon} aria-hidden="true">
     <img class="eyes-open" src="/glim.svg" width="32" height="32" alt="" draggable="false" />
     <img class="eyes-half" src="/glim_blink.svg" width="32" height="32" alt="" draggable="false" />
     <img class="eyes-closed" src="/glim_blink_two.svg" width="32" height="32" alt="" draggable="false" />
   </span>
-</button>
+</svelte:element>
+
+{#if experience !== 'live'}
+  <div class="coach" class:facts={experience === 'facts'} style="left:max(16px, min({x - 260}px, calc(100vw - 328px)));top:max(12px, {coachTop - 12}px);visibility:{visible ? 'visible' : 'hidden'}">
+    <PuriCoach facts={experience === 'facts'} word={demoWord} definition={demoDefinition} selection={selected} expanded={coaching} />
+  </div>
+{/if}
 
 <dialog bind:this={dialog} aria-labelledby="sunny-title" onclose={() => { controller?.abort(); }}>
   <header><h2 id="sunny-title">Ask Puri</h2><button class="close" type="button" onclick={close} aria-label="Close reading companion">×</button></header>
@@ -156,6 +178,8 @@
 
 <style>
   .mascot { position: fixed; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; z-index: 36; transition: top 280ms ease, left 180ms ease; touch-action: manipulation; }
+  .coach { position: fixed; width: min(310px, calc(100vw - 32px)); transform: translateY(-100%); z-index: 37; }
+  .facts { pointer-events: none; }
   .mascot::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
   .glim { position: relative; display: block; width: 32px; height: 32px; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.1)); }
   .mascot:hover .glim { filter: drop-shadow(0 3px 5px rgba(0,0,0,0.18)); }

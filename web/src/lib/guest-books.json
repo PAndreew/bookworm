@@ -3,8 +3,16 @@
     "slug": "gutenberg-46",
     "title": "A Christmas Carol",
     "author": "Charles Dickens",
-    "color": "#edf4e8",
     "license": "public_domain",
+    "page_count": 195,
+    "card_count": 467,
+    "genres": [
+      "fantasy",
+      "classic",
+      "short-stories"
+    ],
+    "rating_average": 5,
+    "rating_count": 1,
     "pages": [
       {
         "content": "A Christmas Carol\nCharles Dickens",
@@ -72,8 +80,14 @@
     "slug": "gutenberg-4363",
     "title": "Beyond Good and Evil",
     "author": "Friedrich Nietzsche",
-    "color": "#f3eadf",
     "license": "public_domain",
+    "page_count": 508,
+    "card_count": 1131,
+    "genres": [
+      "philosophy"
+    ],
+    "rating_average": 0,
+    "rating_count": 0,
     "pages": [
       {
         "content": "Beyond Good and Evil\nFriedrich Nietzsche",
@@ -141,8 +155,16 @@
     "slug": "the-yellow-wallpaper",
     "title": "The Yellow Wallpaper",
     "author": "Charlotte Perkins Gilman",
-    "color": "#f7f0c9",
     "license": "public_domain",
+    "page_count": 40,
+    "card_count": 94,
+    "genres": [
+      "short-stories",
+      "psychological",
+      "gothic"
+    ],
+    "rating_average": 5,
+    "rating_count": 1,
     "pages": [
       {
         "content": "The Yellow Wallpaper\nCharlotte Perkins Gilman",
@@ -208,10 +230,18 @@
   },
   {
     "slug": "gutenberg-86",
-    "title": "A Connecticut Yankee in King Arthur’s Court",
+    "title": "A Connecticut Yankee in King Arthur's Court",
     "author": "Mark Twain",
-    "color": "#e8eef5",
     "license": "public_domain",
+    "page_count": 796,
+    "card_count": 1919,
+    "genres": [
+      "fantasy",
+      "satire",
+      "humor"
+    ],
+    "rating_average": 0,
+    "rating_count": 0,
     "pages": [
       {
         "content": "A Connecticut Yankee in King Arthur's Court\nMark Twain",

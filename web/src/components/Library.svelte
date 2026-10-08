@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Flame, Lock, Star } from '@lucide/svelte';
+  import { Flame } from '@lucide/svelte';
+  import BookCard from './BookCard.svelte';
   import { api, type Book } from '../lib/api';
 
   let books = $state<Book[]>([]);
@@ -86,13 +87,6 @@
   }
   const locked = (b: Book) => b.license === 'licensed' && tier === 'free';
 
-  /** Pseudo-random, stable, high-contrast pastels. */
-  function cover(slug: string) {
-    let h = 0;
-    for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
-    return `hsl(${h % 360} 65% 91%)`;
-  }
-
   async function rate(book: Book, stars: number) {
     if (!signedIn) { window.location.href = '/login'; return; }
     if (saving[book.slug]) return;
@@ -161,30 +155,10 @@
   {:else}
     <div class="grid">
       {#each books as book (book.id)}
-        <article class="card" class:latest={book.is_latest} style="background:{cover(book.slug)}">
-          <a class="book-link" href={`/read/${encodeURIComponent(book.slug)}${book.last_card_idx != null ? '?card=' + book.last_card_idx : book.last_page_idx != null ? '?from=' + book.last_page_idx : ''}`}>
-            <h2 class="t">{book.title}</h2>
-            <div class="a">{book.author}</div>
-            <div class="p">{book.page_count} pages · {book.card_count || book.page_count} cards</div>
-            {#if book.last_read_at}<div class="resume-label">{book.is_latest ? 'Continue reading' : 'Opened before'}</div>{/if}
-            {#if book.rating_count}<div class="p">★ {(book.rating_average ?? 0).toFixed(1)} · {book.rating_count} {book.rating_count === 1 ? 'review' : 'reviews'}</div>{/if}
-            <div class="genres">{#each book.genres as tag}<span>#{tag}</span>{/each}</div>
-          </a>
-          <div class="rating" role="group" aria-label={`Your rating for ${book.title}`}>
-            {#each [1, 2, 3, 4, 5] as stars}
-              <button class:filled={(ratings[book.slug] ?? 0) >= stars}
-                disabled={saving[book.slug]}
-                aria-label={`${signedIn ? 'Rate' : 'Sign in to rate'} ${book.title} ${stars} out of 5 stars`}
-                aria-pressed={ratings[book.slug] === stars}
-                onclick={() => rate(book, stars)}>
-                <Star size={18} fill={(ratings[book.slug] ?? 0) >= stars ? 'currentColor' : 'none'} />
-              </button>
-            {/each}
-          </div>
-          <div class="card-footer">
-            {#if locked(book)}<a href="/app/upgrade" class="lock"><Lock size={12} /> Plus</a>{/if}
-          </div>
-        </article>
+        <BookCard {book}
+          href={`/read/${encodeURIComponent(book.slug)}${book.last_card_idx != null ? '?card=' + book.last_card_idx : book.last_page_idx != null ? '?from=' + book.last_page_idx : ''}`}
+          rating={ratings[book.slug] ?? 0} saving={saving[book.slug]} {signedIn}
+          locked={locked(book)} onrate={(stars) => rate(book, stars)} />
       {/each}
     </div>
     {#if nextOffset !== null}
@@ -211,24 +185,9 @@
   .discovery select { max-width: 45%; }
   .sorter { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 0.82rem; }
   .sorter select { min-width: 0; padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: #fff; color: var(--text); font-size: 0.82rem; }
-  .resume-label { margin-top: 8px; font-size: 0.72rem; color: #166534; font-weight: 600; }
-  .card.latest, .card.latest:hover { border: 2px solid #16a34a; padding: 17px; }
   .status { font-size: 0.82rem; color: var(--text-dim); }
   .status:empty { display: none; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }
-  .card { display: flex; flex-direction: column; min-height: 270px; padding: 18px; color: #000; border: 1px solid transparent; border-radius: var(--radius); box-shadow: 0 2px 6px rgba(17,24,39,0.04); transition: box-shadow 0.2s, border-color 0.2s; }
-  .card:hover { border-color: var(--border-bright); box-shadow: var(--shadow-lift); }
-  .book-link { flex: 1; display: block; overflow-wrap: anywhere; }
-  .t { margin: 0; font-family: var(--font-heading); font-weight: 600; font-size: 1.05rem; line-height: 1.35; }
-  .a { font-size: 0.78rem; margin-top: 9px; }
-  .p { font-size: 0.7rem; margin-top: 6px; }
-  .genres { display: flex; flex-wrap: wrap; gap: 5px 8px; margin: 14px 0; font-size: 0.68rem; line-height: 1.5; }
-  .rating { display: flex; flex-wrap: wrap; gap: 0; }
-  .rating button { display: grid; place-items: center; min-width: 24px; min-height: 44px; padding: 0; border: 0; background: transparent; color: #374151; }
-  .rating button.filled, .rating button:hover { color: #854d0e; }
-  .rating button:disabled { cursor: wait; opacity: 0.6; }
-  .card-footer { display: flex; justify-content: flex-end; align-items: flex-end; min-height: 26px; }
-  .lock { display: flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: var(--radius-pill); background: var(--bg); font-size: 0.66rem; color: var(--accent); font-weight: 600; }
   .skeleton { min-height: 270px; border-radius: var(--radius); background: var(--bg-card); animation: pulse 1.4s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: 0.5; } }
   .load-more { display: block; margin: 24px auto 0; padding: 12px 24px; border: 1px solid var(--border-bright); border-radius: var(--radius-pill); background: var(--bg); color: var(--text); }

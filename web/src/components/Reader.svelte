@@ -4,7 +4,9 @@
   import { api, ApiError, type Page } from '../lib/api';
   import ReadingCompanion from './ReadingCompanion.svelte';
 
-  let { slug, title, author }: { slug: string; title: string; author: string } = $props();
+  import { guestPages, type GuestBook } from '../lib/guest-books';
+  let { slug, title, author, preview }: { slug: string; title: string; author: string; preview?: GuestBook } = $props();
+  let previewFinished = $state(false);
 
   let pages = $state<Page[]>([]);
   let pageCount = $state(0);
@@ -36,6 +38,7 @@
   let pendingPosition: string | null = null;
   let savingPosition = false;
   async function savePosition(cardID: string) {
+    if (preview) return;
     pendingPosition = cardID;
     if (savingPosition) return;
     savingPosition = true;
@@ -58,6 +61,10 @@
     if (saved) fontScale = parseFloat(saved);
 
     try {
+      if (preview) {
+        pages = guestPages(preview); pageCount = pages.length; activeIdx = 0;
+        return;
+      }
       if (!slug) {
         slug = decodeURIComponent(window.location.pathname.split('/')[2] ?? '');
         const { book } = await api.book(slug);
@@ -135,7 +142,7 @@
   let loadingMore = false;
   async function loadMore() {
     const next = (pages.at(-1)?.idx ?? -1) + 1;
-    if (loadingMore || next >= pageCount) return;
+    if (preview || loadingMore || next >= pageCount) return;
     loadingMore = true;
     try {
       const res = await api.cards(slug, next, 10);
@@ -150,7 +157,7 @@
 
   async function markRead(pageId: string) {
     dwellTimers.delete(pageId);
-    if (recorded.has(pageId)) return;
+    if (preview || recorded.has(pageId)) return;
     recorded.add(pageId);
 
     try {
@@ -172,6 +179,7 @@
   }
 
   async function toggleLike(page: Page) {
+    if (preview) return;
     // Optimistic: the heart must answer instantly, or it feels broken.
     const wasLiked = page.liked_by_me;
     const siblings = pages.filter(p => p.id === page.id);
@@ -210,6 +218,7 @@
   }
 
   async function highlight(page: Page, pageEl: HTMLElement, share: boolean) {
+    if (preview) return;
     const sel = selectionOffsets(pageEl);
     if (!sel || sel.text.trim().length < 4) {
       showToast('Select the words you want to keep first.');
@@ -259,7 +268,7 @@
 
 <div class="reader" style="--scale:{fontScale}">
   <header class="bar">
-    <a href="/app" class="icon-btn" aria-label="Back to library"><ChevronLeft size={22} /></a>
+    <a href={preview ? '/#try-it-now' : '/app'} class="icon-btn" aria-label="Back to library"><ChevronLeft size={22} /></a>
 
     <div class="title-wrap">
       <div class="title">{title}</div>
@@ -290,6 +299,8 @@
 
   {#if loading}
     <div class="state"><div class="spinner"></div></div>
+  {:else if previewFinished}
+    <div class="state"><div class="gate"><h2>That’s your first 10 cards!</h2><p>Keep reading for free. Create an account to save your place.</p><a class="gate-cta" href="/signup">Create an account</a><button onclick={() => previewFinished = false}>Back to the last card</button></div></div>
   {:else if gated}
     <div class="state">
       <div class="gate">
@@ -320,6 +331,7 @@
           <div class="actions">
             <button
               class="action"
+              disabled={!!preview}
               class:liked={page.liked_by_me}
               onclick={() => toggleLike(page)}
               aria-label={page.liked_by_me ? 'Unlike this page' : 'Like this page'}
@@ -330,6 +342,7 @@
 
             <button
               class="action"
+              disabled={!!preview}
               onclick={(e) => highlight(page, e.currentTarget.closest('.page')!, false)}
               aria-label="Highlight the selected text"
             >
@@ -338,6 +351,7 @@
 
             <button
               class="action"
+              disabled={!!preview}
               onclick={(e) => highlight(page, e.currentTarget.closest('.page')!, true)}
               aria-label="Share the selected quote"
             >
@@ -352,6 +366,7 @@
             </div>
           {/if}
           <div class="page-num">{page.idx + 1} / {pageCount}</div>
+          {#if preview && page.idx === pageCount - 1}<button class="preview-finish" onclick={() => previewFinished = true}>Finish preview</button>{/if}
         </article>
       {/each}
     </div>
@@ -380,7 +395,10 @@
 
   {#if toast}<div class="toast">{toast}</div>{/if}
 </div>
-<ReadingCompanion {progress} cardIndex={activeIdx} positionLabel={pageCount ? `Card ${activeIdx + 1} of ${pageCount}` : 'Opening your book'} />
+{#if !previewFinished}
+<ReadingCompanion {progress} cardIndex={activeIdx} positionLabel={pageCount ? `Card ${activeIdx + 1} of ${pageCount}` : 'Opening your book'}
+  experience={preview ? 'demo' : 'live'} demoWord={preview?.pages[activeIdx]?.word ?? ''} demoDefinition={preview?.pages[activeIdx]?.definition ?? ''} />
+{/if}
 
 <style>
   .reader {
@@ -557,6 +575,8 @@
     color: var(--text);
     transition: transform 0.15s ease, color 0.15s ease;
   }
+  .preview-finish { position: absolute; right: 12px; bottom: 20px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg-raised); }
+  .action:disabled { opacity: 0.35; cursor: default; }
   .action:active {
     transform: scale(0.9);
   }

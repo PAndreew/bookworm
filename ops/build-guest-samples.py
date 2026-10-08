@@ -63,7 +63,16 @@ if __name__ == '__main__':
             word, definition = glossary[i - 1] if i else ('', '')
             assert not word or re.search(r'\b' + re.escape(word) + r'\b', card['content'], re.I), (slug, i, word)
             pages.append(dict(content=card['content'], kind=card.get('kind', 'text'), word=word, definition=definition))
-        samples.append(dict(slug=slug, title=title, author=author, color=color, license='public_domain', pages=pages))
+        with urlopen(f'https://potpuri.cc/v1/books/{slug}') as response:
+            metadata = json.load(response)['book']
+        from urllib.parse import quote
+        with urlopen(f'https://potpuri.cc/v1/books?q={quote(metadata["title"])}&limit=100') as response:
+            catalog = json.load(response)['books']
+        reviewed = next(b for b in catalog if b['slug'] == slug)
+        samples.append(dict(slug=slug, title=metadata['title'], author=metadata['author'],
+            license='public_domain', page_count=metadata['page_count'], card_count=metadata['card_count'],
+            genres=metadata['genres'], rating_average=reviewed.get('rating_average', 0),
+            rating_count=reviewed.get('rating_count', 0), pages=pages))
     target = Path(__file__).resolve().parents[1] / 'web/src/lib/guest-books.json'
     target.write_text(json.dumps(samples, ensure_ascii=False, indent=2) + '\n')
     print(f'Wrote {len(samples)} books / {sum(len(b["pages"]) for b in samples)} cards to {target}')
