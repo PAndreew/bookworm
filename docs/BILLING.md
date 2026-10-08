@@ -13,7 +13,9 @@ AI explanations and translations, not book access.
 
 `ops/setup-reader-stripe.py` runs as root on the VPS and reuses the old Potpuri's
 Stripe account and live €24/year price. The recurring €4 founding coupon makes
-the actual charge **€20/year**. The coupon is product-scoped, lasts forever while
+the actual charge **€20/year**. Setup requests product scoping; checkout always
+fixes the verified annual price server-side (some Stripe responses omit scope).
+The coupon lasts forever while
 the subscription continues, and has **max_redemptions=50**. Stripe enforces this
 cap atomically even if concurrent checkouts or delayed webhooks race. No checkout,
 subscription or charge is created by setup. The product is renamed Potpuri Plus.

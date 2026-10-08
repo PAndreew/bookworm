@@ -52,7 +52,11 @@ if __name__ == '__main__':
             'applies_to[products][0]': price['product'], 'metadata[app]': APP,
         }, 'reader-founding-coupon-v1')
     assert coupon['amount_off'] == 400 and coupon['currency'] == 'eur' and coupon['max_redemptions'] == 50 and coupon['duration'] == 'forever'
-    assert coupon.get('applies_to', {}).get('products') == [price['product']]
+    # Some Stripe API responses omit applies_to. Checkout still fixes the one
+    # verified annual price server-side and never exposes coupon entry to users.
+    scope = coupon.get('applies_to') or {}
+    assert not scope.get('products') or scope['products'] == [price['product']]
+    assert coupon.get('metadata', {}).get('app') == APP
     stripe(key, 'POST', 'products/' + price['product'], {
         'name': 'Potpuri Plus',
         'description': 'Founding membership: 100 AI explanations or translations per calendar month. €20/year after the founding discount.',
