@@ -209,16 +209,16 @@ func TestRatingsAndGenres(t *testing.T) {
 	if globalRequests != 1 {
 		t.Fatal("failed user reservation charged global quota")
 	}
-	if _, err := pool.Exec(ctx, `UPDATE assistant_daily_usage SET requests=30,last_request_at=now()-interval '10 seconds' WHERE user_id=$1`, userIDs[0]); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE assistant_monthly_usage SET requests=1000,last_request_at=now()-interval '10 seconds' WHERE user_id=$1`, userIDs[0]); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.ReserveAssistantAttempt(ctx, userIDs[0]); !errors.Is(err, store.ErrAssistantLimit) {
-		t.Fatal("user daily cap not enforced")
+		t.Fatal("user monthly cap not enforced")
 	}
-	if _, err := pool.Exec(ctx, `UPDATE assistant_global_usage SET requests=200 WHERE day=(now() AT TIME ZONE 'UTC')::date`); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE assistant_global_usage SET requests=1000 WHERE day=(now() AT TIME ZONE 'UTC')::date`); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.ReserveAssistantAttempt(ctx, userIDs[1]); !errors.Is(err, store.ErrAssistantLimit) {
+	if err := st.ReserveAssistantAttempt(ctx, userIDs[1]); !errors.Is(err, store.ErrAssistantCapacity) {
 		t.Fatal("global daily cap not enforced")
 	}
 }

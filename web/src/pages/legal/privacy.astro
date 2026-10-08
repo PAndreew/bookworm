@@ -15,7 +15,8 @@ import Base from '../../layouts/Base.astro';
       <li><strong>Account:</strong> email, handle, display name, date of birth, time zone.</li>
       <li><strong>Reading:</strong> which pages you have read and when, your position in each book, your streak.</li>
       <li><strong>Your marks:</strong> likes, highlights, and personal book ratings.</li>
-      <li><strong>Reading companion:</strong> daily request counts and the time of your last request, to enforce usage limits. We do not store your phrases or AI answers.</li>
+      <li><strong>Reading companion:</strong> monthly request counts and the time of your last request, to enforce usage limits. We do not store personal phrases or their explanation answers. Card translations are stored by public book card and language, and may be reused by other paid readers.</li>
+      <li><strong>Subscription:</strong> Stripe customer/subscription identifiers, renewal/end date, membership state, and founding-offer reservations. Card/payment details are handled by Stripe, not stored by Potpuri.</li>
       <li><strong>Social:</strong> friendships, and requests you have sent or received.</li>
       <li><strong>Technical:</strong> session records with approximate IP and browser, kept for security.</li>
     </ul>
@@ -46,12 +47,14 @@ import Base from '../../layouts/Base.astro';
     <h2>Optional AI explanations and translations</h2>
     <p>When you submit a phrase to Puri, we send that phrase,
     your chosen answer language, and explanation or translation instructions to OpenRouter
-    and Google Gemini. We do not send your account details, reading history, or the whole
+    and Google Gemini. When you request a card translation, we send only the current card text
+    and the chosen language, then store its translation for reuse. We do not send your account details, reading history, or the whole
     book. Do not submit sensitive information. We request providers that disallow data
     collection and support zero data retention; provider billing and operational metadata
     may still be processed under their own policies.</p>
     <p><a href="https://openrouter.ai/privacy">OpenRouter privacy policy</a> ·
-    <a href="https://policies.google.com/privacy">Google privacy policy</a>.
+    <a href="https://policies.google.com/privacy">Google privacy policy</a> ·
+    <a href="https://stripe.com/privacy">Stripe privacy policy</a>.
     AI answers may be inaccurate; using the companion is optional.</p>
 
     <h2>How we protect it</h2>

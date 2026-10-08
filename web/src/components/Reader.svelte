@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { Heart, Highlighter, Share2, ChevronLeft, Type, Flame, Lock } from '@lucide/svelte';
-  import { api, ApiError, type Page } from '../lib/api';
+  import { api, ApiError, type Page, type Translation } from '../lib/api';
   import ReadingCompanion from './ReadingCompanion.svelte';
 
   import { guestPages, type GuestBook } from '../lib/guest-books';
@@ -34,6 +34,26 @@
   const DWELL_MS = 1800;
   const dwellTimers = new Map<string, number>();
   const recorded = new Set<string>();
+  const activePage = $derived(pages.find(p => p.idx === activeIdx));
+  let translationPaid = $state(false);
+  let translations = $state<Record<string, Translation[]>>({});
+  let preferredLanguage = $state('Original');
+  const loadedTranslations = new Set<string>();
+  function cardTranslation(page: Page) { return (translations[page.card_id ?? ''] ?? []).find(t => t.language === preferredLanguage); }
+  $effect(() => {
+    const id = activePage?.card_id;
+    if (preview || !translationPaid || activePage?.kind !== 'text' || !id || loadedTranslations.has(id)) return;
+    loadedTranslations.add(id);
+    api.cardTranslations(id).then(result => translations[id] = result.translations).catch(() => loadedTranslations.delete(id));
+  });
+  async function translateCurrentCard(language: string, signal?: AbortSignal) {
+    const id = activePage?.card_id;
+    if (preview || !id || activePage?.kind !== 'text') throw new Error('Choose a text card to translate.');
+    const result = await api.translateCard(id, language, signal);
+    translations[id] = [...(translations[id] ?? []).filter(t => t.language !== language), result.translation];
+    if (activePage?.card_id === id) preferredLanguage = language;
+    showToast(result.cached ? 'Showing saved translation.' : 'AI translation saved.');
+  }
   let canSavePosition = $state(false);
   let pendingPosition: string | null = null;
   let savingPosition = false;
@@ -71,6 +91,7 @@
         title = book.title;
         author = book.author;
       }
+      api.me().then(result => translationPaid = result.user.tier !== 'free').catch(() => {});
       const params = new URLSearchParams(window.location.search);
       let savedPosition: { page_idx: number; card_idx: number | null } | null = null;
       try {
@@ -218,7 +239,7 @@
   }
 
   async function highlight(page: Page, pageEl: HTMLElement, share: boolean) {
-    if (preview) return;
+    if (preview || cardTranslation(page)) return;
     const sel = selectionOffsets(pageEl);
     if (!sel || sel.text.trim().length < 4) {
       showToast('Select the words you want to keep first.');
@@ -326,7 +347,14 @@
       {#each pages as page (page.card_id)}
         <article class="page" data-page-id={page.id} data-card-id={page.card_id} data-kind={page.kind} data-idx={page.idx}>
           {#if page.kind === 'text'}
-          <div class="body" data-body>{page.content}<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></div>
+          {#if cardTranslation(page)}<span class="ai-badge">AI translation</span>{/if}
+          {#if !preview && translations[page.card_id ?? '']?.length}
+            <select class="card-language" aria-label="Card language" value={cardTranslation(page)?.language ?? 'Original'} onchange={(e) => preferredLanguage = e.currentTarget.value}>
+              <option value="Original">Original</option>
+              {#each translations[page.card_id ?? ''] as t}<option value={t.language}>{t.language}</option>{/each}
+            </select>
+          {/if}
+          <div class="body" data-body>{cardTranslation(page)?.content ?? page.content}<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></div>
 
           <div class="actions">
             <button
@@ -342,7 +370,7 @@
 
             <button
               class="action"
-              disabled={!!preview}
+              disabled={!!preview || !!cardTranslation(page)}
               onclick={(e) => highlight(page, e.currentTarget.closest('.page')!, false)}
               aria-label="Highlight the selected text"
             >
@@ -351,7 +379,7 @@
 
             <button
               class="action"
-              disabled={!!preview}
+              disabled={!!preview || !!cardTranslation(page)}
               onclick={(e) => highlight(page, e.currentTarget.closest('.page')!, true)}
               aria-label="Share the selected quote"
             >
@@ -397,10 +425,13 @@
 </div>
 {#if !previewFinished}
 <ReadingCompanion {progress} cardIndex={activeIdx} positionLabel={pageCount ? `Card ${activeIdx + 1} of ${pageCount}` : 'Opening your book'}
+  onTranslateCard={!preview && activePage?.kind === 'text' ? translateCurrentCard : undefined}
   experience={preview ? 'demo' : 'live'} demoWord={preview?.pages[activeIdx]?.word ?? ''} demoDefinition={preview?.pages[activeIdx]?.definition ?? ''} />
 {/if}
 
 <style>
+  .ai-badge { position: absolute; left: 16px; top: 12px; padding: 4px 9px; border-radius: 999px; background: #e8edf3; color: #334155; font-size: .65rem; }
+  .card-language { position: absolute; right: 16px; top: 12px; max-width: 45%; border: 1px solid var(--border); background: var(--bg-raised); border-radius: 999px; padding: 4px 9px; font-size: .7rem; }
   .reader {
     height: 100dvh;
     display: flex;

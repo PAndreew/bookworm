@@ -17,6 +17,13 @@ export interface User {
   totp_enabled: boolean;
 }
 
+export interface BillingStatus {
+ tier: 'free' | 'plus' | 'pro'; used: number; limit: number;
+ subscription: {status:string;period_end:string;cancel_at_period_end:boolean} | null;
+}
+export interface Translation { language: 'French' | 'Spanish' | 'German'; content: string; model: string; }
+export interface Offer {available:boolean;remaining:number;limit?:number;price_eur?:number;requests_per_month?:number;}
+
 export interface Book {
   id: string;
   slug: string;
@@ -143,6 +150,13 @@ export const api = {
 
   updateMe: (data: { display_name?: string; visibility?: string; timezone?: string }) =>
     request<{ user: User }>('/me', { method: 'PATCH', body: JSON.stringify(data) }),
+
+  offer: () => request<Offer>('/billing/offer'),
+  billing: () => request<BillingStatus>('/billing'),
+  checkout: () => post<{url:string}>('/billing/checkout',{}),
+  cancelSubscription: () => post<{message:string}>('/billing/cancel',{}),
+  cardTranslations: (id:string) => request<{translations:Translation[]}>(`/cards/${encodeURIComponent(id)}/translations`),
+  translateCard: (id:string,language:string,signal?:AbortSignal) => request<{translation:Translation;cached:boolean}>(`/cards/${encodeURIComponent(id)}/translations`,{method:'POST',body:JSON.stringify({language}),signal}),
 
   // ------------------------------------------------------------- catalog
   books: (options: { license?: string; q?: string; genre?: string; offset?: number; sort?: string; mine?: boolean } = {}, signal?: AbortSignal) => {

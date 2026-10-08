@@ -349,6 +349,14 @@ func newShareSlug() string {
 
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	user := currentUser(r)
+	expired, accessErr := s.store.ReconcilePaidTier(r.Context(), user.ID)
+	if accessErr != nil {
+		httpx.InternalError(w, r, "membership access", accessErr)
+		return
+	}
+	if expired {
+		user.Tier = store.TierFree
+	}
 	now := time.Now()
 	localDay := store.LocalDay(user.Timezone, now)
 

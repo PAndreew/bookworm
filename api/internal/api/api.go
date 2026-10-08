@@ -2,12 +2,14 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/bookworm/api/internal/assistant"
+	"github.com/bookworm/api/internal/billing"
 	"github.com/bookworm/api/internal/config"
 	"github.com/bookworm/api/internal/httpx"
 	"github.com/bookworm/api/internal/store"
@@ -16,13 +18,21 @@ import (
 type Server struct {
 	cfg       *config.Config
 	store     *store.Store
-	assistant *assistant.Client
+	assistant interface {
+		Ask(context.Context, assistant.Request) (string, error)
+	}
+	stripe          *billing.Client
+	translationWork chan struct{}
+	billingWork     chan struct{}
 }
 
 func New(cfg *config.Config, st *store.Store) *Server {
-	s := &Server{cfg: cfg, store: st}
+	s := &Server{cfg: cfg, store: st, translationWork: make(chan struct{}, 4), billingWork: make(chan struct{}, 3)}
 	if cfg.OpenRouterKey != "" {
 		s.assistant = assistant.New(cfg.OpenRouterKey, cfg.OpenRouterModel)
+	}
+	if cfg.StripeKey != "" && cfg.StripePrice != "" && cfg.StripeCoupon != "" && cfg.StripeWebhookSecret != "" {
+		s.stripe = billing.New(cfg.StripeKey, cfg.StripePrice, cfg.StripeCoupon)
 	}
 	return s
 }
@@ -64,6 +74,8 @@ func (s *Server) Routes() http.Handler {
 		})
 
 		r.Post("/legal/takedown", s.handleTakedown)
+		r.Get("/billing/offer", s.handleOffer)
+		r.Post("/billing/webhook", s.handleStripeWebhook)
 
 		// ------------------------------------------------- authenticated
 		r.Group(func(r chi.Router) {
@@ -81,6 +93,11 @@ func (s *Server) Routes() http.Handler {
 			r.Post("/auth/2fa/enable", s.handle2FAEnable)
 			r.Post("/auth/2fa/disable", s.handle2FADisable)
 
+			r.Get("/billing", s.handleBilling)
+			r.Post("/billing/checkout", s.handleCheckout)
+			r.Post("/billing/cancel", s.handleCancelSubscription)
+			r.Get("/cards/{id}/translations", s.handleCardTranslations)
+			r.Post("/cards/{id}/translations", s.handleCardTranslations)
 			r.Post("/assistant", s.handleAssistant)
 			r.Post("/reads", s.handleRecordRead)
 			r.Post("/card-reads", s.handleCardRead)

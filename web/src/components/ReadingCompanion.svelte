@@ -3,9 +3,10 @@
   import { api, ApiError } from '../lib/api';
 
   import PuriCoach from './PuriCoach.svelte';
-  let { progress, positionLabel, cardIndex, experience = 'live', demoWord = '', demoDefinition = '' }: {
+  let { progress, positionLabel, cardIndex, experience = 'live', demoWord = '', demoDefinition = '', onTranslateCard }: {
     progress?: number; positionLabel?: string; cardIndex?: number;
     experience?: 'live' | 'facts' | 'demo'; demoWord?: string; demoDefinition?: string;
+    onTranslateCard?: (language: string, signal?: AbortSignal) => Promise<void>;
   } = $props();
   let coaching = $state(false);
   $effect(() => { cardIndex; demoWord; selected = ''; coaching = false; });
@@ -39,7 +40,11 @@
   let dialog = $state<HTMLDialogElement | null>(null);
   let selected = $state('');
   let phrase = $state('');
-  let mode = $state<'explain' | 'translate'>('explain');
+  let mode = $state<'explain' | 'translate' | 'card_translate'>('explain');
+  $effect(() => {
+    if (mode === 'card_translate' && !onTranslateCard) mode = 'explain';
+    if (mode === 'card_translate' && !['French','Spanish','German'].includes(language)) language = 'French';
+  });
   let language = $state('English');
   let answer = $state('');
   let error = $state('');
@@ -157,6 +162,12 @@
     answer = '';
     controller = new AbortController();
     try {
+      if (mode === 'card_translate') {
+        if (!onTranslateCard) { error = 'Choose a text card to translate.'; return; }
+        await onTranslateCard(language, controller.signal);
+        close();
+        return;
+      }
       const result = await api.assistant({ mode, phrase, language, consent: true }, controller.signal);
       answer = result.answer;
     } catch (e) {
@@ -186,18 +197,20 @@
 
 <dialog bind:this={dialog} aria-labelledby="sunny-title" onclose={() => { controller?.abort(); }}>
   <header><h2 id="sunny-title">Ask Puri</h2><button class="close" type="button" onclick={close} aria-label="Close reading companion">×</button></header>
-  <p class="intro">Select a phrase, then tap Puri—or paste one below.</p>
+  <p class="intro">Explain a selected phrase, or translate this reading card and save it for later.</p>
   {#if auth === 'checking'}<p role="status">Checking sign-in…</p>{/if}
-  {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> with Plus or Pro to explain or translate phrases.</p>{/if}
-  {#if auth === 'upgrade'}<p class="sign-in">AI explanations and translations are a paid feature. <a href="/app/upgrade">See Plus and Pro</a>.</p>{/if}
+  {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> with Plus to explain or translate phrases.</p>{/if}
+  {#if auth === 'upgrade'}<p class="sign-in">AI explanations and translations are a paid feature. <a href="/app/upgrade">Subscribe to Plus</a>.</p>{/if}
   <form onsubmit={ask}>
-    <label for="sunny-phrase">Phrase</label>
-    <textarea id="sunny-phrase" bind:value={phrase} maxlength="1200" rows="3" required placeholder="For example: c’est la vie" />
+    {#if mode !== 'card_translate'}
+      <label for="sunny-phrase">Phrase</label>
+      <textarea id="sunny-phrase" bind:value={phrase} maxlength="1200" rows="3" required placeholder="For example: c’est la vie" />
+    {:else}<p class="intro">Translate the entire current card. Saved translations do not use another request.</p>{/if}
     <div class="options">
-      <div><label for="sunny-mode">Help me</label><select id="sunny-mode" bind:value={mode}><option value="explain">Explain this phrase</option><option value="translate">Translate this phrase</option></select></div>
-      <div><label for="sunny-language">Answer in</label><select id="sunny-language" bind:value={language}>{#each ['English', 'Romanian', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Polish', 'Japanese', 'Chinese', 'Arabic'] as name}<option>{name}</option>{/each}</select></div>
+      <div><label for="sunny-mode">Help me</label><select id="sunny-mode" bind:value={mode}><option value="explain">Explain this phrase</option>{#if onTranslateCard}<option value="card_translate">Translate current card</option>{/if}<option value="translate">Translate this phrase</option></select></div>
+      <div><label for="sunny-language">Answer in</label><select id="sunny-language" bind:value={language}>{#each (mode === 'card_translate' ? ['French', 'Spanish', 'German'] : ['English', 'Romanian', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Polish', 'Japanese', 'Chinese', 'Arabic']) as name}<option>{name}</option>{/each}</select></div>
     </div>
-    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || !phrase.trim()}>{busy ? 'Thinking…' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
+    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || (mode !== 'card_translate' && !phrase.trim())}>{busy ? 'Thinking…' : mode === 'card_translate' ? 'Translate card' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
   </form>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   <div class="answer" role="status" aria-live="polite">{answer}</div>

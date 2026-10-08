@@ -18,14 +18,18 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     }
     let tier = 'free', totp = false;
     await page.route('**/v1/me', route => route.fulfill({ json: { user: { display_name: 'Reader', handle: 'reader', tier, visibility: 'friends', totp_enabled: totp } } }));
+    await page.route('**/v1/billing/offer', route => route.fulfill({json:{available:true,remaining:50}}));
+    await page.route('**/v1/billing', route => route.fulfill({json:{tier,used:0,limit:tier==='pro'?1000:100,subscription:null}}));
     for (const plan of ['free', 'plus', 'pro']) {
       tier = plan; totp = plan === 'pro';
       await page.goto(base + '/app/me');
       await page.waitForSelector('.plans');
       assert.equal(await page.locator('.plans .on').count(), plan === 'free' ? 0 : 1);
-      const inactive = page.locator('.plans a:not(.on)').first();
-      assert.equal(await inactive.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)');
-      assert.equal(await inactive.evaluate(el => getComputedStyle(el).borderRadius), '999px');
+      if (plan === 'free') {
+        const inactive = page.locator('.plans button:not(.on)').first();
+        assert.equal(await inactive.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)');
+        assert.equal(await inactive.evaluate(el => getComputedStyle(el).borderRadius), '999px');
+      }
       assert.equal(await page.locator('.stats').count(), 0);
       assert.equal(await page.locator('.box').evaluateAll(els => els.every(el => getComputedStyle(el).backgroundColor === 'rgba(0, 0, 0, 0)')), true);
       if (totp) assert.equal(await page.locator('.two-factor').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(232, 237, 243)');

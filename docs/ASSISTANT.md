@@ -13,7 +13,8 @@ trigger short hops, not continuous animation. Reduced-motion preference disables
 hops, sliding transitions and the five-second three-frame blink. Its accessible label/tooltip includes the exact
 reader page, so rounding a percentage never hides small progress changes.
 
-Click Puri after selecting book text, or paste a phrase. The native dialog supports
+Click Puri after selecting book text, paste a phrase, or choose Translate current
+card. A card's dropdown offers Original plus its saved translations. The native dialog supports
 keyboard focus trapping, Escape/close, explanation, translation and output language.
 The user must sign in with Plus or Pro. Submitting a phrase sends it to the
 provider by default, without a separate consent checkbox. Free accounts are blocked server-side before any provider call.
@@ -27,10 +28,13 @@ Results are plain text, never interpreted HTML. Closing cancels the browser requ
 {"mode":"explain","phrase":"c'est la vie","language":"English","consent":true}
 ```
 
-Only the explicit phrase (maximum 1200 characters), desired language and task
-instructions reach OpenRouter. No whole book, account details, reading history,
-retrieval tools, or conversation history are supplied. Potpuri does not persist
-phrases/answers or log provider response bodies. The response is `no-store`, and
+Only the explicit phrase or current card text (maximum 1200 characters), desired
+language and task instructions reach OpenRouter. No whole book, account details,
+reading history, retrieval tools, or conversation history are supplied. Personal
+phrase explanations are not persisted. Full-card French/Spanish/German translations
+are stored by canonical card ID, language and source hash for reuse by paid readers.
+They are labeled AI translations; annotations are disabled in translated text to
+protect immutable original-text offsets. Provider response bodies are not logged. The response is `no-store`, and
 the service worker never caches assistant requests. Provider routing requests
 `data_collection: deny` and `zdr: true`; if no eligible route exists, the request
 fails rather than silently relaxing those constraints. Provider billing/operational
@@ -40,10 +44,13 @@ Model: **`google/gemini-3.8-flash`**, confirmed in OpenRouter's model catalogue.
 Output is limited to 800 tokens. A 25-second request deadline fits inside the API's
 30-second HTTP write timeout. Failed responses/timeouts expose only safe errors.
 
-Atomic PostgreSQL reservations cap attempts at **30 per paid reader/day**, **200 across
-the app/day**, and **one per reader per five seconds**, resetting at midnight UTC.
-These caps survive restarts/replicas. Failed provider attempts still count, bounding
-upstream retries/cost. Usage rows store counts/timestamps only. OpenRouter account
+Atomic PostgreSQL reservations cap new attempts at **100 per Plus reader/calendar
+month** for the founding offer, **1,000 for existing Pro accounts**, **1,000 across the
+app/day**, and **one per reader per five seconds**. Calendar-month allowances reset
+on the first at midnight UTC and do not roll over. Cached translations do not reserve
+another request. Limits survive restarts/replicas; failed provider attempts count.
+Usage rows store only counts/timestamps. The only public paid offer is €20/year for
+the first 50 subscriptions; see [BILLING.md](BILLING.md). OpenRouter account
 budgets should also be configured, especially if the same key serves other apps.
 
 ## Encrypted VPS credential vault

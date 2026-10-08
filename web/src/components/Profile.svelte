@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { Shield, ShieldCheck, LogOut, Eye } from '@lucide/svelte';
   import { api, ApiError, type User } from '../lib/api';
+  import Membership from './Membership.svelte';
 
   let user = $state<User | null>(null);
   let loading = $state(true);
@@ -15,7 +16,17 @@
   let disablePassword = $state('');
   let showDisable = $state(false);
 
-  onMount(load);
+  onMount(() => {
+    let alive = true, attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const returning = new URLSearchParams(location.search).get('subscription') === 'success';
+    async function refresh() {
+      await load();
+      if (alive && returning && user?.tier === 'free' && attempts++ < 15) timer = setTimeout(refresh, 2000);
+    }
+    void refresh();
+    return () => { alive = false; clearTimeout(timer); };
+  });
 
   async function load() {
     try {
@@ -102,10 +113,7 @@
       <div class="tier">{user.tier}</div>
     </header>
 
-    <nav class="plans" aria-label="Membership">
-      <a class="cta plan-plus" class:on={user.tier === 'plus'} aria-current={user.tier === 'plus' ? 'true' : undefined} href="/app/upgrade">{user.tier === 'plus' ? 'Plus plan' : 'Get Plus'}</a>
-      <a class="cta plan-pro" class:on={user.tier === 'pro'} aria-current={user.tier === 'pro' ? 'true' : undefined} href="/app/upgrade">{user.tier === 'pro' ? 'Pro plan' : 'Get Pro'}</a>
-    </nav>
+    <Membership {user} onchange={load} />
 
     <section class="box">
       <h2><Eye size={15} /> Who can see your reading</h2>
@@ -224,9 +232,15 @@
   }
 
   .box {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     padding: 16px 0;
     margin-bottom: 12px;
   }
+  .box > button { align-self: flex-start; min-height: 36px; }
+  .box > h2, .box > p { margin: 0; }
+  .seg button { min-height: 36px; }
   h2 {
     display: flex;
     align-items: center;
@@ -363,7 +377,6 @@
     font-size: 0.88rem;
   }
 
-  .plans { display: flex; gap: 8px; flex-wrap: wrap; }
   .seg button, .cta, .ghost, .danger, .signout {
     background: #fff;
     border: 1px solid var(--border);
@@ -375,8 +388,6 @@
     text-decoration: none;
   }
   .seg button.on { background: #e8edf3; border-color: #cbd5e1; color: var(--text); }
-  .plan-plus.on { background: #fef3c7; border-color: #fde68a; color: #713f12; }
-  .plan-pro.on { background: #ede9fe; border-color: #ddd6fe; color: #5b21b6; }
   .two-factor.on { background: #e8edf3; border-color: #cbd5e1; color: var(--text); }
   .danger { color: #be123c; }
   .seg button:hover, .cta:hover, .ghost:hover, .signout:hover { border-color: var(--text-dim); }

@@ -32,7 +32,7 @@ const base = process.env.TEST_BASE_URL || 'http://localhost:4321';
   assert.equal(await page.locator('.journey').count(),0,'old horizontal track remained');
   await page.goto(base+'/read/moby-dick/?card=0',{waitUntil:'networkidle'});
   await page.locator('.mascot').waitFor({state:'visible'});
-  await page.locator('.mascot').click();await page.getByRole('link',{name:'See Plus and Pro',exact:true}).waitFor();
+  await page.locator('.mascot').click();await page.getByRole('link',{name:'Subscribe to Plus',exact:true}).waitFor();
   assert(await page.getByRole('button',{name:'Explain phrase',exact:true}).isDisabled());
   await page.keyboard.press('Escape');tier='pro';
   await page.goto(base+'/read/moby-dick/?card=0',{waitUntil:'networkidle'});

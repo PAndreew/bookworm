@@ -14,11 +14,16 @@ type Config struct {
 	AllowOrigins []string
 	// SecureCookies must be true in production. It is derived from Env so that a
 	// deployment cannot accidentally ship non-Secure session cookies.
-	Env             string
-	SecureCookies   bool
-	TOTPEncryptKey  []byte // 32 bytes, encrypts totp_secret at rest
-	OpenRouterKey   string // loaded from a mounted secret file, never sent to clients
-	OpenRouterModel string
+	Env                 string
+	SecureCookies       bool
+	TOTPEncryptKey      []byte // 32 bytes, encrypts totp_secret at rest
+	OpenRouterKey       string // loaded from a mounted secret file, never sent to clients
+	OpenRouterModel     string
+	StripeKey           string
+	StripePrice         string
+	StripeCoupon        string
+	StripeWebhookSecret string
+	PublicURL           string
 }
 
 func Load() (*Config, error) {
@@ -46,6 +51,24 @@ func Load() (*Config, error) {
 		}
 	}
 
+	c.StripePrice = env("BW_STRIPE_PRICE", "")
+	c.StripeCoupon = env("BW_STRIPE_COUPON", "")
+	c.PublicURL = env("BW_PUBLIC_URL", "http://localhost:4321")
+	for _, item := range []struct {
+		env    string
+		target *string
+	}{{"BW_STRIPE_KEY_FILE", &c.StripeKey}, {"BW_STRIPE_WEBHOOK_FILE", &c.StripeWebhookSecret}} {
+		if file := os.Getenv(item.env); file != "" {
+			data, err := os.ReadFile(file)
+			if err != nil {
+				return nil, fmt.Errorf("config: could not read %s", item.env)
+			}
+			*item.target = strings.TrimSpace(string(data))
+			if *item.target == "" {
+				return nil, fmt.Errorf("config: empty %s", item.env)
+			}
+		}
+	}
 	c.SecureCookies = c.Env == "production"
 	if v := os.Getenv("BW_SECURE_COOKIES"); v != "" {
 		b, err := strconv.ParseBool(v)

@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -19,13 +18,17 @@ func (s *Server) handleAssistant(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	r = r.WithContext(ctx)
 	if currentUser(r).Tier == store.TierFree {
-		httpx.Error(w, http.StatusPaymentRequired, "upgrade_required", "Puri's AI explanations and translations are included with Plus and Pro.")
+		httpx.Error(w, http.StatusPaymentRequired, "upgrade_required", "Subscribe to Plus for Puri's AI explanations and card translations.")
 		return
 	}
 	var req assistant.Request
 	r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
 	if err := httpx.DecodeJSON(w, r, &req); err != nil {
 		httpx.Error(w, 400, "bad_request", "Could not read that phrase request.")
+		return
+	}
+	if req.Mode == "card_translate" {
+		httpx.Error(w, 400, "bad_request", "Use a book card to request a saved translation.")
 		return
 	}
 	if err := req.Validate(); err != nil {
@@ -37,9 +40,7 @@ func (s *Server) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := s.store.ReserveAssistantAttempt(r.Context(), currentUser(r).ID)
-	if errors.Is(err, store.ErrAssistantLimit) {
-		w.Header().Set("Retry-After", "5")
-		httpx.Error(w, 429, "assistant_limit", "Please wait at least five seconds between requests. Daily limits are 30 per reader and 200 across Potpuri, resetting at midnight UTC.")
+	if assistantQuotaError(w, err) {
 		return
 	}
 	if err != nil {
