@@ -1,7 +1,7 @@
 // Potpuri service worker.
 //
 // Deliberately conservative about what it caches:
-//   - the app shell and static assets: cache-first, so the PWA opens offline;
+//   - the app shell: network-first with offline fallback; static assets: cache-first;
 //   - PUBLIC-DOMAIN page content: cached, so a free book stays readable on a train;
 //   - everything else, including licensed content and every authenticated call:
 //     network-only, never stored.
@@ -11,7 +11,7 @@
 // object to. The API marks what is safe to keep with `Cache-Control: public` on
 // public-domain responses; we do not guess.
 
-const VERSION = 'potpuri-reader-v10';
+const VERSION = 'potpuri-reader-v11';
 const SHELL = `${VERSION}-shell`;
 const BOOKS = `${VERSION}-books`;
 
@@ -67,7 +67,23 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // App shell and static assets: cache first, fall back to the network.
+  // Always load current HTML online; old HTML references old UI bundles forever.
+  if (request.mode === 'navigate') {
+    e.respondWith(
+      fetch(request)
+        .then(async (res) => {
+          if (res.ok) {
+            const cache = await caches.open(SHELL);
+            await cache.put(request, res.clone());
+          }
+          return res;
+        })
+        .catch(async () => (await caches.match(request)) ?? caches.match('/app')),
+    );
+    return;
+  }
+
+  // Static assets: cache first, fall back to the network.
   e.respondWith(
     caches.match(request).then(
       (hit) =>
