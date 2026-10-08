@@ -14,7 +14,7 @@
     return () => cancelAnimationFrame(frame);
   });
   let reducedMotion = $state(false);
-  let icon = $state<SVGSVGElement | null>(null);
+  let icon = $state<HTMLSpanElement | null>(null);
   let dialog = $state<HTMLDialogElement | null>(null);
   let selected = '';
   let phrase = $state('');
@@ -126,19 +126,18 @@
 </script>
 
 <button class="mascot" style="left:{x}px;top:{y}px;visibility:{visible ? 'visible' : 'hidden'}" onclick={open}
-  aria-label={`Ask Sunny, your reading companion. ${positionLabel ? positionLabel + '. ' : ''}${Math.round(percent)}% through ${progress === undefined ? 'this page' : 'this book'}.`}
-  title={`Ask Sunny · ${positionLabel ?? Math.round(percent) + '% page progress'}`}>
-  <svg bind:this={icon} width="32" height="32" viewBox="0 0 64 64" aria-hidden="true">
-    <circle cx="32" cy="32" r="30" fill="#facc15" />
-    <ellipse cx="23" cy="26" rx="3.5" ry="6" fill="#111" />
-    <ellipse cx="41" cy="26" rx="3.5" ry="6" fill="#111" />
-    <path d="M22 38H42A10 10 0 0 1 22 38Z" fill="#111" />
-  </svg>
+  aria-label={`Ask Glim, your reading companion. ${positionLabel ? positionLabel + '. ' : ''}${Math.round(percent)}% through ${progress === undefined ? 'this page' : 'this book'}.`}
+  title={`Ask Glim · ${positionLabel ?? Math.round(percent) + '% page progress'}`}>
+  <span class="glim" bind:this={icon} aria-hidden="true">
+    <img class="eyes-open" src="/glim.svg" width="32" height="32" alt="" draggable="false" />
+    <img class="eyes-half" src="/glim_blink.svg" width="32" height="32" alt="" draggable="false" />
+    <img class="eyes-closed" src="/glim_blink_two.svg" width="32" height="32" alt="" draggable="false" />
+  </span>
 </button>
 
 <dialog bind:this={dialog} aria-labelledby="sunny-title" onclose={() => { controller?.abort(); }}>
-  <header><h2 id="sunny-title">Ask Sunny</h2><button class="close" type="button" onclick={close} aria-label="Close reading companion">×</button></header>
-  <p class="intro">Select a phrase, then tap Sunny—or paste one below.</p>
+  <header><h2 id="sunny-title">Ask Glim</h2><button class="close" type="button" onclick={close} aria-label="Close reading companion">×</button></header>
+  <p class="intro">Select a phrase, then tap Glim—or paste one below.</p>
   {#if auth === 'checking'}<p role="status">Checking sign-in…</p>{/if}
   {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> with Plus or Pro to explain or translate phrases.</p>{/if}
   {#if auth === 'upgrade'}<p class="sign-in">AI explanations and translations are a paid feature. <a href="/app/upgrade">See Plus and Pro</a>.</p>{/if}
@@ -158,8 +157,15 @@
 <style>
   .mascot { position: fixed; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; z-index: 36; transition: top 280ms ease, left 180ms ease; touch-action: manipulation; }
   .mascot::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
-  .mascot svg { display: block; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.1)); }
-  .mascot:hover svg { filter: drop-shadow(0 3px 5px rgba(0,0,0,0.18)); }
+  .glim { position: relative; display: block; width: 32px; height: 32px; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.1)); }
+  .mascot:hover .glim { filter: drop-shadow(0 3px 5px rgba(0,0,0,0.18)); }
+  .glim img { position: absolute; inset: 0; width: 32px; height: 32px; pointer-events: none; }
+  .eyes-open { animation: eyes-open 5s step-end infinite; }
+  .eyes-half { opacity: 0; animation: eyes-half 5s step-end infinite; }
+  .eyes-closed { opacity: 0; animation: eyes-closed 5s step-end infinite; }
+  @keyframes eyes-open { 0%, 98%, 100% { opacity: 1; } 94% { opacity: 0; } }
+  @keyframes eyes-half { 0%, 95%, 98%, 100% { opacity: 0; } 94%, 97% { opacity: 1; } }
+  @keyframes eyes-closed { 0%, 97%, 100% { opacity: 0; } 95% { opacity: 1; } }
   dialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 24px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); overflow-y: auto; box-shadow: var(--shadow-lift); }
   dialog::backdrop { background: rgba(17,24,39,0.35); }
   header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -180,5 +186,8 @@
   .answer:empty { display: none; }
   .error { color: #be123c; font-size: 0.85rem; line-height: 1.5; }
   .note { font-size: 0.7rem; color: var(--text-faint); line-height: 1.6; margin-bottom: 0; }
-  @media (prefers-reduced-motion: reduce) { .mascot { transition: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .mascot { transition: none; }
+    .glim img { animation: none; }
+  }
 </style>
