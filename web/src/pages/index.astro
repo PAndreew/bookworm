@@ -16,16 +16,18 @@ import sampleBooks from '../lib/guest-books.json';
       <div class="cta-row">
         <a class="primary" href="/signup">Start reading</a>
         <span class="or">or</span>
-        <a class="secondary" href="/app">Browse the shelf</a>
+        <a class="secondary" href="/app">Browse the library</a>
       </div>
 
       <ResumeReading client:load />
 
-      <ul class="points">
-        <li>Every public-domain book, <strong>free</strong>. No limit, no trial, no card.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></li>
-        <li>Keep a <strong class="streak-word">streak</strong>. Three text cards a day. Your friends can see it.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></li>
-        <li>Keep the lines worth keeping. <strong class="highlight-word">Highlight</strong>, and share as a quote.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></li>
-      </ul>
+      <div class="points">
+        <p class="mission">Our mission is to make reading <strong>quality literature</strong> a <strong>daily habit</strong> for everyone.</p>
+        <p>You can access every book in our catalogue for <strong>free</strong>.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></p>
+        <p>Achieve <strong>streaks</strong> to strengthen your motivation.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></p>
+        <p>Share your progress with your <strong>friends</strong>. Set common targets or even compete. Books help us create a common understanding of our world, <strong>widen our perspective</strong> and bring people closer.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></p>
+        <p>We believe that generative AI can be used <strong>responsibly</strong> and can add meaningful value if it’s applied in the right place. <strong>Puri, our companion</strong>, can help you understand difficult concepts in a book, or translate passages so you can read in your mother tongue—or, quite the opposite, learn something new. Puri uses LLM calls in the background, so it is a <strong>paid feature</strong>.</p>
+      </div>
     </section>
 
     <section class="try-books" id="try-it-now" aria-labelledby="try-title">
@@ -58,22 +60,21 @@ import sampleBooks from '../lib/guest-books.json';
     margin: 0 auto;
     text-align: center;
   }
-  .hero { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+  .hero { --landing-accent: #0f766e; --landing-accent-hover: #115e59; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
   h1 { flex-direction: column; justify-content: center; gap: 12px; margin: 0 0 24px; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
   .cta-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
   .or { color: var(--text-faint); font-size: 0.85rem; }
   @media (max-width: 560px) { .cta-row { flex-direction: column; gap: 10px; } }
   .primary, .secondary { padding: 14px 28px; border-radius: var(--radius-pill); font-weight: 600; transition: background 0.2s, border-color 0.2s; }
-  .primary { background: var(--accent); color: #fff; }
-  .primary:hover { background: var(--accent-hover); }
-  .secondary { background: var(--bg); border: 1px solid var(--border-bright); color: var(--text); }
-  .secondary:hover { background: var(--bg-card); border-color: var(--accent); }
-  .points { list-style: none; padding: 0; margin: 44px 0 0; display: flex; flex-direction: column; gap: 18px; max-width: 540px; }
-  .points li { font-size: 0.95rem; color: var(--text-dim); line-height: 1.7; }
+  .primary { background: var(--landing-accent); color: #fff; }
+  .primary:hover { background: var(--landing-accent-hover); }
+  .secondary { background: var(--bg); border: 1px solid var(--landing-accent); color: var(--landing-accent); }
+  .secondary:hover { background: #f0fdfa; border-color: var(--landing-accent-hover); }
+  .points { padding: 0; margin: 44px 0 0; display: flex; flex-direction: column; gap: 22px; max-width: 580px; }
+  .points p { margin: 0; font-size: 0.95rem; color: var(--text-dim); line-height: 1.7; }
+  .points .mission { font-size: clamp(1.25rem, 3.5vw, 1.6rem); color: var(--text); line-height: 1.5; }
   .sunny-anchor { display: inline-block; width: 36px; height: 32px; vertical-align: middle; }
-  .points strong { color: var(--accent); font-weight: 600; }
-  .points .streak-word { color: #7e22ce; }
-  .points .highlight-word { color: #15803d; }
+  .points strong { color: var(--landing-accent); font-weight: 600; }
   .try-books { width: 100%; margin-top: 64px; scroll-margin-top: 24px; }
   .try-books h2 { margin: 0 0 12px; font-size: 1.5rem; }
   .try-books > p { margin: 0 0 24px; color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; }
