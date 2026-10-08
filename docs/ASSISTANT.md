@@ -1,7 +1,11 @@
 # Puri: reading companion
 
-Puri uses the Glim SVG artwork, shared with the Potpuri logo. On
-landing and in the reader, its 32px circle follows an inline marker at the end
+Puri uses the Glim SVG artwork, shared with the Potpuri logo. On the landing
+page, Puri is non-interactive and occasionally displays one of five prepared
+book facts in a turquoise bubble. Guest previews also use prepared explanations,
+never the assistant API; see [GUEST-ONBOARDING.md](GUEST-ONBOARDING.md).
+
+In the full reader, its 32px circle follows an inline marker at the end
 of the current paragraph/card, hopping vertically rather than along a bottom
 track. See [READER-CARDS.md](READER-CARDS.md) for non-destructive pagination,
 original annotation preservation and monthly licensed-card usage. Scroll events
