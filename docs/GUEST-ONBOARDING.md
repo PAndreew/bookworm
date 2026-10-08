@@ -25,7 +25,11 @@ hops, card-change hops, three-frame blink and reduced-motion behavior. Landing
 bubbles. Preview `experience="demo"` uses a small `PuriCoach.svelte` bubble with
 an exact suggested word, correction for other selections, and a prepared answer.
 Only an exact case-insensitive selection from the book text enables Explain.
-Neither mode opens the paid AI dialog or calls `/assistant`. Full readers retain
+The bubble is anchored to Puri with a pointing tail and waits 550ms after the
+last position/card/hop change (longer than the 450ms hop and 280ms transition).
+Movement hides it immediately; pending hints are cancelled on rapid navigation
+or unmount. Reduced-motion mode uses no settling delay. Neither mode opens the
+paid AI dialog or calls `/assistant`. Full readers retain
 the normal paid explanation/translation dialog.
 
 Facts appear after a random 3.5–6 seconds, remain for ten seconds, and return
@@ -53,3 +57,5 @@ Tests: `web/tests/guest-onboarding.browser.cjs` compares actual library/preview
 geometry at 320/390/1280px, checks exact-word coaching, disabled actions, the
 limit and zero preview API calls. `web/tests/glim.browser.cjs` checks landing
 hops, non-clickability, blink frames and reduced motion.
+`web/tests/puri-bubble.browser.cjs` checks settling, nearby bubble geometry,
+rapid-navigation hint cancellation and reduced motion.

@@ -47,7 +47,8 @@
 {/if}
 
 <style>
-  .bubble { padding: 12px 16px; border-radius: 18px 18px 4px 18px; background: #b8eee8; border: 1px solid #75cfc5; color: #164e4a; font-size: 0.85rem; line-height: 1.5; text-align: left; }
+  .bubble { position: relative; padding: 12px 16px; border-radius: 18px 18px 4px 18px; background: #b8eee8; border: 1px solid #75cfc5; color: #164e4a; font-size: 0.85rem; line-height: 1.5; text-align: left; }
+  .bubble::after { content: ''; position: absolute; left: clamp(12px, var(--tail-x, 90%), calc(100% - 20px)); top: var(--tail-top, auto); bottom: var(--tail-bottom, -7px); width: 12px; height: 12px; background: #b8eee8; border-right: 1px solid #75cfc5; border-bottom: 1px solid #75cfc5; transform: translateX(-50%) rotate(var(--tail-rotation, 45deg)); }
   .definition { margin: 6px 0; }
   small { display: block; font-size: 0.7rem; color: #356660; }
   .explain { display: block; margin-top: 10px; padding: 7px 16px; border-radius: 999px; border: 1px solid #519d94; background: #fff; color: #164e4a; font-weight: 600; cursor: pointer; }

@@ -12,7 +12,20 @@
   let documentProgress = $state(0);
   let x = $state(0);
   let y = $state(0);
-  let coachTop = $state(0);
+  let viewportWidth = $state(390);
+  let settled = $state(false);
+  let hopRevision = $state(0);
+  const coachLeft = $derived(Math.max(16, Math.min(x - 278, viewportWidth - 326)));
+  const below = $derived(y < 200);
+  $effect(() => {
+    x; y; cardIndex; demoWord; hopRevision;
+    settled = false;
+    if (!visible || experience === 'live') return;
+    // The hop lasts 450ms; position transitions last at most 280ms.
+    // Restart after every layout/position change so stale hints never flash.
+    const timer = setTimeout(() => settled = true, reducedMotion ? 0 : 550);
+    return () => clearTimeout(timer);
+  });
   let visible = $state(false);
   let remeasure = () => {};
   $effect(() => {
@@ -39,6 +52,7 @@
   function jump() {
     if (reducedMotion || !icon || performance.now() - lastHop < 450) return;
     lastHop = performance.now();
+    hopRevision++;
     hop?.cancel();
     hop = icon.animate([
       { transform: 'translateY(0) rotate(0deg)' },
@@ -54,6 +68,7 @@
     motion.addEventListener('change', updateMotion);
     let frame = 0;
     function update() {
+      viewportWidth = window.innerWidth;
       const total = document.documentElement.scrollHeight - window.innerHeight;
       documentProgress = total > 0 ? (window.scrollY / total) * 100 : 0;
       const markers = progress !== undefined
@@ -66,13 +81,7 @@
       }).map(el => el.getBoundingClientRect()).filter(r => r.top >= 60 && r.bottom <= window.innerHeight - 12);
       rects.sort((a, b) => Math.abs(a.top - window.innerHeight * 0.68) - Math.abs(b.top - window.innerHeight * 0.68));
       visible = rects.length > 0;
-      if (visible) {
-        x = rects[0].left + 2; y = rects[0].top;
-        // Put coaching above the book text, not over the word to select.
-        coachTop = experience === 'demo'
-          ? document.querySelector(`.feed [data-idx="${cardIndex ?? 0}"] [data-body]`)?.getBoundingClientRect().top ?? y
-          : y;
-      }
+      if (visible) { x = rects[0].left + 2; y = rects[0].top; }
     }
     remeasure = update;
     function schedule() { if (!frame) frame = requestAnimationFrame(() => { frame = 0; update(); }); }
@@ -152,7 +161,8 @@
 </svelte:element>
 
 {#if experience !== 'live'}
-  <div class="coach" class:facts={experience === 'facts'} style="left:max(16px, min({x - 260}px, calc(100vw - 328px)));top:max(12px, {coachTop - 12}px);visibility:{visible ? 'visible' : 'hidden'}">
+  <div class="coach" class:below class:facts={experience === 'facts'}
+    style="left:{coachLeft}px;top:{below ? y + 44 : y - 12}px;--tail-x:{x + 16 - coachLeft}px;visibility:{visible && settled ? 'visible' : 'hidden'}">
     <PuriCoach facts={experience === 'facts'} word={demoWord} definition={demoDefinition} selection={selected} expanded={coaching} />
   </div>
 {/if}
@@ -179,6 +189,7 @@
 <style>
   .mascot { position: fixed; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; z-index: 36; transition: top 280ms ease, left 180ms ease; touch-action: manipulation; }
   .coach { position: fixed; width: min(310px, calc(100vw - 32px)); transform: translateY(-100%); z-index: 37; }
+  .coach.below { transform: none; --tail-top: -7px; --tail-bottom: auto; --tail-rotation: 225deg; }
   .facts { pointer-events: none; }
   .mascot::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
   .glim { position: relative; display: block; width: 32px; height: 32px; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.1)); }
