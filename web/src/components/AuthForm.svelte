@@ -75,7 +75,7 @@
 
 <div class="shell">
   <div class="card">
-    <h1 class="brand-heading"><img src="/rose.svg" alt="" width="40" height="40" /><span class="brand-text">Potpuri</span></h1>
+    <h1 class="brand-heading"><img src="/glim.svg" alt="" width="40" height="40" /><span class="brand-text">Potpuri</span></h1>
 
     {#if needs2FA}
       <p class="sub">Enter the code from your authenticator app.</p>
@@ -172,6 +172,7 @@
     letter-spacing: -0.03em;
     text-align: center;
   }
+  .brand-heading { justify-content: center; }
   .sub {
     text-align: center;
     color: var(--text-dim);

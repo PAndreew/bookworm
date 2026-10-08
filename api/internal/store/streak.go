@@ -102,10 +102,12 @@ func (s Streak) AtRisk(today time.Time) bool {
 	return gap == 1
 }
 
-// truncateDay drops any time component, keeping the location.
+// truncateDay compares civil dates, not elapsed hours. PostgreSQL DATE values
+// arrive in UTC while LocalDay uses the reader's zone; DST days can also be 23h.
+// Preserve each value's calendar date and normalize it to UTC for arithmetic.
 func truncateDay(t time.Time) time.Time {
 	y, m, d := t.Date()
-	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
 func maxInt(a, b int) int {

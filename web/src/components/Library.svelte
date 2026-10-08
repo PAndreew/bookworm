@@ -107,7 +107,7 @@
 
 <div class="wrap">
   <header class="head">
-    <h1 class="brand-heading"><img src="/rose.svg" alt="" width="32" height="32" /><span class="brand-text">Potpuri</span></h1>
+    <h1 class="brand-heading"><img src="/glim.svg" alt="" width="32" height="32" /><span class="brand-text">Potpuri</span></h1>
     {#if signedIn}
       <a href="/app/me" class="streak" class:risk={streak.at_risk}><Flame size={16} /><span>{streak.current}</span></a>
     {:else}

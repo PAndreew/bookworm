@@ -102,13 +102,16 @@
       <div class="tier">{user.tier}</div>
     </header>
 
-    <a class="cta" href="/app/upgrade">See Plus and Pro</a>
+    <nav class="plans" aria-label="Membership">
+      <a class="cta plan-plus" class:on={user.tier === 'plus'} aria-current={user.tier === 'plus' ? 'true' : undefined} href="/app/upgrade">{user.tier === 'plus' ? 'Plus plan' : 'Get Plus'}</a>
+      <a class="cta plan-pro" class:on={user.tier === 'pro'} aria-current={user.tier === 'pro' ? 'true' : undefined} href="/app/upgrade">{user.tier === 'pro' ? 'Pro plan' : 'Get Pro'}</a>
+    </nav>
 
     <section class="box">
       <h2><Eye size={15} /> Who can see your reading</h2>
       <div class="seg">
         {#each [['public', 'Anyone'], ['friends', 'Friends'], ['private', 'Only me']] as [v, label]}
-          <button class:on={user.visibility === v} onclick={() => setVisibility(v)}>{label}</button>
+          <button class:on={user.visibility === v} aria-pressed={user.visibility === v} onclick={() => setVisibility(v)}>{label}</button>
         {/each}
       </div>
     </section>
@@ -138,7 +141,7 @@
           <input bind:value={disablePassword} type="password" placeholder="Your password" class="code-in" />
           <button class="danger" onclick={turnOff2FA}>Confirm turn off</button>
         {:else}
-          <button class="ghost" onclick={() => (showDisable = true)}>Turn off</button>
+          <button class="ghost on two-factor" onclick={() => (showDisable = true)}>Two-factor on · Turn off</button>
         {/if}
       {:else}
         <p class="dim">Add a second step when signing in.</p>
@@ -184,8 +187,8 @@
   .tier {
     padding: 5px 13px;
     border-radius: var(--radius-pill);
-    background: var(--grad-brand);
-    color: #fff;
+    background: #e8edf3;
+    color: var(--text);
     font-size: 0.72rem;
     font-weight: 650;
     text-transform: uppercase;
@@ -360,17 +363,23 @@
     font-size: 0.88rem;
   }
 
+  .plans { display: flex; gap: 8px; flex-wrap: wrap; }
   .seg button, .cta, .ghost, .danger, .signout {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    color: var(--accent);
-    padding: 10px 0;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    color: var(--text-dim);
+    padding: 7px 16px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-decoration: none;
   }
-  .seg button.on { font-weight: 700; text-decoration-thickness: 2px; }
+  .seg button.on { background: #e8edf3; border-color: #cbd5e1; color: var(--text); }
+  .plan-plus.on { background: #fef3c7; border-color: #fde68a; color: #713f12; }
+  .plan-pro.on { background: #ede9fe; border-color: #ddd6fe; color: #5b21b6; }
+  .two-factor.on { background: #e8edf3; border-color: #cbd5e1; color: var(--text); }
   .danger { color: #be123c; }
+  .seg button:hover, .cta:hover, .ghost:hover, .signout:hover { border-color: var(--text-dim); }
 
   footer {
     display: flex;

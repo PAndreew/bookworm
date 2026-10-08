@@ -126,8 +126,8 @@
 </script>
 
 <button class="mascot" style="left:{x}px;top:{y}px;visibility:{visible ? 'visible' : 'hidden'}" onclick={open}
-  aria-label={`Ask Glim, your reading companion. ${positionLabel ? positionLabel + '. ' : ''}${Math.round(percent)}% through ${progress === undefined ? 'this page' : 'this book'}.`}
-  title={`Ask Glim · ${positionLabel ?? Math.round(percent) + '% page progress'}`}>
+  aria-label={`Ask Puri, your reading companion. ${positionLabel ? positionLabel + '. ' : ''}${Math.round(percent)}% through ${progress === undefined ? 'this page' : 'this book'}.`}
+  title={`Ask Puri · ${positionLabel ?? Math.round(percent) + '% page progress'}`}>
   <span class="glim" bind:this={icon} aria-hidden="true">
     <img class="eyes-open" src="/glim.svg" width="32" height="32" alt="" draggable="false" />
     <img class="eyes-half" src="/glim_blink.svg" width="32" height="32" alt="" draggable="false" />
@@ -136,8 +136,8 @@
 </button>
 
 <dialog bind:this={dialog} aria-labelledby="sunny-title" onclose={() => { controller?.abort(); }}>
-  <header><h2 id="sunny-title">Ask Glim</h2><button class="close" type="button" onclick={close} aria-label="Close reading companion">×</button></header>
-  <p class="intro">Select a phrase, then tap Glim—or paste one below.</p>
+  <header><h2 id="sunny-title">Ask Puri</h2><button class="close" type="button" onclick={close} aria-label="Close reading companion">×</button></header>
+  <p class="intro">Select a phrase, then tap Puri—or paste one below.</p>
   {#if auth === 'checking'}<p role="status">Checking sign-in…</p>{/if}
   {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> with Plus or Pro to explain or translate phrases.</p>{/if}
   {#if auth === 'upgrade'}<p class="sign-in">AI explanations and translations are a paid feature. <a href="/app/upgrade">See Plus and Pro</a>.</p>{/if}

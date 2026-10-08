@@ -1,15 +1,15 @@
-# Sunny: reading companion
+# Puri: reading companion
 
-Sunny is a yellow circle with black oval eyes and a black semicircle smile. On
+Puri uses the Glim SVG artwork, shared with the Potpuri logo. On
 landing and in the reader, its 32px circle follows an inline marker at the end
 of the current paragraph/card, hopping vertically rather than along a bottom
 track. See [READER-CARDS.md](READER-CARDS.md) for non-destructive pagination,
 original annotation preservation and monthly licensed-card usage. Scroll events
 trigger short hops, not continuous animation. Reduced-motion preference disables
-hops and sliding transitions. Its accessible label/tooltip includes the exact
+hops, sliding transitions and the five-second three-frame blink. Its accessible label/tooltip includes the exact
 reader page, so rounding a percentage never hides small progress changes.
 
-Click Sunny after selecting book text, or paste a phrase. The native dialog supports
+Click Puri after selecting book text, or paste a phrase. The native dialog supports
 keyboard focus trapping, Escape/close, explanation, translation and output language.
 The user must sign in with Plus or Pro. Submitting a phrase sends it to the
 provider by default, without a separate consent checkbox. Free accounts are blocked server-side before any provider call.

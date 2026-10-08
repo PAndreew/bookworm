@@ -19,7 +19,7 @@ func (s *Server) handleAssistant(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	r = r.WithContext(ctx)
 	if currentUser(r).Tier == store.TierFree {
-		httpx.Error(w, http.StatusPaymentRequired, "upgrade_required", "Sunny's AI explanations and translations are included with Plus and Pro.")
+		httpx.Error(w, http.StatusPaymentRequired, "upgrade_required", "Puri's AI explanations and translations are included with Plus and Pro.")
 		return
 	}
 	var req assistant.Request

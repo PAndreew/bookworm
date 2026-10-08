@@ -16,9 +16,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       }, time);
       assert.deepEqual(opacity, expected);
     }
-    await page.getByRole('button', { name: /Ask Glim/ }).click();
+    await page.getByRole('button', { name: /Ask Puri/ }).click();
     await page.waitForSelector('dialog[open]');
-    assert.equal(await page.locator('dialog h2').textContent(), 'Ask Glim');
+    assert.equal(await page.locator('dialog h2').textContent(), 'Ask Puri');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     assert.deepEqual(await page.locator('.glim img').evaluateAll(images => images.map(img => getComputedStyle(img).animationName)), ['none', 'none', 'none']);
     console.log('Glim frames, size, click action, and reduced motion passed');
