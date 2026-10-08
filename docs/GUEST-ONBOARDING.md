@@ -32,6 +32,12 @@ or unmount. Reduced-motion mode uses no settling delay. Neither mode opens the
 paid AI dialog or calls `/assistant`. Full readers retain
 the normal paid explanation/translation dialog.
 
+On the landing page, scroll events hold Puri's position and hide the bubble.
+After 180ms without scrolling, Puri measures the final marker and relocates
+immediately with one hop—no CSS glide or hops during momentum scrolling.
+Resize/font observers cannot bypass a pending scroll pause; timers are cancelled
+on unmount. The full reader's movement is unchanged.
+
 Facts appear after a random 3.5–6 seconds, remain for ten seconds, and return
 after a random 20–35-second pause. No immediate repeat. Reduced motion disables
 hops and blink; timers and listeners are removed on unmount.
@@ -59,3 +65,5 @@ limit and zero preview API calls. `web/tests/glim.browser.cjs` checks landing
 hops, non-clickability, blink frames and reduced motion.
 `web/tests/puri-bubble.browser.cjs` checks settling, nearby bubble geometry,
 rapid-navigation hint cancellation and reduced motion.
+`web/tests/puri-landing-scroll.browser.cjs` verifies scroll-burst stability,
+exact final placement, one delayed hop, no glide, and reduced motion.

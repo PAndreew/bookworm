@@ -15,12 +15,13 @@
   let viewportWidth = $state(390);
   let settled = $state(false);
   let hopRevision = $state(0);
+  let landingScrolling = $state(false);
   const coachLeft = $derived(Math.max(16, Math.min(x - 278, viewportWidth - 326)));
   const below = $derived(y < 200);
   $effect(() => {
     x; y; cardIndex; demoWord; hopRevision;
     settled = false;
-    if (!visible || experience === 'live') return;
+    if (!visible || experience === 'live' || landingScrolling) return;
     // The hop lasts 450ms; position transitions last at most 280ms.
     // Restart after every layout/position change so stale hints never flash.
     const timer = setTimeout(() => settled = true, reducedMotion ? 0 : 550);
@@ -30,7 +31,7 @@
   let remeasure = () => {};
   $effect(() => {
     progress; cardIndex;
-    const frame = requestAnimationFrame(() => { jump(); remeasure(); });
+    const frame = requestAnimationFrame(() => { if (experience !== 'facts') jump(); remeasure(); });
     return () => cancelAnimationFrame(frame);
   });
   let reducedMotion = $state(false);
@@ -50,7 +51,7 @@
   const percent = $derived(Math.max(0, Math.min(100, progress ?? documentProgress)));
 
   function jump() {
-    if (reducedMotion || !icon || performance.now() - lastHop < 450) return;
+    if (reducedMotion || !icon || (experience !== 'facts' && performance.now() - lastHop < 450)) return;
     lastHop = performance.now();
     hopRevision++;
     hop?.cancel();
@@ -67,7 +68,10 @@
     updateMotion();
     motion.addEventListener('change', updateMotion);
     let frame = 0;
+    let scrollTimer: ReturnType<typeof setTimeout> | null = null;
     function update() {
+      // Font/resize observers must not bypass the landing scroll debounce.
+      if (experience === 'facts' && scrollTimer !== null) return;
       viewportWidth = window.innerWidth;
       const total = document.documentElement.scrollHeight - window.innerHeight;
       documentProgress = total > 0 ? (window.scrollY / total) * 100 : 0;
@@ -85,7 +89,19 @@
     }
     remeasure = update;
     function schedule() { if (!frame) frame = requestAnimationFrame(() => { frame = 0; update(); }); }
-    function scroll() { jump(); schedule(); }
+    function scroll() {
+      if (experience !== 'facts') { jump(); schedule(); return; }
+      if (scrollTimer !== null) clearTimeout(scrollTimer);
+      landingScrolling = true;
+      settled = false;
+      hop?.cancel();
+      scrollTimer = setTimeout(() => {
+        scrollTimer = null;
+        landingScrolling = false;
+        update(); // Measure the final anchor, not an intermediate scroll position.
+        jump();
+      }, 180);
+    }
     function selection() {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || !sel.rangeCount) return;
@@ -107,6 +123,7 @@
     document.addEventListener('selectionchange', selection);
     return () => {
       cancelAnimationFrame(frame);
+      if (scrollTimer !== null) clearTimeout(scrollTimer);
       hop?.cancel();
       controller?.abort();
       resize.disconnect();
@@ -188,6 +205,7 @@
 
 <style>
   .mascot { position: fixed; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; z-index: 36; transition: top 280ms ease, left 180ms ease; touch-action: manipulation; }
+  .mascot.facts { transition: none; }
   .coach { position: fixed; width: min(310px, calc(100vw - 32px)); transform: translateY(-100%); z-index: 37; }
   .coach.below { transform: none; --tail-top: -7px; --tail-bottom: auto; --tail-rotation: 225deg; }
   .facts { pointer-events: none; }

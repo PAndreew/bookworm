@@ -19,6 +19,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   assert.equal(await page.locator('button.mascot').count(),0);
   await page.waitForTimeout(500);
   await page.evaluate(()=>window.dispatchEvent(new Event('scroll')));
+  await page.waitForTimeout(220);
   assert(await page.locator('.glim').evaluate(el=>el.getAnimations().some(a=>a.effect.getKeyframes().some(f=>String(f.transform).includes('translateY')))),'landing Puri must hop on scroll');
   await page.emulateMedia({reducedMotion:'reduce'});
   assert.deepEqual(await page.locator('.glim img').evaluateAll(imgs=>imgs.map(img=>getComputedStyle(img).animationName)),['none','none','none']);
