@@ -244,6 +244,12 @@
     border: 1px solid var(--border);
     margin-bottom: 8px;
   }
+  .row.friend {
+    padding: 12px 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
   .who { flex: 1; min-width: 0; }
   .rankings { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
   .rankings button { padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border); background: #fff; color: var(--text-dim); font: inherit; font-size: .78rem; cursor: pointer; }
@@ -299,10 +305,10 @@
 
   .act {
     display: block;
-    padding: 13px 15px;
-    border-radius: var(--radius-sm);
-    background: var(--grad-card);
-    border: 1px solid var(--border);
+    padding: 13px 0;
+    border-radius: 0;
+    background: transparent;
+    border: none;
     margin-bottom: 8px;
   }
   .act-top {
