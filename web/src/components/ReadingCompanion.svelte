@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { api, ApiError } from '../lib/api';
+  import { renderMarkdown } from '../lib/markdown';
 
   import PuriCoach from './PuriCoach.svelte';
   let { progress, positionLabel, cardIndex, experience = 'live', demoWord = '', demoDefinition = '', demoTranslation = false, demoTranslated = false, onTranslateCard }: {
@@ -215,7 +216,7 @@
     <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || (mode !== 'card_translate' && !phrase.trim())}>{busy ? 'Thinking…' : mode === 'card_translate' ? 'Translate card' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
   </form>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
-  <div class="answer" role="status" aria-live="polite">{answer}</div>
+  <div class="answer" role="status" aria-live="polite">{@html renderMarkdown(answer)}</div>
 </dialog>
 
 <style>
@@ -234,23 +235,30 @@
   @keyframes eyes-open { 0%, 98%, 100% { opacity: 1; } 94% { opacity: 0; } }
   @keyframes eyes-half { 0%, 95%, 98%, 100% { opacity: 0; } 94%, 97% { opacity: 1; } }
   @keyframes eyes-closed { 0%, 97%, 100% { opacity: 0; } 95% { opacity: 1; } }
-  dialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 24px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); overflow-y: auto; box-shadow: var(--shadow-lift); }
+  dialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 24px; border: 1px solid #75cfc5; border-radius: 18px 18px 4px 18px; background: #b8eee8; color: #164e4a; overflow-y: auto; box-shadow: var(--shadow-lift); }
   dialog::backdrop { background: rgba(17,24,39,0.35); }
   header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   h2 { font-size: 1.4rem; margin: 0; }
   .close { width: 36px; height: 36px; border: none; border-radius: 50%; background: transparent; color: var(--text); font-size: 1.5rem; }
   .intro, .sign-in { font-size: 0.86rem; line-height: 1.6; color: var(--text-dim); }
-  .sign-in a { color: var(--accent); text-decoration: underline; }
+  .sign-in a { color: #164e4a; text-decoration: underline; }
   label { display: block; margin-bottom: 6px; font-size: 0.82rem; font-weight: 500; }
-  textarea, select { width: 100%; padding: 10px; border: 1px solid var(--border-bright); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font-size: 0.88rem; }
+  textarea, select { width: 100%; padding: 10px; border: 1px solid #75cfc5; border-radius: var(--radius-sm); background: #fff; color: #164e4a; font-size: 0.88rem; }
   textarea { resize: vertical; }
   .options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
   .options > div { min-width: 0; }
   .consent { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0; font-size: 0.76rem; line-height: 1.6; color: var(--text-dim); }
   .consent input { margin-top: 4px; flex-shrink: 0; }
-  .submit { width: 100%; padding: 12px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; margin-top: 12px; }
+  .submit { width: 100%; padding: 12px; border: 1px solid #519d94; border-radius: var(--radius-pill); background: #fff; color: #164e4a; font-weight: 600; cursor: pointer; margin-top: 12px; }
   .submit:disabled { opacity: 0.55; cursor: default; }
-  .answer { margin-top: 18px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; font-size: 0.9rem; }
+  .answer { margin-top: 18px; padding: 14px 16px; border: 1px solid #75cfc5; border-radius: 12px; background: #fff; color: #164e4a; overflow-wrap: anywhere; line-height: 1.7; font-size: 0.9rem; }
+  .answer :global(p) { margin: 0 0 10px; }
+  .answer :global(> :last-child) { margin-bottom: 0; }
+  .answer :global(h1), .answer :global(h2), .answer :global(h3) { font-size: 1.05rem; margin: 14px 0 8px; }
+  .answer :global(ul), .answer :global(ol) { padding-left: 22px; }
+  .answer :global(pre) { overflow-x: auto; padding: 10px; background: #f0fdfa; border-radius: 8px; }
+  .answer :global(a) { color: #0f766e; text-decoration: underline; }
+  .answer :global(blockquote) { margin-left: 0; padding-left: 12px; border-left: 3px solid #75cfc5; }
   .answer:empty { display: none; }
   .error { color: #be123c; font-size: 0.85rem; line-height: 1.5; }
   .note { font-size: 0.7rem; color: var(--text-faint); line-height: 1.6; margin-bottom: 0; }
