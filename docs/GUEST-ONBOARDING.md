@@ -32,7 +32,7 @@ or unmount. Reduced-motion mode uses no settling delay. Neither mode opens the
 paid AI dialog or calls `/assistant`. Full readers retain
 the normal paid explanation/translation dialog.
 
-On the landing page, scroll events hold Puri's position and hide the bubble.
+On the landing page, scroll events immediately hide both Puri and the bubble.
 After 180ms without scrolling, Puri measures the final marker and relocates
 immediately with one hop—no CSS glide or hops during momentum scrolling.
 Resize/font observers cannot bypass a pending scroll pause; timers are cancelled

@@ -11,10 +11,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
    const initial=await page.locator('.mascot').evaluate(el=>[el.style.left,el.style.top]);
    for(let i=0;i<5;i++){
     await page.evaluate(()=>window.scrollBy(0,25));await page.waitForTimeout(60);
+    assert.equal(await page.locator('.mascot').isVisible(),false,'Puri must disappear as scrolling begins');
     assert.deepEqual(await page.locator('.mascot').evaluate(el=>[el.style.left,el.style.top]),initial,'Puri must not chase changing anchors during scrolling');
     assert.equal(await page.locator('.glim').evaluate(el=>el.getAnimations().length),0,'no hops during scrolling');
    }
    await page.waitForTimeout(150);
+   assert.equal(await page.locator('.mascot').isVisible(),true,'Puri must return after scrolling stops');
    const result=await page.evaluate(()=>{
     const p=document.querySelector('.mascot').getBoundingClientRect();
     const markers=[...document.querySelectorAll('main [data-sunny-anchor]')].map(el=>el.getBoundingClientRect()).filter(r=>r.top>=60&&r.bottom<=innerHeight-12);

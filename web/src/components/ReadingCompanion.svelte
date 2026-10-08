@@ -166,7 +166,7 @@
 </script>
 
 <svelte:element this={experience === 'facts' ? 'span' : 'button'} class="mascot" class:facts={experience === 'facts'}
-  style="left:{x}px;top:{y}px;visibility:{visible ? 'visible' : 'hidden'}" onclick={experience === 'facts' ? undefined : open}
+  style="left:{x}px;top:{y}px;visibility:{visible && !landingScrolling ? 'visible' : 'hidden'}" onclick={experience === 'facts' ? undefined : open}
   role={experience === 'facts' ? 'img' : undefined}
   aria-label={experience === 'facts' ? 'Puri, your reading companion' : experience === 'demo' ? 'Click Puri' : `Ask Puri, your reading companion. ${positionLabel ? positionLabel + '. ' : ''}${Math.round(percent)}% through ${progress === undefined ? 'this page' : 'this book'}.`}
   title={experience === 'live' ? `Ask Puri · ${positionLabel ?? Math.round(percent) + '% page progress'}` : 'Puri'}>
