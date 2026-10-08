@@ -21,5 +21,10 @@ vm.runInNewContext(fs.readFileSync('public/sw.js', 'utf8'), {
   let result;
   handlers.fetch({ request: { method: 'GET', mode: 'navigate', url: 'https://potpuri.cc/app' }, respondWith: p => result = p });
   assert.equal(await result, stale, 'offline shell remains available');
-  console.log('Navigation freshness and offline fallback passed');
+  for (const path of ['/v1/books?mine=true', '/v1/books/example/position']) {
+    let intercepted = false;
+    handlers.fetch({ request: { method: 'GET', url: `https://potpuri.cc${path}` }, respondWith: () => intercepted = true });
+    assert.equal(intercepted, false, 'personal library metadata must bypass caches');
+  }
+  console.log('Navigation freshness, offline fallback and private library requests passed');
 })();

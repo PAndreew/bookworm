@@ -11,7 +11,7 @@
 // object to. The API marks what is safe to keep with `Cache-Control: public` on
 // public-domain responses; we do not guess.
 
-const VERSION = 'potpuri-reader-v12';
+const VERSION = 'potpuri-reader-v13';
 const SHELL = `${VERSION}-shell`;
 const BOOKS = `${VERSION}-books`;
 
@@ -47,7 +47,8 @@ self.addEventListener('fetch', (e) => {
     !url.pathname.startsWith('/v1/books') &&
     !url.pathname.startsWith('/v1/quotes');
 
-  if (isPrivateApi) return; // straight to the network
+  // The shelf and per-book bookmarks now include authenticated reading history.
+  if (isPrivateApi || url.pathname === '/v1/books' || /^\/v1\/books\/[^/]+\/position$/.test(url.pathname)) return; // network-only
 
   // Book content: stale-while-revalidate, but only if the API says it is cacheable.
   if (url.pathname.startsWith('/v1/books')) {

@@ -30,6 +30,12 @@ export interface Book {
   card_count: number;
   word_count: number;
   genres: string[];
+  last_read_at?: string | null;
+  last_page_idx?: number | null;
+  last_card_idx?: number | null;
+  is_latest?: boolean;
+  rating_average?: number;
+  rating_count?: number;
 }
 
 export interface Page {
@@ -139,11 +145,13 @@ export const api = {
     request<{ user: User }>('/me', { method: 'PATCH', body: JSON.stringify(data) }),
 
   // ------------------------------------------------------------- catalog
-  books: (options: { license?: string; q?: string; genre?: string; offset?: number } = {}, signal?: AbortSignal) => {
+  books: (options: { license?: string; q?: string; genre?: string; offset?: number; sort?: string; mine?: boolean } = {}, signal?: AbortSignal) => {
     const query = new URLSearchParams({ limit: '24', offset: String(options.offset ?? 0) });
     if (options.license) query.set('license', options.license);
     if (options.q) query.set('q', options.q);
     if (options.genre) query.set('genre', options.genre);
+    if (options.sort) query.set('sort', options.sort);
+    if (options.mine) query.set('mine', 'true');
     return request<{ books: Book[]; next_offset: number | null }>(`/books?${query}`, { signal });
   },
 
@@ -168,6 +176,8 @@ export const api = {
   // ------------------------------------------------------------- reading
   cards: (slug: string, from = 0, limit = 12, sourceFrom = 0) =>
     request<{ pages: Page[]; page_count: number }>(`/books/${encodeURIComponent(slug)}/cards?card_from=${from}&source_from=${sourceFrom}&limit=${limit}`),
+  bookPosition: (slug: string) => request<{ position: { page_idx: number; card_idx: number | null } | null }>(`/books/${encodeURIComponent(slug)}/position`),
+  saveBookPosition: (slug: string, card_id: string) => post<{ status: string }>(`/books/${encodeURIComponent(slug)}/position`, { card_id }),
   recordCardRead: (card_id: string) => post<ReadResult>('/card-reads', { card_id }),
   recordRead: (page_id: string) => post<ReadResult>('/reads', { page_id }),
 

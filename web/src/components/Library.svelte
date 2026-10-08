@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import ResumeReading from './ResumeReading.svelte';
   import { Flame, Lock, Star } from '@lucide/svelte';
   import { api, type Book } from '../lib/api';
 
@@ -10,6 +9,8 @@
   let streak = $state({ current: 0, at_risk: false, pages_today: 0, pages_required: 3 });
   let tier = $state<'free' | 'plus' | 'pro'>('free');
   let filter = $state<'all' | 'public_domain' | 'licensed'>('all');
+  let myBooks = $state(false);
+  let sort = $state('recent');
   let genre = $state('');
   let search = $state('');
   let ratings = $state<Record<string, number>>({});
@@ -25,21 +26,22 @@
   let revision = 0;
 
   onMount(async () => {
-    ready = true;
     const [genresRes, meRes] = await Promise.allSettled([api.genres(), api.me()]);
     if (genresRes.status === 'fulfilled') genres = genresRes.value.genres;
     if (meRes.status === 'fulfilled') {
       signedIn = true;
       tier = meRes.value.user.tier;
+      ready = true;
       const [streakRes, ratingsRes] = await Promise.allSettled([api.streak(), api.ratings()]);
       if (streakRes.status === 'fulfilled') streak = streakRes.value;
       if (ratingsRes.status === 'fulfilled') ratings = ratingsRes.value.ratings;
       else message = 'Your ratings could not load. Please refresh before rating.';
     }
+    ready = true;
   });
 
   function query() {
-    return { license: filter === 'all' ? undefined : filter, genre, q: search.trim() };
+    return { license: filter === 'all' ? undefined : filter, genre, q: search.trim(), sort, mine: myBooks };
   }
 
   $effect(() => {
@@ -98,6 +100,7 @@
     try {
       const result = await api.rateBook(book.slug, stars);
       ratings[book.slug] = result.stars;
+      retry++; // Refresh review aggregates and any rating-based ordering.
       message = `Rated ${book.title} ${stars} out of 5 stars.`;
     } catch {
       message = 'Your rating could not be saved. Please try again.';
@@ -122,18 +125,28 @@
       {streak.current > 0 ? `to keep your ${streak.current} day streak` : 'to start a streak'}
     </div>
   {/if}
-  <ResumeReading />
 
   <div class="filters" aria-label="Book access">
     <button class:on={filter === 'all'} aria-pressed={filter === 'all'} onclick={() => (filter = 'all')}>All</button>
     <button class:on={filter === 'public_domain'} aria-pressed={filter === 'public_domain'} onclick={() => (filter = 'public_domain')}>Free</button>
     <button class:on={filter === 'licensed'} aria-pressed={filter === 'licensed'} onclick={() => (filter = 'licensed')}>Plus</button>
+    <button class:on={myBooks} aria-pressed={myBooks} onclick={() => { if (signedIn) myBooks = !myBooks; else window.location.href = '/login'; }}>My books</button>
   </div>
   <div class="discovery">
     <input type="search" aria-label="Search books or authors" placeholder="Find a book or author" maxlength="200" bind:value={search} />
     <select aria-label="Filter by genre" bind:value={genre}>
       <option value="">All genres</option>
       {#each genres as name}<option value={name}>#{name}</option>{/each}
+    </select>
+  </div>
+  <div class="sorter">
+    <label for="book-sort">Sort by</label>
+    <select id="book-sort" bind:value={sort}>
+      <option value="recent">Recently read</option>
+      <option value="rating">Highest rated</option>
+      <option value="reviews">Most reviews</option>
+      <option value="shortest">Page count: shortest first</option>
+      <option value="longest">Page count: longest first</option>
     </select>
   </div>
   <p class="status" role="status">{message}</p>
@@ -144,15 +157,17 @@
     <p class="empty" role="alert">{catalogError}</p>
     <button class="load-more" onclick={() => retry++}>Try again</button>
   {:else if books.length === 0}
-    <p class="empty">No books match. Try another genre or search.</p>
+    <p class="empty">{myBooks ? 'No opened books match. Turn off My books to discover new titles.' : 'No books match. Try another genre or search.'}</p>
   {:else}
     <div class="grid">
       {#each books as book (book.id)}
-        <article class="card" style="background:{cover(book.slug)}">
-          <a class="book-link" href={`/read/${book.slug}`}>
+        <article class="card" class:latest={book.is_latest} style="background:{cover(book.slug)}">
+          <a class="book-link" href={`/read/${encodeURIComponent(book.slug)}${book.last_card_idx != null ? '?card=' + book.last_card_idx : book.last_page_idx != null ? '?from=' + book.last_page_idx : ''}`}>
             <h2 class="t">{book.title}</h2>
             <div class="a">{book.author}</div>
-            <div class="p">{book.card_count || book.page_count} cards</div>
+            <div class="p">{book.page_count} pages · {book.card_count || book.page_count} cards</div>
+            {#if book.last_read_at}<div class="resume-label">{book.is_latest ? 'Continue reading' : 'Opened before'}</div>{/if}
+            {#if book.rating_count}<div class="p">★ {(book.rating_average ?? 0).toFixed(1)} · {book.rating_count} {book.rating_count === 1 ? 'review' : 'reviews'}</div>{/if}
             <div class="genres">{#each book.genres as tag}<span>#{tag}</span>{/each}</div>
           </a>
           <div class="rating" role="group" aria-label={`Your rating for ${book.title}`}>
@@ -187,13 +202,17 @@
   @keyframes breathe { 50% { opacity: 0.72; } }
   .signin { padding: 8px 16px; border-radius: var(--radius-pill); border: 1px solid var(--border-bright); font-size: 0.85rem; }
   .nudge { padding: 11px 15px; margin-bottom: 16px; border-radius: var(--radius-sm); background: var(--bg-card); border: 1px solid var(--border); font-size: 0.84rem; color: var(--text-dim); }
-  .filters { display: flex; gap: 8px; margin-bottom: 14px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
   .filters button { padding: 7px 16px; border-radius: var(--radius-pill); border: 1px solid var(--border); background: transparent; color: var(--text-dim); font-size: 0.82rem; }
   .filters button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
   .discovery { display: flex; gap: 12px; margin-bottom: 14px; }
   .discovery input, .discovery select { min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font-size: 0.85rem; }
   .discovery input { flex: 1; width: 100%; }
   .discovery select { max-width: 45%; }
+  .sorter { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 0.82rem; }
+  .sorter select { min-width: 0; padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: #fff; color: var(--text); font-size: 0.82rem; }
+  .resume-label { margin-top: 8px; font-size: 0.72rem; color: #166534; font-weight: 600; }
+  .card.latest, .card.latest:hover { border: 2px solid #16a34a; padding: 17px; }
   .status { font-size: 0.82rem; color: var(--text-dim); }
   .status:empty { display: none; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }

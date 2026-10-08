@@ -16,6 +16,7 @@ import (
 )
 
 func (s *Server) handleListBooks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	license := r.URL.Query().Get("license")
 	if license != "" && license != "public_domain" && license != "licensed" {
 		httpx.Error(w, http.StatusBadRequest, "bad_filter", "Unknown licence filter.")
@@ -30,8 +31,23 @@ func (s *Server) handleListBooks(w http.ResponseWriter, r *http.Request) {
 	limit := httpx.QueryInt(r, "limit", 24, 1, 100)
 	offset := httpx.QueryInt(r, "offset", 0, 0, 100000)
 
-	// One extra metadata row determines whether another page exists.
-	books, err := s.store.ListBooks(r.Context(), license, search, genre, limit+1, offset)
+	sort := r.URL.Query().Get("sort")
+	if sort == "" {
+		sort = "recent"
+	}
+	switch sort {
+	case "recent", "rating", "reviews", "shortest", "longest":
+	default:
+		httpx.Error(w, 400, "bad_filter", "Unknown sort order.")
+		return
+	}
+	mine := r.URL.Query().Get("mine") == "true"
+	if mine && currentUser(r) == nil {
+		httpx.Error(w, 401, "unauthorized", "Sign in to browse your books.")
+		return
+	}
+	// Sort/filter before pagination; never expose someone else's progress.
+	books, err := s.store.ListLibraryBooks(r.Context(), viewerID(r), license, search, genre, sort, mine, limit+1, offset)
 	if err != nil {
 		httpx.InternalError(w, r, "handleListBooks", err)
 		return

@@ -32,6 +32,26 @@
   const DWELL_MS = 1800;
   const dwellTimers = new Map<string, number>();
   const recorded = new Set<string>();
+  let canSavePosition = $state(false);
+  let pendingPosition: string | null = null;
+  let savingPosition = false;
+  async function savePosition(cardID: string) {
+    pendingPosition = cardID;
+    if (savingPosition) return;
+    savingPosition = true;
+    try {
+      while (pendingPosition) {
+        const next = pendingPosition;
+        pendingPosition = null;
+        await api.saveBookPosition(slug, next);
+      }
+    } catch { showToast('Your position could not be saved.'); }
+    finally { savingPosition = false; }
+  }
+  $effect(() => {
+    const cardID = pages.find(p => p.idx === activeIdx)?.card_id;
+    if (canSavePosition && cardID && !loading) void savePosition(cardID);
+  });
 
   onMount(async () => {
     const saved = localStorage.getItem('bw:fontScale');
@@ -44,9 +64,16 @@
         title = book.title;
         author = book.author;
       }
-      const requested = Number(new URLSearchParams(window.location.search).get('from') ?? 0);
+      const params = new URLSearchParams(window.location.search);
+      let savedPosition: { page_idx: number; card_idx: number | null } | null = null;
+      try {
+        savedPosition = (await api.bookPosition(slug)).position;
+        canSavePosition = true;
+      } catch { /* Signed-out readers still have access to free books. */ }
+      const explicitPosition = params.has('from') || params.has('card');
+      const requested = Number(params.get('from') ?? (!explicitPosition ? savedPosition?.page_idx ?? 0 : 0));
       const from = Number.isSafeInteger(requested) && requested >= 0 ? requested : 0;
-      const requestedCard = Number(new URLSearchParams(window.location.search).get('card') ?? -1);
+      const requestedCard = Number(params.get('card') ?? (!explicitPosition ? savedPosition?.card_idx ?? -1 : -1));
       const hasCard = Number.isSafeInteger(requestedCard) && requestedCard >= 0;
       const res = await api.cards(slug, hasCard ? requestedCard : 0, 12, hasCard ? 0 : from);
       activeIdx = res.pages[0]?.idx ?? 0;
@@ -128,6 +155,9 @@
 
     try {
       const res = await api.recordCardRead(pageId);
+      // A dwell request for the previous card may finish after navigation.
+      const currentCardID = pages.find(p => p.idx === activeIdx)?.card_id;
+      if (canSavePosition && currentCardID) void savePosition(currentCardID);
       if (res.streak_extended) {
         streak = res.streak_days;
         streakPulse = true;
