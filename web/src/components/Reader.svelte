@@ -393,7 +393,7 @@
           {:else}
             <div class="heading-card" class:book-title={page.kind === 'title'}>
               <p class="heading-label">{page.kind === 'title' ? 'Your next read' : 'Chapter'}</p>
-              <h2>{page.content}<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></h2>
+              <h2 data-body={preview ? true : undefined}>{page.content}<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></h2>
               <p class="heading-note">This card doesn’t count toward your allowance.</p>
             </div>
           {/if}

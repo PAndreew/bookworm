@@ -51,6 +51,13 @@ BOOKS = [
     ]),
 ]
 
+TITLE_WORDS = {
+    'gutenberg-46': ('Carol', 'A song of joy or celebration, especially one sung at Christmas.'),
+    'gutenberg-4363': ('Beyond', 'Outside or further than a boundary or limit; here, outside conventional ideas of good and evil.'),
+    'the-yellow-wallpaper': ('Wallpaper', 'Decorative paper used to cover the walls of a room.'),
+    'gutenberg-86': ('Yankee', 'A person from the northern United States, especially New England, where Connecticut is located.'),
+}
+
 if __name__ == '__main__':
     import re
     samples = []
@@ -60,7 +67,7 @@ if __name__ == '__main__':
         assert len(cards) == 10, slug
         pages = []
         for i, card in enumerate(cards):
-            word, definition = glossary[i - 1] if i else ('', '')
+            word, definition = glossary[i - 1] if i else TITLE_WORDS[slug]
             assert not word or re.search(r'\b' + re.escape(word) + r'\b', card['content'], re.I), (slug, i, word)
             pages.append(dict(content=card['content'], kind=card.get('kind', 'text'), word=word, definition=definition))
         with urlopen(f'https://potpuri.cc/v1/books/{slug}') as response:

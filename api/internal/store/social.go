@@ -123,19 +123,19 @@ func (s *Store) IsBlocked(ctx context.Context, a, b string) (bool, error) {
 }
 
 type Friend struct {
-	ID          string `json:"id"`
-	Handle      string `json:"handle"`
-	DisplayName string `json:"display_name"`
-	StreakDays  int    `json:"streak_days"`
-	CommonBooks int    `json:"common_books"`
-	Pages30Days int    `json:"pages_30_days"`
+	ID              string `json:"id"`
+	Handle          string `json:"handle"`
+	DisplayName     string `json:"display_name"`
+	StreakDays      int    `json:"streak_days"`
+	CommonBooks     int    `json:"common_books"`
+	LatestBookTitle string `json:"latest_book_title"`
+	Pages30Days     int    `json:"pages_30_days"`
 	// Incoming distinguishes "they asked you" from "you asked them" on pending rows.
 	Incoming bool `json:"incoming,omitempty"`
 }
 
-// ListFriends ranks actual reading, not bookmarks or navigation. Reading counts
-// respect the friend's profile/book privacy. Days use each reader's local dates;
-// migrated inherited card credits never inflate activity.
+// ListFriends compares started books and earned reading, respecting privacy.
+// Only real reading credits contribute to recent pages; days use local dates.
 func (s *Store) ListFriends(ctx context.Context, userID string) ([]Friend, error) {
 	const q = `
 	WITH peers AS (
@@ -149,8 +149,12 @@ func (s *Store) ListFriends(ctx context.Context, userID string) ([]Friend, error
 	 UNION ALL
 	 SELECT cr.user_id,c.edition_id,cr.local_day FROM card_reads cr JOIN reader_cards c ON c.id=cr.card_id
 	 WHERE NOT cr.inherited AND cr.user_id IN (SELECT id FROM participants)
+	), started AS (
+	 SELECT user_id,edition_id FROM reads
+	 UNION
+	 SELECT user_id,edition_id FROM reading_progress WHERE user_id IN (SELECT id FROM participants)
 	), read_books AS (
-	 SELECT DISTINCT r.user_id,e.book_id FROM reads r JOIN book_editions e ON e.id=r.edition_id
+	 SELECT DISTINCT r.user_id,e.book_id FROM started r JOIN book_editions e ON e.id=r.edition_id
 	 JOIN users u ON u.id=r.user_id LEFT JOIN reading_progress rp ON rp.user_id=r.user_id AND rp.edition_id=r.edition_id
 	 WHERE r.user_id=$1 OR (u.visibility<>'private' AND NOT COALESCE(rp.is_private,false))
 	), common AS (
@@ -166,9 +170,16 @@ func (s *Store) ListFriends(ctx context.Context, userID string) ([]Friend, error
 	)
 	SELECT u.id,u.handle,u.display_name,
 	 CASE WHEN st.last_day >= (now() AT TIME ZONE u.timezone)::date-1 THEN COALESCE(st.current_days,0) ELSE 0 END,
-	 COALESCE(common.n,0),COALESCE(recent.n,0)
+	 COALESCE(common.n,0),COALESCE(recent.n,0),COALESCE(latest.title,'')
 	FROM peers u LEFT JOIN streaks st ON st.user_id=u.id
 	LEFT JOIN common ON common.user_id=u.id LEFT JOIN recent ON recent.user_id=u.id
+	LEFT JOIN LATERAL (
+	 SELECT b.title FROM reading_progress rp
+	 JOIN book_editions e ON e.id=rp.edition_id AND e.state='published'
+	 JOIN books b ON b.id=e.book_id
+	 WHERE rp.user_id=u.id AND u.visibility<>'private' AND NOT rp.is_private
+	 ORDER BY rp.last_read_at DESC,e.id LIMIT 1
+	) latest ON true
 	ORDER BY COALESCE(common.n,0) DESC,u.handle`
 	rows, err := s.pool.Query(ctx, q, userID)
 	if err != nil {
@@ -178,7 +189,7 @@ func (s *Store) ListFriends(ctx context.Context, userID string) ([]Friend, error
 	out := []Friend{}
 	for rows.Next() {
 		var f Friend
-		if err := rows.Scan(&f.ID, &f.Handle, &f.DisplayName, &f.StreakDays, &f.CommonBooks, &f.Pages30Days); err != nil {
+		if err := rows.Scan(&f.ID, &f.Handle, &f.DisplayName, &f.StreakDays, &f.CommonBooks, &f.Pages30Days, &f.LatestBookTitle); err != nil {
 			return nil, err
 		}
 		out = append(out, f)

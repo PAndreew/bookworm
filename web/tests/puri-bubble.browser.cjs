@@ -22,11 +22,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
    });
    assert(geometry.gap<=20,`bubble detached from Puri: ${JSON.stringify(geometry)}`);
    assert(geometry.puriX>=geometry.left&&geometry.puriX<=geometry.right,'bubble tail must align horizontally with Puri');
-   for(let i=2;i<=4;i++)await turn(i);
-   await page.waitForSelector('.coach');
-   assert((await page.locator('.bubble').textContent()).includes('simile'),'rapid navigation must not leave an earlier hint');
+   assert((await page.locator('.bubble').textContent()).includes('Translate'),'second card teaches translation');
+   for(let i=2;i<10;i++) { await turn(i); assert.equal(await page.locator('.coach').count(),0,'cards 3–10 have no hints'); }
+   await turn(10);
+   await page.getByRole('link',{name:'Create an account',exact:true}).waitFor();
+   assert.equal(await page.locator('.coach').count(),0);
    await page.close();
   }
-  console.log('Puri bubbles wait for movement, stay attached and show only the current card hint');
+  console.log('Puri hints stay attached, appear on only the first two cards and end at signup');
  }finally{await browser.close()}
 })();

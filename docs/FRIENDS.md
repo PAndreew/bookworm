@@ -1,16 +1,16 @@
 # Friends and reader profiles
 
-The Friends page defaults to descending **books in common**, with alternate
-rankings for **current streak** and **pages read over the last 30 days**. Equal
-scores break by handle. Each row shows a deterministic GitHub-style mirrored
-5×5 identicon, name/handle and the selected score. The same local SVG component
+The Friends page lists friends by descending **books in common**, with equal
+scores breaking by handle. Each row shows a deterministic GitHub-style mirrored
+5×5 identicon, nickname beside handle, most recent visible book title underneath,
+and common-book count. Reading lists appear only on the friend's profile. The same local SVG component
 uses the immutable account ID on You and reader profiles; no avatar service,
 external image request, uploaded picture or stored avatar record is needed.
 
-Common books means distinct canonical books for which both readers have at least
-one real reading credit, across editions and both the old page and new card
-ledgers. Opening a book, saving a position or bookmarking it is not reading.
-Inherited card credits created during migration do not count. The viewer can
+Common books means distinct canonical books both readers have started (saved
+reading progress) or earned real reading credits for, across editions and both
+page/card ledgers. Starting a book does not grant streak or page credits.
+Inherited card credits alone and bookmarks do not count. The viewer can
 compare their own private books, but the friend's private books/profile never
 contribute to common-book or recent-reading counts.
 
@@ -30,5 +30,6 @@ progress. Blocked profiles remain unavailable.
 Tests: `api/internal/api/friends_integration_test.go` exercises common-book
 ordering, real vs navigation/inherited credits, local-date boundaries, stale
 streaks and private books/profiles in disposable PostgreSQL.
-`web/tests/friends.browser.cjs` covers all rankings, stable/matching avatars,
-profile navigation, unboxed stats and no horizontal overflow at 320/390/1280px.
+`web/tests/friends.browser.cjs` covers compact rows, latest titles, common counts,
+stable/matching avatars, profile navigation, unboxed stats and no horizontal
+overflow at 320/390/1280px.

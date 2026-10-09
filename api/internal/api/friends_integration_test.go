@@ -89,7 +89,7 @@ func TestFriendReadingRanksRespectCreditsDatesAndPrivacy(t *testing.T) {
 		exec(`INSERT INTO card_reads(user_id,card_id,local_day,metered) VALUES($1,$2,(now() AT TIME ZONE 'Pacific/Kiritimati')::date-$3::int,false)`, users[1].ID, cards[0], offset)
 	}
 	exec(`INSERT INTO card_reads(user_id,card_id,local_day,metered,inherited) VALUES($1,$2,(now() AT TIME ZONE 'Pacific/Kiritimati')::date,false,true)`, users[1].ID, cards[1])
-	// Navigation is not reading, and viewer-private books can still be compared.
+	// Started books count as common without granting credits; viewer-private books can be compared.
 	exec(`INSERT INTO reading_progress(user_id,edition_id,is_private) VALUES($1,$2,false),($3,$2,true)`, users[1].ID, editions[1], users[0].ID)
 	for _, p := range pages {
 		exec(`INSERT INTO page_reads(user_id,page_id,local_day,metered) VALUES($1,$2,(now() AT TIME ZONE 'Pacific/Kiritimati')::date,false)`, users[2].ID, p)
@@ -104,7 +104,7 @@ func TestFriendReadingRanksRespectCreditsDatesAndPrivacy(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		if len(f) != 3 || f[0].ID != users[2].ID || f[0].CommonBooks != 2 || f[0].Pages30Days != 2 || f[0].StreakDays != 2 || f[1].CommonBooks != 1 || f[1].Pages30Days != 2 || f[1].StreakDays != 0 || f[2].CommonBooks != 0 || f[2].Pages30Days != 0 {
+		if len(f) != 3 || f[0].ID != users[1].ID || f[0].CommonBooks != 2 || f[0].Pages30Days != 2 || f[0].StreakDays != 0 || f[1].ID != users[2].ID || f[1].CommonBooks != 2 || f[1].Pages30Days != 2 || f[1].StreakDays != 2 || f[2].CommonBooks != 0 || f[2].Pages30Days != 0 || f[2].LatestBookTitle != "" {
 			t.Fatalf("incorrect ranks: %+v", f)
 		}
 	}
@@ -112,6 +112,19 @@ func TestFriendReadingRanksRespectCreditsDatesAndPrivacy(t *testing.T) {
 	exec(`UPDATE reading_progress SET is_private=false WHERE user_id=$1`, users[3].ID)
 	exec(`UPDATE users SET visibility='private' WHERE id=$1`, users[3].ID)
 	check()
+	// Started books must count even before either reader earns a reading credit.
+	exec(`DELETE FROM page_reads WHERE user_id=$1`, users[3].ID)
+	exec(`UPDATE users SET visibility='friends' WHERE id=$1`, users[3].ID)
+	exec(`INSERT INTO reading_progress(user_id,edition_id,is_private) VALUES($1,$2,false)`, users[0].ID, editions[0])
+	started, e := st.ListFriends(ctx, users[0].ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, f := range started {
+		if f.ID == users[3].ID && (f.CommonBooks != 1 || f.Pages30Days != 0 || f.LatestBookTitle != fmt.Sprintf("friend-%s-1", suffix)) {
+			t.Fatalf("started shared book not counted: %+v", f)
+		}
+	}
 	profile, e := st.ProfileFor(ctx, users[0].ID, users[2].Handle)
 	if e != nil || profile.ID != users[2].ID {
 		t.Fatalf("profile identity: %+v %v", profile, e)
