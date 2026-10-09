@@ -206,7 +206,7 @@
   </span>
 </svelte:element>
 
-{#if experience === 'demo' && (cardIndex ?? 0) < 2}
+{#if experience === 'demo' && (cardIndex === 1 || cardIndex === 2)}
   <div class="coach" class:below
     style="left:{coachLeft}px;top:{below ? y + 44 : y - 12}px;--tail-x:{x + 16 - coachLeft}px;visibility:{visible && settled ? 'visible' : 'hidden'}">
     <PuriCoach word={demoWord} definition={demoDefinition} selection={selected} expanded={coaching}

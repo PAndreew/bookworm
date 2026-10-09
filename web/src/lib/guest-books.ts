@@ -1,7 +1,7 @@
 import books from './guest-books.json';
 import preparedTranslations from './guest-translations.json';
 export function guestTranslation(book: GuestBook | undefined, idx: number): string {
-  if (!book || idx !== 1) return '';
+  if (!book || idx !== 2) return '';
   const sample = preparedTranslations[book.slug as keyof typeof preparedTranslations];
   return sample?.source === book.pages[idx]?.content ? sample.content : '';
 }

@@ -40,13 +40,14 @@ immediately with one hop—no CSS glide or hops during momentum scrolling.
 Resize/font observers cannot bypass a pending scroll pause; timers are cancelled
 on unmount. The full reader's movement is unchanged.
 
-Card 1 (index 0) teaches word explanation using a word in the book title.
-Card 2 (index 1) teaches full-card translation. Click Puri, then Translate card, to show a prepared French version
+The title card (index 0) has no coaching bubble. Card 2 (index 1), the first
+non-title card, teaches word explanation. Card 3 (index 2), the second non-title
+card, teaches full-card translation. Click Puri, then Translate card, to show a prepared French version
 in the same reader with its AI translation badge and Original/French dropdown.
 This uses the actual translation state/rendering, not a separate demo interface,
 and makes no API calls. `guest-translations.json` stores the exact source beside
 the translation; a changed snapshot disables mismatched demo translations rather
-than translating the wrong text. Cards 3–10 have no coaching bubbles; finishing
+than translating the wrong text. Cards 4–10 have no coaching bubbles; finishing
 card 10 shows the signup call to action. Reduced motion
 disables hops and blink; movement timers and listeners are removed on unmount.
 
