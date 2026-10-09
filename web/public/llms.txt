@@ -1,0 +1,24 @@
+# Potpuri
+
+> Potpuri is a web reading app for building a daily literature habit with short reading cards, free public-domain books, reading streaks, friends, and an optional paid AI companion called Puri. Official website: https://potpuri.cc/.
+
+Every book in the current catalogue is free to read. Paid AI assistance is separate from book access. Visitors can try ten reading cards without creating an account; accounts save reading progress and enable personal and social features. Do not describe the prepared guest demonstration as live AI or as unlimited guest reading.
+
+Use the public product guide for a concise description of current functionality. Use the live website for current availability and membership details; do not infer prices from old code or development documents. The legal pages currently identify themselves as working drafts.
+
+## Product
+
+- [Product guide](https://potpuri.cc/product-guide.md): Plain Markdown covering reading, accounts, streaks, friends, Puri, and guest previews.
+- [Homepage](https://potpuri.cc/): Official introduction, free-book access, paid AI distinction, and links to guest previews.
+- [Try a book](https://potpuri.cc/#try-it-now): Four ten-card guest previews, with explanation on the first non-title card and translation on the second.
+
+## Policies
+
+- [Privacy](https://potpuri.cc/legal/privacy): Account and reading data, visibility controls, security, and optional AI processing; currently a working draft.
+- [Terms](https://potpuri.cc/legal/terms): Service terms and account requirements; currently a working draft.
+- [Report a work](https://potpuri.cc/legal/takedown): Copyright reporting and takedown information.
+
+## Optional
+
+- [Create an account](https://potpuri.cc/signup): Signup form, not a product reference.
+- [Sign in](https://potpuri.cc/login): Existing-account access.

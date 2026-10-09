@@ -1,33 +1,54 @@
 ---
 import Base from '../../layouts/Base.astro';
 import Reader from '../../components/Reader.svelte';
+import sampleBooks from '../../lib/guest-books.json';
 
 // The catalogue is fetched at build time so every book gets a prerendered shell
 // with real metadata -- which is what a shared link needs in order to preview.
 // Page content itself is always fetched live, so it stays behind the meter.
 export async function getStaticPaths() {
-  const base = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080';
+  const base = import.meta.env.PUBLIC_API_URL ?? 'https://potpuri.cc';
+  const books = new Map<string, { slug: string; title: string; author: string; description?: string }>(
+    sampleBooks.map(book => [book.slug, book]),
+  );
 
   try {
-    const res = await fetch(`${base}/v1/books`);
-    if (!res.ok) throw new Error(String(res.status));
-    const { books } = await res.json();
-
-    return books.map((b: any) => ({
-      params: { slug: b.slug },
-      props: { title: b.title, author: b.author, description: b.description },
-    }));
-  } catch {
-    // The API not being up at build time must not fail the build. The reader
-    // resolves its own metadata client-side in that case.
-    return [];
+    let offset = 0;
+    while (true) {
+      const url = new URL('/v1/books', base);
+      url.search = new URLSearchParams({ license: 'public_domain', limit: '100', offset: String(offset) }).toString();
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) throw new Error(`Catalogue returned ${res.status}`);
+      const data = await res.json();
+      for (const book of data.books) books.set(book.slug, book);
+      if (data.next_offset == null) break;
+      if (!Number.isInteger(data.next_offset) || data.next_offset <= offset) throw new Error('Invalid catalogue pagination');
+      offset = data.next_offset;
+    }
+  } catch (error) {
+    // Keep known public books discoverable even during a catalogue outage.
+    console.warn('Book metadata fetch incomplete; using available catalogue and guest snapshots.', error);
   }
+
+  return [...books.values()].map(book => ({
+    params: { slug: book.slug },
+    props: { title: book.title, author: book.author, description: book.description?.trim() || `Read ${book.title} by ${book.author} for free on Potpuri, in short reading cards. Save your place and build a daily reading habit.` },
+  }));
 }
 
 const { slug } = Astro.params;
 const { title, author, description } = Astro.props;
+const bookSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Book',
+  name: title,
+  author: { '@type': 'Person', name: author },
+  url: new URL(`/read/${slug}/`, Astro.site).href,
+};
 ---
 
-<Base title={`${title} — Potpuri`} description={description} bare>
+<Base title={`${title} by ${author} — Read free on Potpuri`} description={description} bare>
+  <script type="application/ld+json" set:html={JSON.stringify(bookSchema).replace(/</g, '\\u003c')} />
+  <noscript><p>Read {title} by {author} in short cards on Potpuri. Enable JavaScript to use the reader, or <a href="/">learn about Potpuri</a>.</p></noscript>
   <Reader slug={slug!} title={title} author={author} client:load />
 </Base>

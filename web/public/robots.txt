@@ -3,4 +3,4 @@ Allow: /
 Disallow: /app/
 Disallow: /v1/
 
-Sitemap: /sitemap-index.xml
+Sitemap: https://potpuri.cc/sitemap-index.xml

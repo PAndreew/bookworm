@@ -4,17 +4,33 @@ import '../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
+  noindex?: boolean;
   /** The reader hides the tab bar: it is a full-screen surface. */
   bare?: boolean;
 }
 
 const {
   title = 'Potpuri',
-  description = 'Read books like a feed. Keep a streak. Share the lines worth keeping.',
+  description = 'Read free public-domain classics in short cards. Build a reading habit with streaks, friends, and optional paid AI help from Puri.',
+  noindex = false,
   bare = false,
 } = Astro.props;
 
 const path = Astro.url.pathname;
+const origin = Astro.site ?? new URL('https://potpuri.cc');
+const canonicalPath = path === '/' ? '/' : `${path.replace(/\/+$/, '')}/`;
+const canonical = new URL(canonicalPath, origin).href;
+const privateOrUtility = /^\/(app|login|signup|try|q)(\/|$)/.test(path) || /^\/read\/?$/.test(path);
+const robots = noindex || privateOrUtility ? 'noindex, follow' : 'index, follow';
+const image = new URL('/icon-512.png', origin).href;
+const siteSchema = path === '/' ? {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Potpuri',
+  url: origin.href,
+  description,
+  inLanguage: 'en',
+} : null;
 ---
 
 <!doctype html>
@@ -27,6 +43,23 @@ const path = Astro.url.pathname;
     />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="describedby" href="/llms.txt" type="text/plain" />
+    <link rel="canonical" href={canonical} />
+    <meta name="robots" content={robots} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Potpuri" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="Potpuri reading app icon" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+    {siteSchema && <script type="application/ld+json" set:html={JSON.stringify(siteSchema).replace(/</g, '\\u003c')} />}
 
     <meta name="theme-color" content="#ffffff" />
     <link rel="icon" href="/glim.svg" type="image/svg+xml" />
