@@ -101,6 +101,7 @@ func (s *Server) Routes() http.Handler {
 			r.Post("/assistant", s.handleAssistant)
 			r.Post("/reads", s.handleRecordRead)
 			r.Post("/card-reads", s.handleCardRead)
+			r.Post("/cards/{id}/reports", s.handleCardReport)
 			r.Post("/pages/{id}/like", s.handleLike)
 			r.Delete("/pages/{id}/like", s.handleUnlike)
 

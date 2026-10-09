@@ -6,7 +6,7 @@ const base = process.env.TEST_BASE_URL || 'http://localhost:4321';
  const browser = await chromium.launch({ ...(process.env.PLAYWRIGHT_EXECUTABLE ? {executablePath:process.env.PLAYWRIGHT_EXECUTABLE} : {}), args:['--no-sandbox'] });
  for (const [width,height] of [[320,568],[390,600],[1280,720]]) {
   const ctx=await browser.newContext({viewport:{width,height},serviceWorkers:'block'});
-  const page=await ctx.newPage();const errors=[];const ai=[];const reads=[];const marks=[];
+  const page=await ctx.newPage();const errors=[];const ai=[];const reads=[];const marks=[];const reports=[];
   let tier='free';page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/v1/**',async route=>{
    const request=route.request(),url=new URL(request.url());let body={};
@@ -14,9 +14,10 @@ const base = process.env.TEST_BASE_URL || 'http://localhost:4321';
    else if(url.pathname.endsWith('/cards')){
     const from=Number(url.searchParams.get('card_from')||url.searchParams.get('source_from')||0);
     const prose=('Bonjour, mon ami. '+ 'This is a balanced sentence with familiar words. '.repeat(7)).slice(0,360);
-    body={page_count:1536,pages:Array.from({length:12},(_,i)=>({card_id:`card-${from+i}`,id:`source-${Math.floor((from+i)/3)}`,idx:from+i,source_idx:Math.floor((from+i)/3),start_off:50,kind:from+i===0?'title':from+i===1?'chapter':'text',content:from+i===0?'Test Book\nTest Author':from+i===1?'CHAPTER 1.':prose,char_count:360,like_count:0,liked_by_me:false}))};
+    body={page_count:1536,pages:Array.from({length:12},(_,i)=>({card_id:`card-${from+i}`,id:`source-${Math.floor((from+i)/3)}`,idx:from+i,source_idx:Math.floor((from+i)/3),start_off:50,parts:from+i===2?[{page_id:'source-0',start_off:50,end_off:170,card_start:0},{page_id:'source-B',start_off:7,end_off:247,card_start:120}]:undefined,kind:from+i===0?'title':from+i===1?'chapter':'text',content:from+i===0?'Test Book\nTest Author':from+i===1?'CHAPTER 1.':prose,char_count:360,like_count:0,liked_by_me:false}))};
    }else if(url.pathname==='/v1/assistant'){ai.push(request.postDataJSON());body={answer:'Bonjour means hello.',model:'google/gemini-3.8-flash'};}
    else if(url.pathname==='/v1/card-reads'){reads.push(request.postDataJSON());body={streak_extended:false};}
+   else if(url.pathname.endsWith('/reports')){reports.push(request.postDataJSON());body={status:'received'};}
    else if(url.pathname==='/v1/highlights'){marks.push(request.postDataJSON());body={highlight:{id:'mark'}};}
    else if(url.pathname.startsWith('/v1/books/'))body={book:{title:'Test Book',author:'Tester'}};
    await route.fulfill({json:body});
@@ -38,9 +39,9 @@ const base = process.env.TEST_BASE_URL || 'http://localhost:4321';
   await page.goto(base+'/read/moby-dick/?card=0',{waitUntil:'networkidle'});
   await page.waitForSelector('[data-kind="title"]');await page.waitForTimeout(1900);
   assert.equal(reads.length,0,'title card counted as read');
-  await page.evaluate(()=>{let f=document.querySelector('.feed');f.scrollTop=f.clientHeight;});await page.waitForTimeout(2100);
+  await page.getByRole('button',{name:'Next card',exact:true}).click();await page.waitForTimeout(2100);
   assert.equal(reads.length,0,'chapter card counted as read');
-  await page.evaluate(()=>{let f=document.querySelector('.feed');f.scrollTop=f.clientHeight*2;});await page.waitForTimeout(900);
+  await page.getByRole('button',{name:'Next card',exact:true}).click();await page.waitForTimeout(900);
   const geometry=await page.evaluate(()=>{
    const article=document.querySelector('[data-idx="2"]'),body=article.querySelector('[data-body]'),marker=article.querySelector('[data-sunny-anchor]').getBoundingClientRect(),sunny=document.querySelector('.mascot').getBoundingClientRect(),actions=article.querySelector('.actions').getBoundingClientRect();
    return {overflow:body.scrollHeight-body.clientHeight,marker:{x:marker.x,y:marker.y},sunny:{x:sunny.x,y:sunny.y},actions:{x:actions.x,y:actions.y,width:actions.width,height:actions.height},bodyBottom:body.getBoundingClientRect().bottom};
@@ -61,7 +62,24 @@ const base = process.env.TEST_BASE_URL || 'http://localhost:4321';
   await page.evaluate(()=>{const node=document.querySelector('[data-idx="2"] [data-body]').firstChild;const r=document.createRange();r.setStart(node,0);r.setEnd(node,16);const s=window.getSelection();s.removeAllRanges();s.addRange(r);});
   await page.locator('[data-idx="2"]').getByRole('button',{name:'Highlight the selected text',exact:true}).click();await page.waitForTimeout(250);
   assert.equal(marks[0].start_off,50);assert.equal(marks[0].end_off,66);assert.equal(marks[0].page_id,'source-0');
-  assert.deepEqual(errors,[]);console.log(`${width}×${height}: inline 32px Sunny, no overflow, bottom controls, unmetered headings, paid AI, original annotation offsets passed`);
+  // One selection crossing the old source-page boundary becomes two precisely
+  // anchored highlights, without saving the synthetic join as original text.
+  await page.evaluate(()=>{const node=document.querySelector('[data-body]').firstChild;const r=document.createRange();r.setStart(node,110);r.setEnd(node,140);const s=window.getSelection();s.removeAllRanges();s.addRange(r);});
+  await page.getByRole('button',{name:'Highlight the selected text',exact:true}).click();await page.waitForTimeout(200);
+  assert.deepEqual(marks.slice(1,3).map(m=>[m.page_id,m.start_off,m.end_off]),[['source-0',160,170],['source-B',7,27]]);
+  await page.getByRole('button',{name:'Report text or layout issue',exact:true}).click();
+  await page.getByLabel('What’s wrong?',{exact:true}).selectOption('break');
+  await page.getByLabel('Details (optional)',{exact:true}).fill('Abbreviation spacing looks wrong.');
+  await page.getByRole('button',{name:'Send report',exact:true}).click();
+  await page.getByRole('dialog',{name:'Report an issue',exact:true}).waitFor({state:'hidden'});
+  assert.deepEqual(reports[0],{category:'break',note:'Abbreviation spacing looks wrong.'});
+  const flag=await page.locator('.report-icon svg').boundingBox();assert.equal(flag.width,13);
+  assert.equal(await page.locator('.feed').evaluate(el=>getComputedStyle(el).overflowY),'hidden');
+  await page.getByRole('button',{name:'Text size',exact:true}).click();await page.getByRole('button',{name:'145%',exact:true}).click();
+  await page.waitForTimeout(200);
+  const fit=await page.locator('[data-body]').evaluate(el=>({font:parseFloat(getComputedStyle(el).fontSize),bottom:el.getBoundingClientRect().bottom,top:el.getBoundingClientRect().top,controls:document.querySelector('.page-num').getBoundingClientRect().top}));
+  assert(fit.font>=23,'accessibility text was shrunk');assert(fit.top>=70&&fit.bottom<=fit.controls,'enlarged type does not fit');
+  assert.deepEqual(errors,[]);console.log(`${width}×${height}: readable no-scroll cards, tiny report flag, report submission, large-text continuation, headings, paid AI, annotation offsets passed`);
   if(process.env.SCREENSHOT_DIR)await page.screenshot({path:`${process.env.SCREENSHOT_DIR}/sunny-${width}.png`});
   await ctx.close();
  }

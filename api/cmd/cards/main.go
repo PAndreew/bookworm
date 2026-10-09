@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -20,6 +21,8 @@ func main() {
 	}
 }
 func run() error {
+	slug := flag.String("slug", "", "prepare only this book (default: all published editions)")
+	flag.Parse()
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -34,7 +37,7 @@ func run() error {
 	if err = db.Migrate(ctx, pool); err != nil {
 		return err
 	}
-	rows, err := pool.Query(ctx, `SELECT id FROM book_editions WHERE state='published' ORDER BY id`)
+	rows, err := pool.Query(ctx, `SELECT e.id FROM book_editions e JOIN books b ON b.id=e.book_id WHERE e.state='published' AND ($1='' OR b.slug=$1) ORDER BY e.id`, *slug)
 	if err != nil {
 		return err
 	}
@@ -52,12 +55,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if *slug != "" && len(ids) == 0 {
+		return fmt.Errorf("no published book with slug %q", *slug)
+	}
 	st := store.New(pool)
 	for _, id := range ids {
 		if err = st.EnsureReaderCards(ctx, id); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("Prepared card layouts for %d published editions; original pages untouched.\n", len(ids))
+	fmt.Printf("Prepared balanced card layouts for %d published editions; obsolete layouts discarded, original anchors/history preserved.\n", len(ids))
 	return nil
 }

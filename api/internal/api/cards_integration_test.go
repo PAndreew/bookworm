@@ -92,8 +92,17 @@ func TestCardsAndMonthlyQuota(t *testing.T) {
 		t.Fatal("exact card resume failed", err)
 	}
 	mapped, _, err := st.CardWindow(ctx, public.EditionID, "", 0, source[len(source)-1].Idx, 12)
-	if err != nil || len(mapped) == 0 || mapped[0].SourceIdx < source[len(source)-1].Idx {
+	if err != nil || len(mapped) == 0 {
 		t.Fatal("legacy resume mapping failed", err)
+	}
+	foundSource := false
+	for _, part := range mapped[0].Parts {
+		if part.PageID == source[len(source)-1].ID {
+			foundSource = true
+		}
+	}
+	if !foundSource {
+		t.Fatal("legacy resume did not include requested source passage")
 	}
 	again, err := st.PageWindow(ctx, public.EditionID, "", 0, 30)
 	if err != nil {
@@ -152,9 +161,8 @@ func TestCardsAndMonthlyQuota(t *testing.T) {
 		t.Fatal("monthly rollover failed", d, err)
 	}
 
-	// Regression: character-only v1 cards overflow with many short paragraphs.
-	// Refinement retains IDs/annotations, remaps later positions once, and keeps
-	// historical streak/quota counts unchanged while granting inherited coverage.
+	// Replacing a legacy layout discards old presentation chunks, keeps original
+	// annotations/history, remaps positions, and grants unmetered coverage.
 	slug := "line-budget-" + suffix
 	_, err = ingest.New(pool).Publish(ctx, ingest.Book{Slug: slug, Title: "Line Fixture", Author: "Tester", Language: "en", License: "licensed", Pages: chunk.Split("CHAPTER 1.\n\n" + strings.Repeat("Short heading.\n\n", 12) + "CHAPTER 2.\n\nContinuation: this ordinary readable text remains on one card.")})
 	if err != nil {
@@ -197,14 +205,30 @@ func TestCardsAndMonthlyQuota(t *testing.T) {
 		t.Fatal(err)
 	}
 	refined, newCount, err := st.CardWindow(ctx, b.EditionID, user.ID, 0, 0, 12)
-	if err != nil || newCount != 6 {
-		t.Fatal("line refinement", newCount, err)
+	if err != nil || newCount != 7 {
+		t.Fatal("balanced replacement", newCount, err)
 	}
-	if refined[2].CardID != firstID || refined[5].CardID != laterID {
-		t.Fatal("existing card IDs lost")
+	if refined[2].CardID == firstID || refined[6].CardID == laterID {
+		t.Fatal("obsolete cards still served")
+	}
+	var archived int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM reader_cards WHERE edition_id=$1 AND archived AND content IS NULL`, b.EditionID).Scan(&archived); err != nil || archived != 2 {
+		t.Fatal("obsolete chunks not discarded / history not retained", archived, err)
+	}
+	// A second layout replacement must not collide with archived indices.
+	if _, err = pool.Exec(ctx, `UPDATE book_editions SET reader_layout_version=3 WHERE id=$1`, b.EditionID); err != nil {
+		t.Fatal(err)
+	}
+	refined, _, err = st.CardWindow(ctx, b.EditionID, user.ID, 0, 0, 12)
+	if err != nil {
+		t.Fatal("repeat migration", err)
+	}
+	stable, _, err := st.CardWindow(ctx, b.EditionID, user.ID, 0, 0, 12)
+	if err != nil || stable[2].CardID != refined[2].CardID {
+		t.Fatal("replacement not idempotent", err)
 	}
 	pos, err := st.LastRead(ctx, user.ID)
-	if err != nil || pos.CardIdx == nil || *pos.CardIdx != 5 || pos.PageIdx != 1 {
+	if err != nil || pos.CardIdx == nil || *pos.CardIdx != 6 || pos.PageIdx != 1 {
 		t.Fatal("refined resume mapping", pos, err)
 	}
 	afterPages, _ := st.PagesReadToday(ctx, user.ID, day)
@@ -212,7 +236,7 @@ func TestCardsAndMonthlyQuota(t *testing.T) {
 	if beforePages != afterPages || beforeUsed != afterUsed {
 		t.Fatal("refinement changed historical counts")
 	}
-	d, _, err = st.RecordCard(ctx, user.ID, refined[3].CardID, future)
+	d, _, err = st.RecordCard(ctx, user.ID, refined[2].CardID, future)
 	if err != nil || !d.Allowed || d.Metered {
 		t.Fatal("already-read coverage charged again", d, err)
 	}

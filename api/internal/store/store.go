@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	ErrNotFound  = errors.New("store: not found")
-	ErrConflict  = errors.New("store: conflict")
-	ErrForbidden = errors.New("store: forbidden")
+	ErrNotFound    = errors.New("store: not found")
+	ErrConflict    = errors.New("store: conflict")
+	ErrForbidden   = errors.New("store: forbidden")
+	ErrReportLimit = errors.New("store: report limit")
 )
 
 type Store struct {

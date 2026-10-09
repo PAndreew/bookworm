@@ -5,21 +5,21 @@ import (
 	"errors"
 	"time"
 
-	"github.com/bookworm/api/internal/chunk"
 	"github.com/jackc/pgx/v5"
 )
 
 type ReaderCard struct {
 	Page
-	CardID    string `json:"card_id"`
-	Kind      string `json:"kind"`
-	SourceIdx int    `json:"source_idx"`
-	StartOff  int    `json:"start_off"`
+	CardID    string     `json:"card_id"`
+	Kind      string     `json:"kind"`
+	SourceIdx int        `json:"source_idx"`
+	StartOff  int        `json:"start_off"`
+	Parts     []CardPart `json:"parts"`
 }
 
 // EnsureReaderCards builds once per edition, without modifying any source page.
-// Advisory locking makes simultaneous requests/refinements safe. Version-2 layouts
-// stay stable; older layouts refine with IDs, historical coverage and bookmarks preserved.
+// Advisory locking makes replacement atomic with read-history/bookmark migration.
+// Version-4 layouts prefer whole sentences across chapters; original pages remain immutable.
 func (s *Store) EnsureReaderCards(ctx context.Context, editionID string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -34,54 +34,10 @@ func (s *Store) EnsureReaderCards(ctx context.Context, editionID string) error {
 	if err = tx.QueryRow(ctx, `SELECT e.reader_card_count,b.title,b.author,e.reader_layout_version FROM book_editions e JOIN books b ON b.id=e.book_id WHERE e.id=$1`, editionID).Scan(&count, &title, &author, &version); err != nil {
 		return err
 	}
-	if count > 0 {
-		if version < 2 {
-			if err := refineReaderCards(ctx, tx, editionID); err != nil {
-				return err
-			}
-		}
+	if count > 0 && version >= 4 {
 		return tx.Commit(ctx)
 	}
-	rows, err := tx.Query(ctx, `SELECT id,content,COALESCE(chapter_title,'') FROM pages WHERE edition_id=$1 ORDER BY idx`, editionID)
-	if err != nil {
-		return err
-	}
-	type source struct{ id, content, chapter string }
-	sources := []source{}
-	for rows.Next() {
-		var p source
-		if err = rows.Scan(&p.id, &p.content, &p.chapter); err != nil {
-			rows.Close()
-			return err
-		}
-		sources = append(sources, p)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return err
-	}
-	batch := &pgx.Batch{}
-	add := func(pageID *string, kind, heading string, start, end int) {
-		batch.Queue(`INSERT INTO reader_cards(edition_id,idx,page_id,kind,title,start_off,end_off) VALUES($1,$2,$3,$4,NULLIF($5,''),$6,$7)`, editionID, count, pageID, kind, heading, start, end)
-		count++
-	}
-	add(nil, "title", title+"\n"+author, 0, 0)
-	chapter := ""
-	for _, p := range sources {
-		if p.chapter != "" && p.chapter != chapter {
-			add(&p.id, "chapter", p.chapter, 0, 0)
-			chapter = p.chapter
-		}
-		for _, span := range chunk.Cards(p.content) {
-			add(&p.id, "text", "", span.Start, span.End)
-		}
-	}
-	results := tx.SendBatch(ctx, batch)
-	if err = results.Close(); err != nil {
-		return err
-	}
-	if _, err = tx.Exec(ctx, `UPDATE book_editions SET reader_card_count=$2,reader_layout_version=2 WHERE id=$1`, editionID, count); err != nil {
+	if err = replaceReaderCards(ctx, tx, editionID, title, author); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -96,15 +52,15 @@ func (s *Store) CardWindow(ctx context.Context, editionID, viewerID string, from
 		return nil, 0, err
 	}
 	if sourceFrom > 0 {
-		if err := s.pool.QueryRow(ctx, `SELECT COALESCE(min(c.idx),$3) FROM reader_cards c JOIN pages p ON p.id=c.page_id WHERE c.edition_id=$1 AND p.idx >= $2`, editionID, sourceFrom, count).Scan(&from); err != nil {
+		if err := s.pool.QueryRow(ctx, `SELECT COALESCE(min(c.idx),$3) FROM reader_cards c LEFT JOIN reader_card_parts part ON part.card_id=c.id JOIN pages p ON p.id=COALESCE(part.page_id,c.page_id) WHERE c.edition_id=$1 AND NOT c.archived AND p.idx >= $2`, editionID, sourceFrom, count).Scan(&from); err != nil {
 			return nil, 0, err
 		}
 	}
 	rows, err := s.pool.Query(ctx, `SELECT c.id,COALESCE(p.id::text,''),c.idx,c.kind,COALESCE(p.idx,0),c.start_off,
- CASE WHEN c.kind='text' THEN substring(p.content FROM c.start_off+1 FOR c.end_off-c.start_off) ELSE c.title END,
+ COALESCE(c.content,CASE WHEN c.kind='text' THEN substring(p.content FROM c.start_off+1 FOR c.end_off-c.start_off) ELSE c.title END),
  (SELECT count(*) FROM page_likes l WHERE l.page_id=p.id),
  EXISTS(SELECT 1 FROM page_likes l WHERE l.page_id=p.id AND l.user_id=NULLIF($2,'')::uuid)
- FROM reader_cards c LEFT JOIN pages p ON p.id=c.page_id WHERE c.edition_id=$1 AND c.idx >= $3 ORDER BY c.idx LIMIT $4`, editionID, viewerID, from, limit)
+ FROM reader_cards c LEFT JOIN pages p ON p.id=c.page_id WHERE c.edition_id=$1 AND NOT c.archived AND c.idx >= $3 ORDER BY c.idx LIMIT $4`, editionID, viewerID, from, limit)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -118,7 +74,30 @@ func (s *Store) CardWindow(ctx context.Context, editionID, viewerID string, from
 		c.CharCount = len([]rune(c.Content))
 		cards = append(cards, c)
 	}
-	return cards, count, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	rows.Close()
+	ids := make([]string, 0, len(cards))
+	byID := map[string]*ReaderCard{}
+	for i := range cards {
+		ids = append(ids, cards[i].CardID)
+		byID[cards[i].CardID] = &cards[i]
+	}
+	parts, err := s.pool.Query(ctx, `SELECT card_id,page_id,start_off,end_off,card_start FROM reader_card_parts WHERE card_id=ANY($1::uuid[]) ORDER BY card_id,ordinal`, ids)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer parts.Close()
+	for parts.Next() {
+		var id string
+		var p CardPart
+		if err = parts.Scan(&id, &p.PageID, &p.StartOff, &p.EndOff, &p.CardStart); err != nil {
+			return nil, 0, err
+		}
+		byID[id].Parts = append(byID[id].Parts, p)
+	}
+	return cards, count, parts.Err()
 }
 
 func (t Tier) LicensedCardLimit() int {
@@ -164,7 +143,7 @@ func (s *Store) RecordCard(ctx context.Context, userID, cardID string, now time.
 	var kind, edition, license string
 	var pageID *string
 	var idx, sourceIdx int
-	err = tx.QueryRow(ctx, `SELECT c.kind,c.edition_id,c.page_id,c.idx,COALESCE(p.idx,0),b.license FROM reader_cards c LEFT JOIN pages p ON p.id=c.page_id JOIN book_editions e ON e.id=c.edition_id AND e.state='published' JOIN books b ON b.id=e.book_id WHERE c.id=$1`, cardID).Scan(&kind, &edition, &pageID, &idx, &sourceIdx, &license)
+	err = tx.QueryRow(ctx, `SELECT c.kind,c.edition_id,c.page_id,c.idx,COALESCE(p.idx,0),b.license FROM reader_cards c LEFT JOIN pages p ON p.id=c.page_id JOIN book_editions e ON e.id=c.edition_id AND e.state='published' JOIN books b ON b.id=e.book_id WHERE c.id=$1 AND NOT c.archived`, cardID).Scan(&kind, &edition, &pageID, &idx, &sourceIdx, &license)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return MeterDecision{}, day, ErrNotFound
 	}

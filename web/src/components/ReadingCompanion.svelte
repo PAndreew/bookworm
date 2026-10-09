@@ -11,6 +11,13 @@
     onTranslateCard?: (language: string, signal?: AbortSignal) => Promise<void>;
   } = $props();
   let coaching = $state(false);
+  let demoDismissed = $state(false);
+  $effect(() => { cardIndex; demoTranslated; demoDismissed = false; });
+  $effect(() => {
+    if (experience !== 'demo' || !settled || demoDismissed) return;
+    const timer = setTimeout(() => { demoDismissed = true; coaching = false; }, 2000);
+    return () => clearTimeout(timer);
+  });
   $effect(() => {
     cardIndex; demoWord;
     selected = ''; selectedCardId = ''; phrase = ''; phraseCardId = ''; answer = ''; coaching = false;
@@ -156,7 +163,7 @@
   });
 
   async function open() {
-    if (experience !== 'live') { coaching = !coaching; return; }
+    if (experience !== 'live') { coaching = true; demoDismissed = false; return; }
     phrase = selected;
     phraseCardId = selectedCardId;
     answer = '';
@@ -169,7 +176,7 @@
     catch { auth = 'signed-out'; }
   }
 
-  function close() { controller?.abort(); dialog?.close(); }
+  function close() { demoDismissed = true; coaching = false; controller?.abort(); dialog?.close(); }
 
   async function ask(event: SubmitEvent) {
     event.preventDefault();
@@ -206,10 +213,10 @@
   </span>
 </svelte:element>
 
-{#if experience === 'demo' && (cardIndex === 1 || cardIndex === 2)}
+{#if experience === 'demo' && !demoDismissed && (cardIndex === 1 || cardIndex === 2)}
   <div class="coach" class:below
     style="left:{coachLeft}px;top:{below ? y + 44 : y - 12}px;--tail-x:{x + 16 - coachLeft}px;visibility:{visible && settled ? 'visible' : 'hidden'}">
-    <PuriCoach word={demoWord} definition={demoDefinition} selection={selected} expanded={coaching}
+    <PuriCoach onClose={close} word={demoWord} definition={demoDefinition} selection={selected} expanded={coaching}
       translation={demoTranslation} translated={demoTranslated} onTranslate={() => onTranslateCard?.('French') ?? Promise.resolve()} />
   </div>
 {/if}

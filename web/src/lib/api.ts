@@ -50,6 +50,7 @@ export interface Page {
   kind?: 'text' | 'title' | 'chapter';
   source_idx?: number;
   start_off?: number;
+  parts?: { page_id: string; start_off: number; end_off: number; card_start: number }[];
   id: string;
   idx: number;
   chapter_title: string | null;
@@ -194,6 +195,8 @@ export const api = {
   bookPosition: (slug: string) => request<{ position: { page_idx: number; card_idx: number | null } | null }>(`/books/${encodeURIComponent(slug)}/position`),
   saveBookPosition: (slug: string, card_id: string) => post<{ status: string }>(`/books/${encodeURIComponent(slug)}/position`, { card_id }),
   recordCardRead: (card_id: string) => post<ReadResult>('/card-reads', { card_id }),
+  reportCard: (cardId: string, category: 'layout' | 'text' | 'break', note: string) =>
+    post<{ status: string }>(`/cards/${encodeURIComponent(cardId)}/reports`, { category, note }),
   recordRead: (page_id: string) => post<ReadResult>('/reads', { page_id }),
 
   like: (pageId: string) => post<{ liked: boolean }>(`/pages/${pageId}/like`),

@@ -1,80 +1,154 @@
 package chunk
 
-import "unicode"
+import (
+	"strings"
+	"unicode"
+)
 
-// CardSpan uses rune offsets into an IMMUTABLE source page. This presentation
-// algorithm does not change Split, its version, or annotation anchors.
+// CardSpan uses rune offsets into immutable source text.
 type CardSpan struct{ Start, End int }
 
-// Cards balances a source page into ~300–360-character cards, capped at 400.
-// Prefer nearby sentence endings, then words. Large words still obey the cap.
-func Cards(text string) []CardSpan {
-	r := []rune(text)
-	count := (len(r) + 359) / 360
-	if count == 0 {
-		return nil
+// Budgets fit ordinary prose on a compact phone without reducing type size.
+const CardTarget = 480
+const CardWordLimit = 85
+
+// SentenceBoundary recognizes punctuation, quotation endings, abbreviations,
+// initials and decimals. It is deliberately conservative, not an NLP model.
+func SentenceBoundary(r []rune, cut int) bool {
+	end := cut
+	for end > 0 && unicode.IsSpace(r[end-1]) {
+		end--
 	}
-	spans := []CardSpan{}
-	start := 0
-	for i := 0; i < count; i++ {
-		end := len(r)
-		if i < count-1 {
-			ideal := start + (len(r)-start)/(count-i)
-			lo, hi := ideal-35, ideal+35
-			if lo <= start {
-				lo = start + 1
-			}
-			if hi > start+400 {
-				hi = start + 400
-			}
-			if hi >= len(r) {
-				hi = len(r) - 1
-			}
-			best, score := ideal, 100000
-			for cut := lo; cut <= hi; cut++ {
-				if !unicode.IsSpace(r[cut]) {
-					continue
-				}
-				distance := cut - ideal
-				if distance < 0 {
-					distance = -distance
-				}
-				if cut > 0 && (r[cut-1] == '.' || r[cut-1] == '!' || r[cut-1] == '?') {
-					distance -= 40
-				}
-				if distance < score {
-					best, score = cut, distance
-				}
-			}
-			end = best
-		}
-		if end > start+400 {
-			end = start + 400
-			count++
-		} // hard bound even after preferred cuts
-		a, b := start, end
-		for a < b && unicode.IsSpace(r[a]) {
-			a++
-		}
-		for b > a && unicode.IsSpace(r[b-1]) {
-			b--
-		}
-		if a < b {
-			spans = append(spans, CardSpan{a, b})
-		}
-		start = end
+	for end > 0 && strings.ContainsRune("\"'”’)]}", r[end-1]) {
+		end--
 	}
-	var fitted []CardSpan
-	for _, span := range spans {
-		for _, part := range FitLines(string(r[span.Start:span.End])) {
-			fitted = append(fitted, CardSpan{span.Start + part.Start, span.Start + part.End})
-		}
+	if end == 0 {
+		return false
 	}
-	return fitted
+	ch := r[end-1]
+	if ch == '!' || ch == '?' || ch == '。' || ch == '！' || ch == '？' {
+		return true
+	}
+	if ch != '.' {
+		return false
+	}
+	start := end - 1
+	for start > 0 && (unicode.IsLetter(r[start-1]) || r[start-1] == '.') {
+		start--
+	}
+	token := strings.ToLower(string(r[start : end-1]))
+	switch token {
+	case "mr", "mrs", "ms", "dr", "prof", "rev", "st", "sr", "jr", "vs", "etc", "e.g", "i.e", "a.m", "p.m", "no", "fig", "vol", "mt", "messrs", "mme", "mlle":
+		return false
+	}
+	if end-start == 2 && unicode.IsUpper(r[start]) {
+		return false
+	}
+	if strings.Contains(token, ".") {
+		return false
+	} // dotted initials
+	if end >= 2 && unicode.IsDigit(r[end-2]) && cut < len(r) && unicode.IsDigit(r[cut]) {
+		return false
+	}
+	return true
 }
 
-// FitLines keeps paragraph-heavy cards within a conservative phone line budget.
-// Recursive balanced word-boundary splits retain all non-whitespace characters.
+// Cards prefers four whole sentences, or five when especially short. Long
+// sentences produce fewer per card; only over-budget sentences split at words.
+func Cards(text string) []CardSpan {
+	r := []rune(text)
+	var sentences []CardSpan
+	start := 0
+	for start < len(r) && unicode.IsSpace(r[start]) {
+		start++
+	}
+	for cut := start + 1; cut <= len(r); cut++ {
+		if cut < len(r) && (!unicode.IsSpace(r[cut]) || unicode.IsSpace(r[cut-1])) {
+			continue
+		}
+		if cut == len(r) || SentenceBoundary(r, cut) {
+			end := cut
+			for end > start && unicode.IsSpace(r[end-1]) {
+				end--
+			}
+			if end > start {
+				sentences = append(sentences, CardSpan{start, end})
+			}
+			start = cut
+			for start < len(r) && unicode.IsSpace(r[start]) {
+				start++
+			}
+		}
+	}
+	var units []CardSpan
+	for _, sentence := range sentences {
+		start := sentence.Start
+		for start < sentence.End {
+			end, words, best := start, 0, start
+			for end < sentence.End {
+				for end < sentence.End && unicode.IsSpace(r[end]) {
+					end++
+				}
+				for end < sentence.End && !unicode.IsSpace(r[end]) {
+					end++
+				}
+				words++
+				if (end-start > CardTarget || words > CardWordLimit) && best > start {
+					break
+				}
+				best = end
+				// Never orphan an abbreviation at a forced word break.
+				if r[end-1] == '.' && !SentenceBoundary(r, end) && end < sentence.End {
+					continue
+				}
+				if end-start >= CardTarget || words >= CardWordLimit {
+					break
+				}
+			}
+			// Keep a trailing honorific with its following word.
+			if best < sentence.End && r[best-1] == '.' && !SentenceBoundary(r, best) {
+				back := best - 1
+				for back > start && !unicode.IsSpace(r[back-1]) {
+					back--
+				}
+				for back > start && unicode.IsSpace(r[back-1]) {
+					back--
+				}
+				if back > start {
+					best = back
+				}
+			}
+			units = append(units, CardSpan{start, best})
+			start = best
+			for start < sentence.End && unicode.IsSpace(r[start]) {
+				start++
+			}
+		}
+	}
+	var out []CardSpan
+	for i := 0; i < len(units); {
+		span := units[i]
+		i++
+		n := 1
+		for i < len(units) && n < 5 {
+			candidate := string(r[span.Start:units[i].End])
+			chars, words := units[i].End-span.Start, len(strings.Fields(candidate))
+			if chars > CardTarget || words > CardWordLimit {
+				break
+			}
+			if n == 4 && (chars > 360 || words > 60) {
+				break
+			}
+			span.End = units[i].End
+			i++
+			n++
+		}
+		out = append(out, span)
+	}
+	return out
+}
+
+// FitLines is retained solely for the legacy v1→v2 migration.
 func FitLines(text string) []CardSpan {
 	r := []rune(text)
 	var out []CardSpan
