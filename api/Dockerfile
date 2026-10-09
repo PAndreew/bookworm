@@ -15,7 +15,11 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/cards ./cmd/cards
 FROM alpine:3.21
 # ca-certificates for outbound HTTPS to Gutenberg; tzdata because streaks and
 # quotas resolve the user's IANA timezone at runtime.
-RUN apk add --no-cache ca-certificates tzdata
+COPY requirements-sentences.txt /tmp/requirements-sentences.txt
+RUN apk add --no-cache ca-certificates tzdata python3 py3-pip \
+ && python3 -m venv /opt/sentences \
+ && /opt/sentences/bin/pip install --no-cache-dir -r /tmp/requirements-sentences.txt
+ENV PYSBD_PYTHON=/opt/sentences/bin/python
 
 # Run as a non-root user.
 RUN adduser -D -u 10001 bookworm

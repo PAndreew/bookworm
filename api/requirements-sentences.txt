@@ -1,0 +1,2 @@
+# Used only while building persisted sentence-card layouts.
+pysbd==0.3.4

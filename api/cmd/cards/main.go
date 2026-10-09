@@ -59,10 +59,11 @@ func run() error {
 		return fmt.Errorf("no published book with slug %q", *slug)
 	}
 	st := store.New(pool)
-	for _, id := range ids {
+	for i, id := range ids {
 		if err = st.EnsureReaderCards(ctx, id); err != nil {
-			return err
+			return fmt.Errorf("edition %s: %w", id, err)
 		}
+		fmt.Printf("Prepared %d/%d editions\n", i+1, len(ids))
 	}
 	fmt.Printf("Prepared balanced card layouts for %d published editions; obsolete layouts discarded, original anchors/history preserved.\n", len(ids))
 	return nil

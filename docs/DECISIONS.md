@@ -16,8 +16,9 @@ paragraph unless that paragraph alone exceeds 1400 chars, in which case it split
 sentence boundaries.
 
 The source page remains the anchor for every existing like and highlight. The
-separate v4 reader-card layer groups roughly four whole sentences (five if short),
-bounded by 480 characters / 85 words, with precise multi-source offset maps. Title/chapter cards are separate
+separate v5 reader-card layer balances pySBD sentences across whole chapters,
+targeting ~360 characters with precise multi-source offset maps. Four sentences
+is a preference; whole-sentence outliers and variable whitespace are accepted. Title/chapter cards are separate
 and unmetered; source pages themselves are no longer the UI/billing unit. **Chunks are immutable once
 an edition is published.** Re-chunking would orphan every like and highlight ever made.
 So:
@@ -27,10 +28,12 @@ So:
 
 ### Reader
 - One card per screen, turned with buttons, keyboard or swipes. No scrolling.
-- Font scale is user-settable. Overflow gets readable continuation screens, not
-  smaller type or scrolling. Sentences may continue at word-boundary card breaks.
+- Text is top-aligned; whitespace below absorbs card-length differences. Font
+  controls offer 100%/110%. Overflow prefers persisted sentence endings; only a
+  sentence larger than the actual viewport may continue at a word boundary.
 - A muted 13px corner flag opens private text/layout reports; no large report button.
-- Abbreviation-aware heuristics fix false sentence endings and artificial gaps.
+- pySBD 0.3.4 segments unchanged English source text during layout construction.
+  Go balances its sentence spans; normal reads need no Python execution.
 - A discovery "For You" feed across books is **v2**. The schema supports it already
   (`page_likes` is global, not per-reader), but the UI is not built.
 

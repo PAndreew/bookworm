@@ -1,6 +1,7 @@
 package chunk
 
 import (
+	"math"
 	"strings"
 	"unicode"
 )
@@ -8,8 +9,10 @@ import (
 // CardSpan uses rune offsets into immutable source text.
 type CardSpan struct{ Start, End int }
 
-// Budgets fit ordinary prose on a compact phone without reducing type size.
-const CardTarget = 480
+// Grouping budgets fit ordinary prose on a compact phone. A single longer
+// sentence stays intact; only the measured viewport may require continuation.
+const CardTarget = 360
+const CardMaximum = 480
 const CardWordLimit = 85
 
 // SentenceBoundary recognizes punctuation, quotation endings, abbreviations,
@@ -53,97 +56,36 @@ func SentenceBoundary(r []rune, cut int) bool {
 	return true
 }
 
-// Cards prefers four whole sentences, or five when especially short. Long
-// sentences produce fewer per card; only over-budget sentences split at words.
-func Cards(text string) []CardSpan {
+// Cards balances the whole chapter by choosing only pySBD sentence boundaries.
+// Squared deviation discourages tiny tails and alternating full/empty cards.
+// Four sentences is a soft preference, not a reason to split a sentence. Single
+// oversized sentences are outliers; the browser measures whether they really fit.
+func Cards(text string, sentences []CardSpan) []CardSpan {
 	r := []rune(text)
-	var sentences []CardSpan
-	start := 0
-	for start < len(r) && unicode.IsSpace(r[start]) {
-		start++
-	}
-	for cut := start + 1; cut <= len(r); cut++ {
-		if cut < len(r) && (!unicode.IsSpace(r[cut]) || unicode.IsSpace(r[cut-1])) {
-			continue
-		}
-		if cut == len(r) || SentenceBoundary(r, cut) {
-			end := cut
-			for end > start && unicode.IsSpace(r[end-1]) {
-				end--
+	cost := make([]float64, len(sentences)+1)
+	next := make([]int, len(sentences))
+	for i := len(sentences) - 1; i >= 0; i-- {
+		cost[i] = math.Inf(1)
+		for j := i; j < len(sentences) && j < i+5; j++ {
+			chars := sentences[j].End - sentences[i].Start
+			words := len(strings.Fields(string(r[sentences[i].Start:sentences[j].End])))
+			n := j - i + 1
+			if n > 1 && (chars > CardMaximum || words > CardWordLimit) {
+				break
 			}
-			if end > start {
-				sentences = append(sentences, CardSpan{start, end})
+			if n == 5 && (chars > 360 || words > 60) {
+				break
 			}
-			start = cut
-			for start < len(r) && unicode.IsSpace(r[start]) {
-				start++
-			}
-		}
-	}
-	var units []CardSpan
-	for _, sentence := range sentences {
-		start := sentence.Start
-		for start < sentence.End {
-			end, words, best := start, 0, start
-			for end < sentence.End {
-				for end < sentence.End && unicode.IsSpace(r[end]) {
-					end++
-				}
-				for end < sentence.End && !unicode.IsSpace(r[end]) {
-					end++
-				}
-				words++
-				if (end-start > CardTarget || words > CardWordLimit) && best > start {
-					break
-				}
-				best = end
-				// Never orphan an abbreviation at a forced word break.
-				if r[end-1] == '.' && !SentenceBoundary(r, end) && end < sentence.End {
-					continue
-				}
-				if end-start >= CardTarget || words >= CardWordLimit {
-					break
-				}
-			}
-			// Keep a trailing honorific with its following word.
-			if best < sentence.End && r[best-1] == '.' && !SentenceBoundary(r, best) {
-				back := best - 1
-				for back > start && !unicode.IsSpace(r[back-1]) {
-					back--
-				}
-				for back > start && unicode.IsSpace(r[back-1]) {
-					back--
-				}
-				if back > start {
-					best = back
-				}
-			}
-			units = append(units, CardSpan{start, best})
-			start = best
-			for start < sentence.End && unicode.IsSpace(r[start]) {
-				start++
+			deviation := float64(chars-CardTarget) / 180
+			score := 1 + deviation*deviation + .03*float64((n-4)*(n-4)) + cost[j+1]
+			if score < cost[i] {
+				cost[i], next[i] = score, j+1
 			}
 		}
 	}
 	var out []CardSpan
-	for i := 0; i < len(units); {
-		span := units[i]
-		i++
-		n := 1
-		for i < len(units) && n < 5 {
-			candidate := string(r[span.Start:units[i].End])
-			chars, words := units[i].End-span.Start, len(strings.Fields(candidate))
-			if chars > CardTarget || words > CardWordLimit {
-				break
-			}
-			if n == 4 && (chars > 360 || words > 60) {
-				break
-			}
-			span.End = units[i].End
-			i++
-			n++
-		}
-		out = append(out, span)
+	for i := 0; i < len(sentences); i = next[i] {
+		out = append(out, CardSpan{sentences[i].Start, sentences[next[i]-1].End})
 	}
 	return out
 }

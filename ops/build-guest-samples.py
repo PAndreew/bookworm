@@ -60,16 +60,34 @@ TITLE_WORDS = {
 
 if __name__ == '__main__':
     import re
+    import os
+    import subprocess
+    root = Path(__file__).resolve().parents[1]
     samples = []
     for slug, title, author, color, glossary in BOOKS:
-        with urlopen(f'https://potpuri.cc/v1/books/{slug}/cards?card_from=0&limit=10') as response:
-            cards = json.load(response)['pages']
-        assert len(cards) == 10, slug
+        with urlopen(f'https://potpuri.cc/v1/books/{slug}/pages?from=0&limit=20') as response:
+            source = json.load(response)
+        # The demo already has a dedicated title card. Omit repeated imprint
+        # headings from its first prose card, not any of the prose itself.
+        opening = {
+            'gutenberg-46': 'I HAVE endeavoured',
+            'gutenberg-4363': 'The following is a reprint',
+            'the-yellow-wallpaper': 'It is very seldom',
+            'gutenberg-86': 'The ungentle laws',
+        }[slug]
+        first = source['pages'][0]['content']
+        assert opening in first, (slug, 'opening changed')
+        source['pages'][0]['content'] = first[first.index(opening):]
+        result = subprocess.run([os.environ.get('GO', 'go'), 'run', './cmd/card-sample'],
+            input=json.dumps(source).encode(), capture_output=True, check=True, cwd=root / 'api')
+        chunks = json.loads(result.stdout)
+        assert len(chunks) >= 9, slug
+        cards = [dict(kind='title', content=f'{title}\n{author}', sentence_ends=[])] + [dict(kind='text', **s) for s in chunks[:9]]
         pages = []
         for i, card in enumerate(cards):
-            word, definition = glossary[i - 1] if i else TITLE_WORDS[slug]
-            assert not word or re.search(r'\b' + re.escape(word) + r'\b', card['content'], re.I), (slug, i, word)
-            pages.append(dict(content=card['content'], kind=card.get('kind', 'text'), word=word, definition=definition))
+            word, definition = next(((w, d) for w, d in glossary
+                if re.search(r'\b' + re.escape(w) + r'\b', card['content'], re.I)), ('', '')) if i else TITLE_WORDS[slug]
+            pages.append(dict(content=card['content'], sentence_ends=card['sentence_ends'], kind=card.get('kind', 'text'), word=word, definition=definition))
         with urlopen(f'https://potpuri.cc/v1/books/{slug}') as response:
             metadata = json.load(response)['book']
         from urllib.parse import quote

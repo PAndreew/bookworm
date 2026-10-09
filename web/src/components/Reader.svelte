@@ -63,7 +63,7 @@
   const loadedTranslations = new Set<string>();
   const activeTranslation = $derived((translations[activePage?.card_id ?? ''] ?? []).find(t => t.language === preferredLanguage));
   const renderKey = $derived((activePage?.card_id ?? '') + (activeTranslation ? ':' + activeTranslation.language : ''));
-  const displayPage = $derived(activePage ? { ...activePage, card_id: renderKey, content: activeTranslation?.content ?? activePage.content } : undefined);
+  const displayPage = $derived(activePage ? { ...activePage, card_id: renderKey, content: activeTranslation?.content ?? activePage.content, sentence_ends: activeTranslation ? undefined : activePage.sentence_ends } : undefined);
   const fragment = $derived(fragments[fragmentIdx]);
   const displayedText = $derived(displayPage && fragment && fittedCard === renderKey
     ? Array.from(displayPage.content).slice(fragment.start, fragment.end).join('') : displayPage?.content ?? '');
@@ -99,7 +99,7 @@
     document.addEventListener('visibilitychange', visibility);
     visibility();
     const saved = Number(localStorage.getItem('bw:fontScale'));
-    if ([0.85, 1, 1.2, 1.45].includes(saved)) fontScale = saved;
+    if (Number.isFinite(saved) && saved > 0) fontScale = saved > 1 ? 1.1 : 1;
     openBook();
     if (!preview) api.me().then(result => translationPaid = result.user.tier !== 'free').catch(() => {});
     return () => { window.removeEventListener('keydown', key); document.removeEventListener('visibilitychange', visibility); };
@@ -142,7 +142,7 @@
     let frame = 0;
     function fit() {
       if (params.page.kind !== 'text') return;
-      const spans = fitTextCard(node, params.page.content);
+      const spans = fitTextCard(node, params.page.content, params.page.sentence_ends);
       const offset = fittedCard === params.page.card_id ? fragments[fragmentIdx]?.start ?? 0 : 0;
       fragments = spans;
       fragmentIdx = enterFromEnd ? spans.length - 1 : Math.max(0, spans.findIndex(s => offset >= s.start && offset < s.end));
@@ -279,7 +279,7 @@
   </header>
   <div class="progress" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}><div class="progress-fill" style="width:{progress}%"></div></div>
   {#if showType}
-    <div class="type-panel"><span>Text size</span><div class="scale-row">{#each [0.85, 1, 1.2, 1.45] as s}<button class="scale-btn" class:on={fontScale === s} onclick={() => setScale(s)}>{Math.round(s * 100)}%</button>{/each}</div></div>
+    <div class="type-panel"><span>Text size</span><div class="scale-row">{#each [1, 1.1] as s}<button class="scale-btn" class:on={fontScale === s} onclick={() => setScale(s)}>{Math.round(s * 100)}%</button>{/each}</div></div>
   {/if}
   {#if loading}
     <div class="state"><div class="spinner"></div></div>
@@ -353,7 +353,7 @@
   .scale-btn { flex: 1; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); font-size: 0.8rem; }
   .scale-btn.on { border-color: var(--orange); color: var(--orange); }
   .feed { flex: 1; min-height: 0; overflow: hidden; touch-action: pan-x; }
-  .page { position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; justify-content: center; padding: 44px 12px calc(78px + env(safe-area-inset-bottom)); background: var(--bg); }
+  .page { position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; padding: 40px 12px calc(78px + env(safe-area-inset-bottom)); background: var(--bg); }
   .ai-badge { position: absolute; left: 48px; top: 12px; padding: 4px 9px; border-radius: 999px; background: #e8edf3; color: #334155; font-size: .65rem; }
   .card-language { position: absolute; right: 48px; top: 12px; max-width: 45%; border: 1px solid var(--border); background: var(--bg-raised); border-radius: 999px; padding: 4px 9px; font-size: .7rem; }
   .body { font-family: var(--font-read); font-size: calc(clamp(16px, 2.7dvh, 18px) * var(--scale)); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; flex-shrink: 0; width: 100%; }
@@ -402,6 +402,6 @@
   .report-note { color: var(--text-faint); font-size: 0.75rem; }
   .report-submit { width: 100%; padding: 12px; border: 0; border-radius: var(--radius-pill); color: white; background: var(--accent); }
   .report-submit:disabled { opacity: 0.5; }
-  @media (min-width: 680px) { .page { padding: 44px 24px calc(78px + env(safe-area-inset-bottom)); } .body { max-width: 34em; margin: 0 auto; } }
+  @media (min-width: 680px) { .page { padding: 40px 24px calc(78px + env(safe-area-inset-bottom)); } .body { max-width: 34em; margin: 0 auto; } }
   @media (prefers-reduced-motion: reduce) { .progress-fill, .action { transition: none; } }
 </style>

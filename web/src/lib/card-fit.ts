@@ -1,8 +1,10 @@
+import { sentenceEnds } from './sentences';
+
 export interface Fragment { start: number; end: number }
 
 /** Measure real font/viewport geometry, retaining rune offsets for annotations.
  * Exceptions are continuation screens, never smaller type or hidden text. */
-export function fitTextCard(article: HTMLElement, content: string): Fragment[] {
+export function fitTextCard(article: HTMLElement, content: string, sentenceOffsets?: number[] | null): Fragment[] {
   const body = article.querySelector('[data-body]') as HTMLElement;
   if (!body) return [];
   const style = getComputedStyle(article);
@@ -18,6 +20,7 @@ export function fitTextCard(article: HTMLElement, content: string): Fragment[] {
   article.appendChild(probe);
   const runes = Array.from(content);
   const spans: Fragment[] = [];
+  const endings = sentenceOffsets?.length ? sentenceOffsets : sentenceEnds(runes);
   const fits = (start: number, end: number) => {
     probe.textContent = runes.slice(start, end).join('');
     const marker = document.createElement('span');
@@ -36,10 +39,16 @@ export function fitTextCard(article: HTMLElement, content: string): Fragment[] {
           if (fits(start, mid)) lo = mid;
           else hi = mid - 1;
         }
-        end = lo;
-        while (end > start + 1 && !/\s/u.test(runes[end] ?? '')) end--;
-        // Only a token longer than the whole screen requires rune continuation.
-        if (end <= start + 1) end = lo;
+        // A completed sentence matters more than filling the screen. Only a
+        // single sentence taller than this viewport may continue at a word.
+        const sentenceEnd = endings.findLast(cut => cut > start && cut <= lo);
+        if (sentenceEnd !== undefined) end = sentenceEnd;
+        else {
+          end = lo;
+          while (end > start + 1 && !/\s/u.test(runes[end] ?? '')) end--;
+          // Only a token longer than the whole screen requires rune continuation.
+          if (end <= start + 1) end = lo;
+        }
       }
       spans.push({ start, end });
       start = end;

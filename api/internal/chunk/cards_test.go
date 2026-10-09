@@ -1,14 +1,24 @@
 package chunk
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"testing"
 )
 
+func testCards(t *testing.T, text string) []CardSpan {
+	t.Helper()
+	spans, err := Sentences(context.Background(), []string{text})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Cards(text, spans[0])
+}
+
 func TestCardSpansPreserveAnchors(t *testing.T) {
 	for _, text := range []string{"", "Short sentence.", strings.Repeat("Hello world. Καλημέρα! 😀 Another sentence.\n\n", 60), strings.Repeat("x", 4001)} {
-		spans := Cards(text)
+		spans := testCards(t, text)
 		runes := []rune(text)
 		var pieces []string
 		for _, span := range spans {
@@ -21,7 +31,7 @@ func TestCardSpansPreserveAnchors(t *testing.T) {
 		if normalize(strings.Join(pieces, "")) != normalize(text) {
 			t.Fatal("source characters lost")
 		}
-		if !reflect.DeepEqual(spans, Cards(text)) {
+		if !reflect.DeepEqual(spans, testCards(t, text)) {
 			t.Fatal("non-deterministic cards")
 		}
 	}
@@ -36,12 +46,12 @@ func TestCardsPreferWholeSentences(t *testing.T) {
 		{strings.Repeat("word ", 27) + "ends here. ", 2},
 	} {
 		text := strings.Repeat(tc.sentence, 20)
-		first := Cards(text)[0]
+		first := testCards(t, text)[0]
 		got := string([]rune(text)[first.Start:first.End])
 		if strings.Count(got, ".") != tc.count {
 			t.Fatalf("wanted %d sentences, got %q", tc.count, got)
 		}
-		if len(strings.Fields(got)) > CardWordLimit || first.End-first.Start > CardTarget {
+		if len(strings.Fields(got)) > CardWordLimit || first.End-first.Start > CardMaximum {
 			t.Fatal("budget exceeded")
 		}
 	}
@@ -62,24 +72,25 @@ func TestHonorificsAndSentenceBoundaries(t *testing.T) {
 	}
 	// Put Mr. exactly at the desired cut: it must stay with its name.
 	text := strings.Repeat("word ", 67) + "Mr. Bingley " + strings.Repeat("word ", 70)
-	for _, span := range Cards(text) {
+	for _, span := range testCards(t, text) {
 		if strings.HasSuffix(string([]rune(text)[span.Start:span.End]), "Mr.") {
 			t.Fatal("card orphaned Mr.")
 		}
 	}
 }
-func TestLongSentenceContinuesWithoutSmallerText(t *testing.T) {
-	text := strings.Repeat("a word ", 200) + "ends here."
-	spans := Cards(text)
-	if len(spans) < 3 {
-		t.Fatal("long sentence was not split")
+func TestLongSentenceIsNotCutByAnEstimatedBudget(t *testing.T) {
+	long := strings.Repeat("a word ", 200) + "ends here."
+	text := "A short sentence. " + long + " Another complete sentence."
+	spans := testCards(t, text)
+	if len(spans) != 3 {
+		t.Fatalf("expected short / long / short, got %d", len(spans))
+	}
+	if string([]rune(text)[spans[1].Start:spans[1].End]) != long {
+		t.Fatal("long sentence split by estimated budget")
 	}
 	for _, span := range spans {
-		if span.End-span.Start > CardTarget {
-			t.Fatal("long sentence overflowed character budget")
-		}
-		if span.End < len([]rune(text)) && []rune(text)[span.End] != ' ' {
-			t.Fatal("word cut")
+		if !SentenceBoundary([]rune(text), span.End) {
+			t.Fatal("card does not end on a sentence")
 		}
 	}
 }

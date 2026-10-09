@@ -51,6 +51,7 @@ export interface Page {
   source_idx?: number;
   start_off?: number;
   parts?: { page_id: string; start_off: number; end_off: number; card_start: number }[];
+  sentence_ends?: number[] | null;
   id: string;
   idx: number;
   chapter_title: string | null;

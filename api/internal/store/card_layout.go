@@ -22,19 +22,54 @@ type layoutCard struct {
 	kind, content, page string
 	start, end          int
 	parts               []CardPart
+	sentenceEnds        []int
 }
 
 // buildCardLayout balances whole chapters while keeping precise original anchors.
 // A source boundary inside a sentence becomes a space, not a fake paragraph.
-func buildCardLayout(sources []cardSource, title, author string) []layoutCard {
+func buildCardLayout(ctx context.Context, sources []cardSource, title, author string) ([]layoutCard, error) {
+	type chapterText struct {
+		title, page string
+		text        []rune
+		parts       []CardPart
+	}
+	var chapters []chapterText
+	for _, p := range sources {
+		if len(chapters) == 0 || chapters[len(chapters)-1].title != p.chapter {
+			chapters = append(chapters, chapterText{title: p.chapter, page: p.id})
+		}
+		ch := &chapters[len(chapters)-1]
+		if len(ch.text) > 0 {
+			separator := " "
+			if chunk.SentenceBoundary(ch.text, len(ch.text)) {
+				separator = "\n\n"
+			}
+			ch.text = append(ch.text, []rune(separator)...)
+		}
+		ch.parts = append(ch.parts, CardPart{p.id, 0, len([]rune(p.content)), len(ch.text)})
+		ch.text = append(ch.text, []rune(p.content)...)
+	}
+	texts := make([]string, len(chapters))
+	for i, ch := range chapters {
+		texts[i] = string(ch.text)
+	}
+	sentences, err := chunk.Sentences(ctx, texts)
+	if err != nil {
+		return nil, err
+	}
 	out := []layoutCard{{kind: "title", content: title + "\n" + author}}
-	var text []rune
-	var parts []CardPart
-	chapter := ""
-	flush := func() {
-		for _, span := range chunk.Cards(string(text)) {
-			card := layoutCard{kind: "text", content: string(text[span.Start:span.End])}
-			for _, p := range parts {
+	for i, ch := range chapters {
+		if ch.title != "" {
+			out = append(out, layoutCard{kind: "chapter", content: ch.title, page: ch.page})
+		}
+		sentenceIdx := 0
+		for _, span := range chunk.Cards(texts[i], sentences[i]) {
+			card := layoutCard{kind: "text", content: string(ch.text[span.Start:span.End])}
+			for sentenceIdx < len(sentences[i]) && sentences[i][sentenceIdx].End <= span.End {
+				card.sentenceEnds = append(card.sentenceEnds, sentences[i][sentenceIdx].End-span.Start)
+				sentenceIdx++
+			}
+			for _, p := range ch.parts {
 				a, b := max(span.Start, p.CardStart), min(span.End, p.CardStart+p.EndOff-p.StartOff)
 				if a >= b {
 					continue
@@ -47,29 +82,8 @@ func buildCardLayout(sources []cardSource, title, author string) []layoutCard {
 				out = append(out, card)
 			}
 		}
-		text = nil
-		parts = nil
 	}
-	for _, p := range sources {
-		if p.chapter != chapter {
-			flush()
-			chapter = p.chapter
-			if chapter != "" {
-				out = append(out, layoutCard{kind: "chapter", content: chapter, page: p.id})
-			}
-		}
-		if len(text) > 0 {
-			separator := " "
-			if chunk.SentenceBoundary(text, len(text)) {
-				separator = "\n\n"
-			}
-			text = append(text, []rune(separator)...)
-		}
-		parts = append(parts, CardPart{p.id, 0, len([]rune(p.content)), len(text)})
-		text = append(text, []rune(p.content)...)
-	}
-	flush()
-	return out
+	return out, nil
 }
 
 // Caller holds the edition advisory lock. Replacement and bookmark/history
@@ -93,7 +107,10 @@ func replaceReaderCards(ctx context.Context, tx pgx.Tx, edition, title, author s
 	if err != nil {
 		return err
 	}
-	cards := buildCardLayout(sources, title, author)
+	cards, err := buildCardLayout(ctx, sources, title, author)
+	if err != nil {
+		return err
+	}
 	// Capture exact old bookmarks before moving the obsolete layout out of range.
 	if _, err = tx.Exec(ctx, `CREATE TEMP TABLE card_bookmark_map ON COMMIT DROP AS SELECT p.user_id,c.page_id,c.start_off,c.kind FROM reading_progress p JOIN reader_cards c ON c.edition_id=p.edition_id AND c.idx=p.last_card_idx AND NOT c.archived WHERE p.edition_id=$1`, edition); err != nil {
 		return err
@@ -111,7 +128,7 @@ func replaceReaderCards(ctx context.Context, tx pgx.Tx, edition, title, author s
 		if c.kind != "text" {
 			heading = &c.content
 		}
-		batch.Queue(`INSERT INTO reader_cards(edition_id,idx,page_id,kind,title,content,start_off,end_off) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, edition, idx, page, c.kind, heading, c.content, c.start, c.end)
+		batch.Queue(`INSERT INTO reader_cards(edition_id,idx,page_id,kind,title,content,start_off,end_off,sentence_ends) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, edition, idx, page, c.kind, heading, c.content, c.start, c.end, c.sentenceEnds)
 		for ordinal, p := range c.parts {
 			batch.Queue(`INSERT INTO reader_card_parts(card_id,ordinal,page_id,start_off,end_off,card_start) SELECT id,$3,$4,$5,$6,$7 FROM reader_cards WHERE edition_id=$1 AND idx=$2 AND NOT archived`, edition, idx, ordinal, p.PageID, p.StartOff, p.EndOff, p.CardStart)
 		}
@@ -146,7 +163,7 @@ func replaceReaderCards(ctx context.Context, tx pgx.Tx, edition, title, author s
 	if _, err = tx.Exec(ctx, `UPDATE reader_cards SET content=NULL,title=NULL WHERE edition_id=$1 AND archived`, edition); err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `UPDATE book_editions SET reader_card_count=$2,reader_layout_version=4 WHERE id=$1`, edition, len(cards))
+	_, err = tx.Exec(ctx, `UPDATE book_editions SET reader_card_count=$2,reader_layout_version=5 WHERE id=$1`, edition, len(cards))
 	return err
 }
 

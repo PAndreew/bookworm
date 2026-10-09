@@ -55,7 +55,10 @@ docker exec potpuri-caddy caddy reload --config /etc/caddy/Caddyfile
 Reader layout, annotation preservation, paid AI and Pro’s 1,000 licensed text
 cards/month are described in [READER-CARDS.md](READER-CARDS.md). Run `api cards`
 after catalogue ingestion; this builds/refines only the presentation layer, never
-replaces original page anchors.
+replaces original page anchors. The API image includes pinned pySBD 0.3.4 in an
+isolated Python runtime (`PYSBD_PYTHON`). It runs only while constructing layouts;
+regular reads serve stored sentence offsets. Back up before layout replacement
+and compare streak/source-text snapshots afterwards.
 
 ## Original bookmarking app: private only
 

@@ -141,7 +141,10 @@ Metering happens on `POST /v1/card-reads` when a text card has held the screen f
 ## Tests
 
 ```bash
-cd api && go test ./...            # 60+ unit tests
+python3 -m venv /tmp/bookworm-pysbd
+/tmp/bookworm-pysbd/bin/pip install -r api/requirements-sentences.txt
+export PYSBD_PYTHON=/tmp/bookworm-pysbd/bin/python
+cd api && go test ./...            # unit tests, including real pySBD segmentation
 cd .scratch && node e2e.mjs        # 13 browser checks against the running stack
 ```
 

@@ -10,16 +10,17 @@ import (
 
 type ReaderCard struct {
 	Page
-	CardID    string     `json:"card_id"`
-	Kind      string     `json:"kind"`
-	SourceIdx int        `json:"source_idx"`
-	StartOff  int        `json:"start_off"`
-	Parts     []CardPart `json:"parts"`
+	CardID       string     `json:"card_id"`
+	Kind         string     `json:"kind"`
+	SourceIdx    int        `json:"source_idx"`
+	StartOff     int        `json:"start_off"`
+	Parts        []CardPart `json:"parts"`
+	SentenceEnds []int      `json:"sentence_ends"`
 }
 
 // EnsureReaderCards builds once per edition, without modifying any source page.
 // Advisory locking makes replacement atomic with read-history/bookmark migration.
-// Version-4 layouts prefer whole sentences across chapters; original pages remain immutable.
+// Version-5 layouts prefer whole sentences across chapters; original pages remain immutable.
 func (s *Store) EnsureReaderCards(ctx context.Context, editionID string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -34,7 +35,7 @@ func (s *Store) EnsureReaderCards(ctx context.Context, editionID string) error {
 	if err = tx.QueryRow(ctx, `SELECT e.reader_card_count,b.title,b.author,e.reader_layout_version FROM book_editions e JOIN books b ON b.id=e.book_id WHERE e.id=$1`, editionID).Scan(&count, &title, &author, &version); err != nil {
 		return err
 	}
-	if count > 0 && version >= 4 {
+	if count > 0 && version >= 5 {
 		return tx.Commit(ctx)
 	}
 	if err = replaceReaderCards(ctx, tx, editionID, title, author); err != nil {
@@ -59,7 +60,7 @@ func (s *Store) CardWindow(ctx context.Context, editionID, viewerID string, from
 	rows, err := s.pool.Query(ctx, `SELECT c.id,COALESCE(p.id::text,''),c.idx,c.kind,COALESCE(p.idx,0),c.start_off,
  COALESCE(c.content,CASE WHEN c.kind='text' THEN substring(p.content FROM c.start_off+1 FOR c.end_off-c.start_off) ELSE c.title END),
  (SELECT count(*) FROM page_likes l WHERE l.page_id=p.id),
- EXISTS(SELECT 1 FROM page_likes l WHERE l.page_id=p.id AND l.user_id=NULLIF($2,'')::uuid)
+ EXISTS(SELECT 1 FROM page_likes l WHERE l.page_id=p.id AND l.user_id=NULLIF($2,'')::uuid), c.sentence_ends
  FROM reader_cards c LEFT JOIN pages p ON p.id=c.page_id WHERE c.edition_id=$1 AND NOT c.archived AND c.idx >= $3 ORDER BY c.idx LIMIT $4`, editionID, viewerID, from, limit)
 	if err != nil {
 		return nil, 0, err
@@ -68,7 +69,7 @@ func (s *Store) CardWindow(ctx context.Context, editionID, viewerID string, from
 	cards := []ReaderCard{}
 	for rows.Next() {
 		var c ReaderCard
-		if err := rows.Scan(&c.CardID, &c.ID, &c.Idx, &c.Kind, &c.SourceIdx, &c.StartOff, &c.Content, &c.LikeCount, &c.LikedByMe); err != nil {
+		if err := rows.Scan(&c.CardID, &c.ID, &c.Idx, &c.Kind, &c.SourceIdx, &c.StartOff, &c.Content, &c.LikeCount, &c.LikedByMe, &c.SentenceEnds); err != nil {
 			return nil, 0, err
 		}
 		c.CharCount = len([]rune(c.Content))
