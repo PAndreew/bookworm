@@ -11,7 +11,11 @@
     onTranslateCard?: (language: string, signal?: AbortSignal) => Promise<void>;
   } = $props();
   let coaching = $state(false);
-  $effect(() => { cardIndex; demoWord; selected = ''; coaching = false; });
+  $effect(() => {
+    cardIndex; demoWord;
+    selected = ''; selectedCardId = ''; phrase = ''; phraseCardId = ''; answer = ''; coaching = false;
+    dialog?.close();
+  });
   let documentProgress = $state(0);
   let x = $state(0);
   let y = $state(0);
@@ -42,6 +46,10 @@
   let dialog = $state<HTMLDialogElement | null>(null);
   let selected = $state('');
   let phrase = $state('');
+  let selectedCardId = $state('');
+  let phraseCardId = $state('');
+  let viewportHeight = $state(800);
+  const liveBelow = $derived(y < viewportHeight / 2);
   let mode = $state<'explain' | 'translate' | 'card_translate'>('explain');
   $effect(() => {
     if (mode === 'card_translate' && !onTranslateCard) mode = 'explain';
@@ -80,6 +88,7 @@
       // Font/resize observers must not bypass the landing scroll debounce.
       if (experience === 'facts' && scrollTimer !== null) return;
       viewportWidth = window.innerWidth;
+      viewportHeight = window.innerHeight;
       const total = document.documentElement.scrollHeight - window.innerHeight;
       documentProgress = total > 0 ? (window.scrollY / total) * 100 : 0;
       const markers = progress !== undefined
@@ -111,12 +120,15 @@
     }
     function selection() {
       const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+      if (!sel || sel.isCollapsed || !sel.rangeCount) { selected = ''; selectedCardId = ''; return; }
       const node = sel.getRangeAt(0).commonAncestorContainer;
       const el = node instanceof Element ? node : node.parentElement;
       if (el?.closest('dialog')) return;
-      if (progress !== undefined && !el?.closest('[data-body]')) return;
+      const body = el?.closest('[data-body]');
+      if (experience === 'live' && !body) return;
+      if (progress !== undefined && !body) return;
       selected = sel.toString().trim().slice(0, 1200);
+      selectedCardId = body?.closest('[data-card-id]')?.getAttribute('data-card-id') ?? '';
     }
     update();
     const resize = new ResizeObserver(update);
@@ -145,11 +157,14 @@
 
   async function open() {
     if (experience !== 'live') { coaching = !coaching; return; }
-    if (selected) { phrase = selected; answer = ''; selected = ''; }
+    phrase = selected;
+    phraseCardId = selectedCardId;
+    answer = '';
+    selected = '';
     error = '';
     auth = 'checking';
     await tick();
-    dialog?.showModal();
+    dialog?.show();
     try { const me = await api.me(); auth = me.user.tier === 'free' ? 'upgrade' : 'signed-in'; }
     catch { auth = 'signed-out'; }
   }
@@ -159,6 +174,7 @@
   async function ask(event: SubmitEvent) {
     event.preventDefault();
     if (experience !== 'live' || busy || auth !== 'signed-in') return;
+    if (mode !== 'card_translate' && (!phrase || !phraseCardId)) return;
     busy = true;
     error = '';
     answer = '';
@@ -170,7 +186,7 @@
         close();
         return;
       }
-      const result = await api.assistant({ mode, phrase, language, consent: true }, controller.signal);
+      const result = await api.assistant({ mode, phrase, card_id: phraseCardId, language, consent: true }, controller.signal);
       answer = result.answer;
     } catch (e) {
       if (!controller.signal.aborted) error = e instanceof ApiError ? e.message : 'Could not connect. Please try again.';
@@ -198,7 +214,11 @@
   </div>
 {/if}
 
-<dialog bind:this={dialog} aria-labelledby="sunny-title" onclose={() => { controller?.abort(); }}>
+<svelte:window onkeydown={(event) => { if (event.key === 'Escape') close(); }} />
+<dialog bind:this={dialog} class:live-below={liveBelow}
+  style="left:{coachLeft}px;top:{liveBelow ? y + 44 : y - 12}px;--tail-x:{x + 16 - coachLeft}px;--bubble-height:{Math.max(120, liveBelow ? viewportHeight - y - 64 : y - 28)}px"
+  aria-labelledby="sunny-title" onclose={() => { controller?.abort(); }}>
+  <div class="bubble-content">
   <header><h2 id="sunny-title">Ask Puri</h2><button class="close" type="button" onclick={close} aria-label="Close reading companion">×</button></header>
   <p class="intro">Explain a selected phrase, or translate this reading card and save it for later.</p>
   {#if auth === 'checking'}<p role="status">Checking sign-in…</p>{/if}
@@ -206,17 +226,18 @@
   {#if auth === 'upgrade'}<p class="sign-in">AI explanations and translations are a paid feature. <a href="/app/upgrade">Subscribe to Plus</a>.</p>{/if}
   <form onsubmit={ask}>
     {#if mode !== 'card_translate'}
-      <label for="sunny-phrase">Phrase</label>
-      <textarea id="sunny-phrase" bind:value={phrase} maxlength="1200" rows="3" required placeholder="For example: c’est la vie" />
+      {#if phrase}<blockquote class="selected-phrase">{phrase}</blockquote>
+      {:else}<p class="intro">Highlight a word or passage on the card, then click Puri.</p>{/if}
     {:else}<p class="intro">Translate the entire current card. Saved translations do not use another request.</p>{/if}
     <div class="options">
       <div><label for="sunny-mode">Help me</label><select id="sunny-mode" bind:value={mode}><option value="explain">Explain this phrase</option>{#if onTranslateCard}<option value="card_translate">Translate current card</option>{/if}<option value="translate">Translate this phrase</option></select></div>
       <div><label for="sunny-language">Answer in</label><select id="sunny-language" bind:value={language}>{#each (mode === 'card_translate' ? ['French', 'Spanish', 'German'] : ['English', 'Romanian', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Polish', 'Japanese', 'Chinese', 'Arabic']) as name}<option>{name}</option>{/each}</select></div>
     </div>
-    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || (mode !== 'card_translate' && !phrase.trim())}>{busy ? 'Thinking…' : mode === 'card_translate' ? 'Translate card' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
+    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || (mode !== 'card_translate' && (!phrase.trim() || !phraseCardId))}>{busy ? 'Thinking…' : mode === 'card_translate' ? 'Translate card' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
   </form>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   <div class="answer" role="status" aria-live="polite">{@html renderMarkdown(answer)}</div>
+  </div>
 </dialog>
 
 <style>
@@ -235,11 +256,16 @@
   @keyframes eyes-open { 0%, 98%, 100% { opacity: 1; } 94% { opacity: 0; } }
   @keyframes eyes-half { 0%, 95%, 98%, 100% { opacity: 0; } 94%, 97% { opacity: 1; } }
   @keyframes eyes-closed { 0%, 97%, 100% { opacity: 0; } 95% { opacity: 1; } }
-  dialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 24px; border: 1px solid #75cfc5; border-radius: 18px 18px 4px 18px; background: #b8eee8; color: #164e4a; overflow-y: auto; box-shadow: var(--shadow-lift); }
-  dialog::backdrop { background: rgba(17,24,39,0.35); }
+  dialog { position: fixed; inset: auto; margin: 0; width: min(310px, calc(100vw - 32px)); max-height: var(--bubble-height); padding: 12px 16px; border: 1px solid #75cfc5; border-radius: 18px 18px 4px 18px; background: #b8eee8; color: #164e4a; overflow: visible; transform: translateY(-100%); z-index: 37; font-size: .85rem; }
+  dialog.live-below { transform: none; }
+  dialog::after { content: ''; position: absolute; left: clamp(12px, var(--tail-x, 90%), calc(100% - 20px)); bottom: -7px; width: 12px; height: 12px; background: #b8eee8; border-right: 1px solid #75cfc5; border-bottom: 1px solid #75cfc5; transform: translateX(-50%) rotate(45deg); }
+  dialog.live-below::after { top: -7px; bottom: auto; transform: translateX(-50%) rotate(225deg); }
+  .bubble-content { max-height: calc(var(--bubble-height) - 26px); overflow-y: auto; }
+  .selected-phrase { margin: 10px 0; padding: 10px; border-radius: 10px; background: #fff; overflow-wrap: anywhere; }
   header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  h2 { font-size: 1.4rem; margin: 0; }
-  .close { width: 36px; height: 36px; border: none; border-radius: 50%; background: transparent; color: var(--text); font-size: 1.5rem; }
+  h2 { font-size: 1rem; margin: 0; }
+  .close { width: 22px; height: 22px; padding: 0; border: none; border-radius: 0; background: transparent; color: #164e4a; font-size: 1.1rem; box-shadow: none; cursor: pointer; }
+  .close:focus-visible { outline: 1px solid #519d94; outline-offset: 2px; border-radius: 2px; }
   .intro, .sign-in { font-size: 0.86rem; line-height: 1.6; color: var(--text-dim); }
   .sign-in a { color: #164e4a; text-decoration: underline; }
   label { display: block; margin-bottom: 6px; font-size: 0.82rem; font-weight: 500; }
@@ -249,7 +275,7 @@
   .options > div { min-width: 0; }
   .consent { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0; font-size: 0.76rem; line-height: 1.6; color: var(--text-dim); }
   .consent input { margin-top: 4px; flex-shrink: 0; }
-  .submit { width: 100%; padding: 12px; border: 1px solid #519d94; border-radius: var(--radius-pill); background: #fff; color: #164e4a; font-weight: 600; cursor: pointer; margin-top: 12px; }
+  .submit { display: block; width: auto; padding: 7px 16px; border: 1px solid #519d94; border-radius: var(--radius-pill); background: #fff; color: #164e4a; font-weight: 600; cursor: pointer; margin-top: 12px; }
   .submit:disabled { opacity: 0.55; cursor: default; }
   .answer { margin-top: 18px; padding: 14px 16px; border: 1px solid #75cfc5; border-radius: 12px; background: #fff; color: #164e4a; overflow-wrap: anywhere; line-height: 1.7; font-size: 0.9rem; }
   .answer :global(p) { margin: 0 0 10px; }

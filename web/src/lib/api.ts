@@ -146,6 +146,7 @@ export const api = {
       last_read: { slug: string; title: string; page_idx: number; card_idx: number | null } | null;
       quota: { limit: number; used: number; resets_at: string; period: 'day' | 'month' };
       streak: { current: number; longest: number; at_risk: boolean };
+      reading_activity: { date: string; cards: number }[];
     }>('/me'),
 
   updateMe: (data: { display_name?: string; visibility?: string; timezone?: string }) =>
@@ -184,7 +185,7 @@ export const api = {
       `/books/${slug}/pages?from=${from}&limit=${limit}`,
     ),
 
-  assistant: (data: { mode: 'explain' | 'translate'; phrase: string; language: string; consent: boolean }, signal?: AbortSignal) =>
+  assistant: (data: { mode: 'explain' | 'translate'; phrase: string; card_id: string; language: string; consent: boolean }, signal?: AbortSignal) =>
     request<{ answer: string; model: string }>('/assistant', { method: 'POST', body: JSON.stringify(data), signal }),
 
   // ------------------------------------------------------------- reading

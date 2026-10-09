@@ -196,7 +196,16 @@ func TestRatingsAndGenres(t *testing.T) {
 		t.Fatal(err)
 	}
 	call("POST", "/v1/assistant", `{"mode":"explain","phrase":"bonjour","language":"English","consent":false}`, tokens[0], 400)
-	call("POST", "/v1/assistant", aiRequest, tokens[0], 503) // no configured key in tests
+	call("POST", "/v1/assistant", aiRequest, tokens[0], 400) // free input is rejected
+	if err := st.EnsureReaderCards(ctx, stored.EditionID); err != nil {
+		t.Fatal(err)
+	}
+	var cardID string
+	if err := pool.QueryRow(ctx, `SELECT id FROM reader_cards WHERE edition_id=$1 AND kind='text' ORDER BY idx LIMIT 1`, stored.EditionID).Scan(&cardID); err != nil {
+		t.Fatal(err)
+	}
+	call("POST", "/v1/assistant", fmt.Sprintf(`{"mode":"explain","card_id":%q,"phrase":"not in the book","language":"English","consent":true}`, cardID), tokens[0], 400)
+	call("POST", "/v1/assistant", fmt.Sprintf(`{"mode":"explain","card_id":%q,"phrase":"short test book","language":"English","consent":true}`, cardID), tokens[0], 503) // valid selection, no configured key
 	defer pool.Exec(ctx, `DELETE FROM assistant_global_usage WHERE day=(now() AT TIME ZONE 'UTC')::date`)
 	if err := st.ReserveAssistantAttempt(ctx, userIDs[0]); err != nil {
 		t.Fatal(err)

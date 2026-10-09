@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bookworm/api/internal/assistant"
@@ -33,6 +34,15 @@ func (s *Server) handleAssistant(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := req.Validate(); err != nil {
 		httpx.Error(w, 400, "bad_request", err.Error())
+		return
+	}
+	if req.CardID == "" {
+		httpx.Error(w, 400, "selection_required", "Highlight a passage on a reading card first.")
+		return
+	}
+	card, _, sourceErr := s.store.TranslationSource(r.Context(), req.CardID, currentUser(r).ID)
+	if sourceErr != nil || !strings.Contains(card.Content, strings.TrimSpace(req.Phrase)) {
+		httpx.Error(w, 400, "invalid_selection", "Choose a passage from an accessible reading card.")
 		return
 	}
 	if s.assistant == nil {

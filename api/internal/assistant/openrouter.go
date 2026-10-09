@@ -18,6 +18,7 @@ import (
 type Request struct {
 	Mode     string `json:"mode"`
 	Phrase   string `json:"phrase"`
+	CardID   string `json:"card_id"`
 	Language string `json:"language"`
 	Consent  bool   `json:"consent"`
 }

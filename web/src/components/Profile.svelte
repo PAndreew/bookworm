@@ -6,6 +6,9 @@
   import Avatar from './Avatar.svelte';
 
   let user = $state<User | null>(null);
+  let activity = $state<{ date: string; cards: number }[]>([]);
+  const activityMax = $derived(Math.max(1, ...activity.map(day => day.cards)));
+  const activityTotal = $derived(activity.reduce((sum, day) => sum + day.cards, 0));
   let loading = $state(true);
   let needsAuth = $state(false);
   let toast = $state<string | null>(null);
@@ -33,6 +36,7 @@
     try {
       const me = await api.me();
       user = me.user;
+      activity = me.reading_activity ?? [];
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) needsAuth = true;
     } finally {
@@ -116,6 +120,20 @@
     </header>
 
     <Membership {user} onchange={load} />
+
+    <section class="box" aria-labelledby="activity-title">
+      <h2 id="activity-title">Your reading · last 30 days</h2>
+      <p class="dim">{activityTotal} new cards read. Each card counts only the first time.</p>
+      <div class="reading-chart" role="list" aria-label="New cards read each day">
+        {#each activity as day}
+          <div class="reading-day" role="listitem" tabindex="0" aria-label={`${day.date}: ${day.cards} new cards`} title={`${day.date}: ${day.cards} new cards`}>
+            <span class="reading-bar" style={`height:${day.cards / activityMax * 100}%`}></span>
+            <span class="reading-tip">{day.date.slice(5)} · {day.cards}</span>
+          </div>
+        {/each}
+      </div>
+      <div class="chart-dates"><span>{activity[0]?.date}</span><span>{activity.at(-1)?.date}</span></div>
+    </section>
 
     <section class="box">
       <h2><Eye size={15} /> Who can see your reading</h2>
@@ -207,6 +225,12 @@
     letter-spacing: 0.05em;
   }
 
+  .reading-chart { display: flex; align-items: stretch; gap: 3px; height: 130px; border-bottom: 1px solid var(--border); margin-top: 24px; }
+  .reading-day { flex: 1; min-width: 0; position: relative; display: flex; align-items: flex-end; }
+  .reading-bar { display: block; width: 100%; background: #0f766e; border-radius: 3px 3px 0 0; }
+  .reading-tip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); padding: 4px 6px; background: #164e4a; color: #fff; border-radius: 4px; font-size: .65rem; white-space: nowrap; z-index: 1; }
+  .reading-day:hover .reading-tip, .reading-day:focus .reading-tip { display: block; }
+  .chart-dates { display: flex; justify-content: space-between; margin-top: 8px; color: var(--text-faint); font-size: .7rem; }
   .stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
