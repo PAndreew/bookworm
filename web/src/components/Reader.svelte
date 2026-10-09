@@ -325,7 +325,7 @@
   {#if loading}
     <div class="state"><div class="spinner"></div></div>
   {:else if previewFinished}
-    <div class="state"><div class="gate"><h2>That’s your first 10 cards!</h2><p>Keep reading for free. Create an account to save your place.</p><a class="gate-cta" href="/signup">Create an account</a><button onclick={() => previewFinished = false}>Back to the last card</button></div></div>
+    <div class="state"><div class="gate"><h2>That’s your first 10 cards!</h2><p>Keep reading for free. Create an account to save your place.</p><a class="gate-cta signup" href="/signup">Create an account</a></div></div>
   {:else if gated}
     <div class="state">
       <div class="gate">
@@ -810,4 +810,6 @@
     box-shadow: var(--shadow-lift);
     z-index: 60;
   }
+  .gate-cta.signup { background: #0f766e; }
+  .gate-cta.signup:hover { background: #115e59; }
 </style>

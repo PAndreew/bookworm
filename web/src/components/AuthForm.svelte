@@ -240,11 +240,12 @@
     padding: 14px;
     border: none;
     border-radius: var(--radius-pill);
-    background: var(--grad-brand);
+    background: #0f766e;
     color: #fff;
     font-weight: 650;
     font-size: 0.95rem;
   }
+  .go:hover:not(:disabled) { background: #115e59; }
   .go:disabled {
     opacity: 0.6;
   }

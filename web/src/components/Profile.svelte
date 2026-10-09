@@ -398,14 +398,14 @@
     width: 100%;
     padding: 13px;
     margin-top: 8px;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--border);
+    border-radius: 0;
+    border: none;
     background: transparent;
-    color: var(--text-faint);
+    color: var(--accent);
     font-size: 0.88rem;
   }
 
-  .seg button, .cta, .ghost, .danger, .signout {
+  .seg button, .cta, .ghost, .danger {
     background: #fff;
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
@@ -418,7 +418,8 @@
   .seg button.on { background: #e8edf3; border-color: #cbd5e1; color: var(--text); }
   .two-factor.on { background: #e8edf3; border-color: #cbd5e1; color: var(--text); }
   .danger { color: #be123c; }
-  .seg button:hover, .cta:hover, .ghost:hover, .signout:hover { border-color: var(--text-dim); }
+  .seg button:hover, .cta:hover, .ghost:hover { border-color: var(--text-dim); }
+  .signout:hover { color: var(--accent-hover); text-decoration: underline; }
 
   footer {
     display: flex;

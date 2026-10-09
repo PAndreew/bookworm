@@ -265,7 +265,8 @@
   header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   h2 { font-size: 1rem; margin: 0; }
   .close { width: 22px; height: 22px; padding: 0; border: none; border-radius: 0; background: transparent; color: #164e4a; font-size: 1.1rem; box-shadow: none; cursor: pointer; }
-  .close:focus-visible { outline: 1px solid #519d94; outline-offset: 2px; border-radius: 2px; }
+  .close:focus { outline: none; }
+  .close:focus-visible { outline: none; color: #0f766e; background: #ccfbf1; border-radius: 2px; }
   .intro, .sign-in { font-size: 0.86rem; line-height: 1.6; color: var(--text-dim); }
   .sign-in a { color: #164e4a; text-decoration: underline; }
   label { display: block; margin-bottom: 6px; font-size: 0.82rem; font-weight: 500; }

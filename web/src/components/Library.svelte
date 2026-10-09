@@ -9,7 +9,6 @@
   let signedIn = $state(false);
   let streak = $state({ current: 0, at_risk: false, pages_today: 0, pages_required: 3 });
   let tier = $state<'free' | 'plus' | 'pro'>('free');
-  let filter = $state<'all' | 'public_domain'>('all');
   let myBooks = $state(false);
   let sort = $state('recent');
   let genre = $state('');
@@ -121,8 +120,7 @@
   {/if}
 
   <div class="filters" aria-label="Book access">
-    <button class:on={filter === 'all'} aria-pressed={filter === 'all'} onclick={() => (filter = 'all')}>All</button>
-    <button class:on={filter === 'public_domain'} aria-pressed={filter === 'public_domain'} onclick={() => (filter = 'public_domain')}>Free</button>
+    <button class:on={!myBooks} aria-pressed={!myBooks} onclick={() => (myBooks = false)}>All</button>
     <button class:on={myBooks} aria-pressed={myBooks} onclick={() => { if (signedIn) myBooks = !myBooks; else window.location.href = '/login'; }}>My books</button>
   </div>
   <div class="discovery">
