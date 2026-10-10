@@ -15,15 +15,17 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'/home/pi/pi-web-local/n
  await page.goto((process.env.TEST_BASE_URL||'http://localhost:4333')+'/app/me/');
  await page.getByRole('heading',{name:'Achievements'}).waitFor();
  assert.equal(await page.locator('.award').count(),3);
+ assert.equal(await page.locator('.award img').nth(1).getAttribute('src'),'/achievements/hundred-cards-locked.webp');
  assert.equal(await page.locator('.award img').nth(2).getAttribute('src'),'/achievements/full-book-locked.webp');
  assert.equal(await page.getByRole('button',{name:'Share A whole book'}).count(),0);
  assert.equal(await page.locator('.award img').first().getAttribute('src'),'/achievements/first-card.webp');
  assert.equal(await page.locator('.award').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
- await page.route('**/v1/me/achievements',r=>r.fulfill({json:{achievements:[{id:'first-card',unlocked_at:null},{id:'full-book',unlocked_at:'2026-01-01T00:00:00Z'}]}}));
+ await page.route('**/v1/me/achievements',r=>r.fulfill({json:{achievements:[{id:'first-card',unlocked_at:null},{id:'full-book',unlocked_at:'2026-01-01T00:00:00Z'},{id:'hundred-cards',unlocked_at:'2026-01-01T00:00:00Z'}]}}));
  await page.reload();
  await page.getByRole('heading',{name:'Achievements'}).waitFor();
  assert.equal(await page.locator('.award img').first().getAttribute('src'),'/achievements/first-card-locked.webp');
  assert.equal(await page.locator('.award img').nth(1).getAttribute('src'),'/achievements/full-book.webp');
+ assert.equal(await page.locator('.award img').nth(2).getAttribute('src'),'/achievements/hundred-cards.webp');
  await page.unroute('**/v1/me/achievements');
  await page.reload();
  await page.getByRole('button',{name:'Share First card'}).waitFor();

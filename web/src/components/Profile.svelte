@@ -142,7 +142,7 @@
       <div class="awards">
         {#each achievements as award (award.id)}
           <div class="award" class:locked={!award.unlocked_at}>
-            <img src={award.id === 'first-card' || award.id === 'full-book' ? `/achievements/${award.id}${award.unlocked_at ? '' : '-locked'}.webp` : `/achievements/${award.id}.svg`} alt="" width="72" height="72" />
+            <img src={`/achievements/${award.id}${award.unlocked_at ? '' : '-locked'}.webp`} alt="" width="72" height="72" />
             <div class="award-text"><strong>{awardInfo[award.id].title}</strong><span>{awardInfo[award.id].description}</span>
               {#if award.unlocked_at}<small>Earned {new Date(award.unlocked_at).toLocaleDateString()}</small>{/if}
             </div>
