@@ -60,6 +60,9 @@ export interface Page {
   liked_by_me: boolean;
 }
 
+export type AchievementID = 'first-card' | 'hundred-cards' | 'full-book';
+export interface Achievement { id: AchievementID; unlocked_at: string | null; }
+
 export interface ReadResult {
   metered: boolean;
   remaining: number;
@@ -149,6 +152,8 @@ export const api = {
       streak: { current: number; longest: number; at_risk: boolean };
       reading_activity: { date: string; cards: number }[];
     }>('/me'),
+
+  achievements: () => request<{ achievements: Achievement[] }>('/me/achievements'),
 
   updateMe: (data: { display_name?: string; visibility?: string; timezone?: string }) =>
     request<{ user: User }>('/me', { method: 'PATCH', body: JSON.stringify(data) }),

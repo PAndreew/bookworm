@@ -1,11 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Shield, ShieldCheck, LogOut, Eye } from '@lucide/svelte';
-  import { api, ApiError, type User } from '../lib/api';
+  import { Shield, ShieldCheck, LogOut, Eye, Share2 } from '@lucide/svelte';
+  import { api, ApiError, type User, type Achievement, type AchievementID } from '../lib/api';
   import Membership from './Membership.svelte';
   import Avatar from './Avatar.svelte';
 
   let user = $state<User | null>(null);
+  let achievements = $state<Achievement[]>([]);
+  const awardInfo: Record<AchievementID,{title:string;description:string}> = {
+    'first-card': {title:'First card',description:'Read your first text card'},
+    'hundred-cards': {title:'100 cards',description:'Read 100 text cards'},
+    'full-book': {title:'A whole book',description:'Read every text card in a book'},
+  };
   let activity = $state<{ date: string; cards: number }[]>([]);
   const activityMax = $derived(Math.max(1, ...activity.map(day => day.cards)));
   const activityTotal = $derived(activity.reduce((sum, day) => sum + day.cards, 0));
@@ -37,11 +43,21 @@
       const me = await api.me();
       user = me.user;
       activity = me.reading_activity ?? [];
+      achievements = (await api.achievements().catch(() => ({ achievements: [] as Achievement[] }))).achievements;
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) needsAuth = true;
     } finally {
       loading = false;
     }
+  }
+
+  async function shareAchievement(award: Achievement) {
+    if (!user || !award.unlocked_at) return;
+    const url = `${location.origin}/a/${encodeURIComponent(user.handle)}/${award.id}`;
+    try {
+      if (navigator.share) await navigator.share({title:`${awardInfo[award.id].title} · Potpuri`,url});
+      else { await navigator.clipboard.writeText(url); show('Achievement link copied.'); }
+    } catch (e) { if ((e as DOMException)?.name !== 'AbortError') show('Could not share this achievement.'); }
   }
 
   async function begin2FA() {
@@ -120,6 +136,21 @@
     </header>
 
     <Membership {user} onchange={load} />
+
+    <section class="box" aria-labelledby="achievements-title">
+      <h2 id="achievements-title">Achievements</h2>
+      <div class="awards">
+        {#each achievements as award (award.id)}
+          <div class="award" class:locked={!award.unlocked_at}>
+            <img src={`/achievements/${award.id}.svg`} alt="" width="72" height="72" />
+            <div class="award-text"><strong>{awardInfo[award.id].title}</strong><span>{awardInfo[award.id].description}</span>
+              {#if award.unlocked_at}<small>Earned {new Date(award.unlocked_at).toLocaleDateString()}</small>{/if}
+            </div>
+            {#if award.unlocked_at}<button onclick={() => shareAchievement(award)} aria-label={`Share ${awardInfo[award.id].title}`}><Share2 size={17} /> Share</button>{/if}
+          </div>
+        {/each}
+      </div>
+    </section>
 
     <section class="box" aria-labelledby="activity-title">
       <h2 id="activity-title">Your reading · last 30 days</h2>
@@ -225,6 +256,13 @@
     letter-spacing: 0.05em;
   }
 
+  .awards { display:grid; gap:12px; }
+  .award { display:flex; align-items:center; gap:14px; padding:12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-raised); }
+  .award img { flex:none; width:72px; height:72px; border-radius:50%; object-fit:cover; }
+  .award.locked img { filter:grayscale(1); opacity:.45; }
+  .award-text { flex:1; min-width:0; display:grid; gap:3px; }
+  .award-text span, .award-text small { color:var(--text-faint); font-size:.75rem; }
+  .award button { display:flex; align-items:center; gap:5px; border:1px solid var(--border); border-radius:var(--radius-pill); padding:7px 10px; background:transparent; color:var(--text); cursor:pointer; }
   .reading-chart { display: flex; align-items: stretch; gap: 3px; height: 130px; border-bottom: 1px solid var(--border); margin-top: 24px; }
   .reading-day { flex: 1; min-width: 0; position: relative; display: flex; align-items: flex-end; }
   .reading-bar { display: block; width: 100%; background: #0f766e; border-radius: 3px 3px 0 0; }
