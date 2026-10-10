@@ -14,7 +14,7 @@ export function getStaticPaths() { return [{ params: { path: undefined } }]; }
   const [handle, id] = location.pathname.split('/').filter(Boolean).slice(1);
   const article = document.getElementById('award')!;
   const names: Record<string,string> = { 'first-card':'First card', 'hundred-cards':'100 cards', 'full-book':'A whole book' };
-  const images: Record<string,string> = { 'first-card':'/achievements/first-card.webp', 'hundred-cards':'/achievements/hundred-cards.svg', 'full-book':'/achievements/full-book.svg' };
+  const images: Record<string,string> = { 'first-card':'/achievements/first-card.webp', 'hundred-cards':'/achievements/hundred-cards.svg', 'full-book':'/achievements/full-book.webp' };
   if (!handle || !id || !names[id]) article.textContent = 'This achievement is not available.';
   else fetch(`/v1/achievements/${encodeURIComponent(handle)}/${encodeURIComponent(id)}`)
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
