@@ -14,7 +14,7 @@ export function getStaticPaths() { return [{ params: { path: undefined } }]; }
   const [handle, id] = location.pathname.split('/').filter(Boolean).slice(1);
   const article = document.getElementById('award')!;
   const names: Record<string,string> = { 'first-card':'First card', 'hundred-cards':'100 cards', 'full-book':'A whole book' };
-  const images: Record<string,string> = { 'first-card':'/achievements/first-card.svg', 'hundred-cards':'/achievements/hundred-cards.svg', 'full-book':'/achievements/full-book.svg' };
+  const images: Record<string,string> = { 'first-card':'/achievements/first-card.webp', 'hundred-cards':'/achievements/hundred-cards.svg', 'full-book':'/achievements/full-book.svg' };
   if (!handle || !id || !names[id]) article.textContent = 'This achievement is not available.';
   else fetch(`/v1/achievements/${encodeURIComponent(handle)}/${encodeURIComponent(id)}`)
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
@@ -30,7 +30,7 @@ export function getStaticPaths() { return [{ params: { path: undefined } }]; }
 <style>
   main { min-height:100dvh; display:grid; align-content:center; justify-items:center; gap:20px; padding:24px; text-align:center; }
   .award { width:min(420px,100%); padding:36px 24px; border:1px solid var(--border); border-radius:20px; background:var(--bg-raised); }
-  .award img { border-radius:50%; object-fit:cover; }
+  .award img { object-fit:contain; }
   .award h1 { font-size:1.5rem; }
   .award p { line-height:1.5; }
 </style>

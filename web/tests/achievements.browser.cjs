@@ -15,6 +15,15 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'/home/pi/pi-web-local/n
  await page.goto((process.env.TEST_BASE_URL||'http://localhost:4333')+'/app/me/');
  await page.getByRole('heading',{name:'Achievements'}).waitFor();
  assert.equal(await page.locator('.award').count(),3);
+ assert.equal(await page.locator('.award img').first().getAttribute('src'),'/achievements/first-card.webp');
+ assert.equal(await page.locator('.award').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
+ await page.route('**/v1/me/achievements',r=>r.fulfill({json:{achievements:[{id:'first-card',unlocked_at:null}]}}));
+ await page.reload();
+ await page.getByRole('heading',{name:'Achievements'}).waitFor();
+ assert.equal(await page.locator('.award img').first().getAttribute('src'),'/achievements/first-card-locked.webp');
+ await page.unroute('**/v1/me/achievements');
+ await page.reload();
+ await page.getByRole('button',{name:'Share First card'}).waitFor();
  assert.equal(await page.getByRole('button',{name:'Share First card'}).count(),1);
  assert.equal(await page.getByRole('button',{name:'Share 100 cards'}).count(),0);
  await page.getByRole('button',{name:'Share First card'}).click();

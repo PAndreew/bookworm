@@ -142,7 +142,7 @@
       <div class="awards">
         {#each achievements as award (award.id)}
           <div class="award" class:locked={!award.unlocked_at}>
-            <img src={`/achievements/${award.id}.svg`} alt="" width="72" height="72" />
+            <img src={award.id === 'first-card' ? `/achievements/first-card${award.unlocked_at ? '' : '-locked'}.webp` : `/achievements/${award.id}.svg`} alt="" width="72" height="72" />
             <div class="award-text"><strong>{awardInfo[award.id].title}</strong><span>{awardInfo[award.id].description}</span>
               {#if award.unlocked_at}<small>Earned {new Date(award.unlocked_at).toLocaleDateString()}</small>{/if}
             </div>
@@ -257,9 +257,9 @@
   }
 
   .awards { display:grid; gap:12px; }
-  .award { display:flex; align-items:center; gap:14px; padding:12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-raised); }
-  .award img { flex:none; width:72px; height:72px; border-radius:50%; object-fit:cover; }
-  .award.locked img { filter:grayscale(1); opacity:.45; }
+  .award { display:flex; align-items:center; gap:14px; padding:12px 0; }
+  .award img { flex:none; width:72px; height:72px; object-fit:contain; }
+  .award.locked img { filter:grayscale(1); }
   .award-text { flex:1; min-width:0; display:grid; gap:3px; }
   .award-text span, .award-text small { color:var(--text-faint); font-size:.75rem; }
   .award button { display:flex; align-items:center; gap:5px; border:1px solid var(--border); border-radius:var(--radius-pill); padding:7px 10px; background:transparent; color:var(--text); cursor:pointer; }
