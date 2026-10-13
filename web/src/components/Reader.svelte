@@ -35,6 +35,37 @@
   let documentVisible = $state(true);
   const DWELL_MS = 1800;
   const recorded = new Set<string>();
+  let completionDialog = $state<HTMLDialogElement | null>(null);
+  let completionOpen = $state(false);
+  let completion = $state<{ total_cards: number; read_cards: number; missing_card_indices: number[] } | null>(null);
+  let completionLoading = $state(false);
+  let completionError = $state('');
+  let missingLimit = $state(50);
+  async function refreshCompletion() {
+    if (completionLoading) return;
+    completionLoading = true; completionError = '';
+    try { completion = (await api.bookPosition(slug)).completion; }
+    catch { completionError = 'Could not load reading completion. Please try again.'; }
+    finally { completionLoading = false; }
+  }
+  function openCompletion() {
+    completionOpen = true; missingLimit = 50;
+    completionDialog?.showModal();
+    void refreshCompletion();
+  }
+  async function jumpToMissing(idx: number) {
+    completionDialog?.close();
+    if (navigating || blocked) return;
+    navigating = true;
+    try {
+      if (!pages.some(p => p.idx === idx)) {
+        const res = await api.cards(slug, idx, 12);
+        pages = [...pages, ...res.pages.filter(p => !pages.some(old => old.idx === p.idx))].sort((a, b) => a.idx - b.idx);
+      }
+      if (pages.some(p => p.idx === idx)) { enterFromEnd = false; activeIdx = idx; fragmentIdx = 0; fragments = []; fittedCard = ''; }
+    } catch { showToast('Could not load that card. Try again.'); }
+    finally { navigating = false; }
+  }
   let canSavePosition = $state(false);
   let pendingPosition: string | null = null;
   let savingPosition = false;
@@ -94,7 +125,7 @@
       if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); move(1); }
       if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) { event.preventDefault(); move(-1); }
     };
-    const visibility = () => { documentVisible = !document.hidden; };
+    const visibility = () => { documentVisible = !document.hidden; if (documentVisible && completionOpen) void refreshCompletion(); };
     window.addEventListener('keydown', key);
     document.addEventListener('visibilitychange', visibility);
     visibility();
@@ -157,7 +188,7 @@
   $effect(() => {
     const page = activePage;
     const part = fragmentIdx; // changing continuation resets dwell
-    if (preview || !page || page.kind !== 'text' || fittedCard !== renderKey || !documentVisible || reportPage || blocked) return;
+    if (preview || !page || page.kind !== 'text' || fittedCard !== renderKey || !documentVisible || reportPage || completionOpen || blocked) return;
     if (recorded.has(page.card_id!)) return;
     const timer = window.setTimeout(() => markRead(page.card_id!), DWELL_MS);
     return () => clearTimeout(timer);
@@ -275,6 +306,7 @@
 <div class="reader" style="--scale:{fontScale}">
   <header class="bar">
     <a href={preview ? '/#try-it-now' : '/app'} class="icon-btn" aria-label="Back to library"><ChevronLeft size={22} /></a>
+    {#if canSavePosition && !preview}<button class="completion-control" onclick={openCompletion} aria-label="Reading completion">Read cards</button>{/if}
     <button class="icon-btn" onclick={() => (showType = !showType)} aria-label="Text size"><Type size={20} /></button>
   </header>
   <div class="progress" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}><div class="progress-fill" style="width:{progress}%"></div></div>
@@ -322,6 +354,23 @@
   {#if streakPulse}<div class="streak-pop"><Flame size={20} /> {streak} day streak</div>{/if}
   {#if toast}<div class="toast" role="status">{toast}</div>{/if}
 </div>
+<dialog class="completion-dialog" bind:this={completionDialog} aria-labelledby="completion-title" onclose={() => { completionOpen = false; }}>
+  <header><h2 id="completion-title">Reading completion</h2><button class="icon-btn" onclick={() => completionDialog?.close()} aria-label="Close reading completion">×</button></header>
+  <p>Reading on every device signed into your account counts. Only text cards count toward a whole book.</p>
+  {#if completionLoading}<p role="status">Checking your reading…</p>
+  {:else if completionError}<p role="alert">{completionError}</p>
+  {:else if completion}
+    <p>{completion.read_cards} of {completion.total_cards} text cards read</p>
+    {#if completion.total_cards > 0 && completion.missing_card_indices.length === 0}
+      <p>Every text card is read. Your whole-book achievement is unlocked.</p><a href="/app/me">View achievements</a>
+    {:else if completion.missing_card_indices.length}
+      <p>These cards have no recorded read yet. Open each one and pause to read it.</p>
+      <div class="missing-cards">{#each completion.missing_card_indices.slice(0, missingLimit) as idx}<button onclick={() => jumpToMissing(idx)}>Read card {idx + 1}</button>{/each}</div>
+      {#if completion.missing_card_indices.length > missingLimit}<button onclick={() => missingLimit += 50}>Show more missing cards</button>{/if}
+    {/if}
+  {/if}
+  <button onclick={() => refreshCompletion()} disabled={completionLoading}>Refresh reading completion</button>
+</dialog>
 <dialog class="report-dialog" bind:this={reportDialog} aria-labelledby="report-title" onclose={() => { reportPage = null; }}>
   <header><h2 id="report-title">Report an issue</h2><button class="icon-btn" onclick={() => reportDialog?.close()} aria-label="Close report">×</button></header>
   <form onsubmit={submitReport}>
@@ -344,6 +393,13 @@
   .reader { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
   .bar { position: absolute; top: calc(3px + env(safe-area-inset-top)); left: 4px; right: 4px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
   .bar .icon-btn { pointer-events: auto; }
+  .completion-control { pointer-events: auto; border: none; border-radius: var(--radius-pill); background: var(--bg-card); color: var(--text); padding: 6px 12px; font-size: 13px; align-self: center; }
+  .completion-dialog { max-width: min(480px, 90vw); max-height: 80dvh; overflow: auto; border: 1px solid var(--border); border-radius: 16px; padding: 20px; background: var(--bg-card); color: var(--text); }
+  .completion-dialog::backdrop { background: #0008; }
+  .completion-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .completion-dialog p { margin: 12px 0; }
+  .missing-cards { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+  .completion-dialog button:not(.icon-btn) { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
   .icon-btn { display: grid; place-items: center; width: 40px; height: 40px; border: none; border-radius: var(--radius-pill); background: transparent; color: var(--text); }
   .icon-btn:hover { background: var(--bg-card); }
   .progress { height: calc(3px + env(safe-area-inset-top)); flex-shrink: 0; background: #b9d7ee; }

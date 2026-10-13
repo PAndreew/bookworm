@@ -13,6 +13,19 @@ The You page lists three milestones, including locked placeholders:
   coverage. Title/chapter cards do not count; inherited coverage preserves
   progress through layout migrations. Once earned, an achievement stays earned.
 
+The signed-in reader has a **Read cards** control. Its reading-completion
+panel lists the exact missing card numbers with buttons to jump back to them.
+`GET /v1/books/{slug}/position` includes `completion` (`total_cards`,
+`read_cards`, zero-based `missing_card_indices`). Coverage comes from the
+account-wide database ledger, not browser storage; headings and archived cards
+are excluded and inherited reads count. Opening/refreshing the panel fetches
+current coverage, including reads from another device. The list renders 50
+missing cards at a time. Opening a missing card does not itself award credit:
+the normal visible text-card dwell still applies.
+
+An open profile refreshes achievements and activity when its tab becomes visible
+or its window regains focus. This is refresh-on-return, not live push sync.
+
 On first request the API computes qualifying awards and records them in
 `achievements`; old card reads have a local date, so their award timestamp is
 backfilled at noon on that date. No text, edition, or streak record is changed.

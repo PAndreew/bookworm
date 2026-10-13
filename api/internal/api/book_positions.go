@@ -54,5 +54,10 @@ func (s *Server) handleBookPosition(w http.ResponseWriter, r *http.Request) {
 		httpx.InternalError(w, r, "book position", err)
 		return
 	}
-	httpx.JSON(w, 200, map[string]any{"position": position})
+	completion, err := s.store.BookCompletion(r.Context(), user.ID, book.EditionID)
+	if err != nil {
+		httpx.InternalError(w, r, "book completion", err)
+		return
+	}
+	httpx.JSON(w, 200, map[string]any{"position": position, "completion": completion})
 }

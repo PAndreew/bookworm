@@ -197,7 +197,7 @@ export const api = {
   // ------------------------------------------------------------- reading
   cards: (slug: string, from = 0, limit = 12, sourceFrom = 0) =>
     request<{ pages: Page[]; page_count: number }>(`/books/${encodeURIComponent(slug)}/cards?card_from=${from}&source_from=${sourceFrom}&limit=${limit}`),
-  bookPosition: (slug: string) => request<{ position: { page_idx: number; card_idx: number | null } | null }>(`/books/${encodeURIComponent(slug)}/position`),
+  bookPosition: (slug: string) => request<{ position: { page_idx: number; card_idx: number | null } | null; completion: { total_cards: number; read_cards: number; missing_card_indices: number[] } }>(`/books/${encodeURIComponent(slug)}/position`),
   saveBookPosition: (slug: string, card_id: string) => post<{ status: string }>(`/books/${encodeURIComponent(slug)}/position`, { card_id }),
   recordCardRead: (card_id: string) => post<ReadResult>('/card-reads', { card_id }),
   reportCard: (cardId: string, category: 'layout' | 'text' | 'break', note: string) =>

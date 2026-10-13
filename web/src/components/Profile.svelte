@@ -27,15 +27,23 @@
   let showDisable = $state(false);
 
   onMount(() => {
-    let alive = true, attempts = 0;
+    let alive = true, attempts = 0, refreshing = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const returning = new URLSearchParams(location.search).get('subscription') === 'success';
     async function refresh() {
-      await load();
-      if (alive && returning && user?.tier === 'free' && attempts++ < 15) timer = setTimeout(refresh, 2000);
+      if (!alive || refreshing) return;
+      refreshing = true;
+      try { await load(); } finally { refreshing = false; }
+      if (alive && returning && user?.tier === 'free' && attempts++ < 15) {
+        clearTimeout(timer);
+        timer = setTimeout(refresh, 2000);
+      }
     }
+    const visible = () => { if (!document.hidden) void refresh(); };
+    document.addEventListener('visibilitychange', visible);
+    window.addEventListener('focus', visible);
     void refresh();
-    return () => { alive = false; clearTimeout(timer); };
+    return () => { alive = false; clearTimeout(timer); document.removeEventListener('visibilitychange', visible); window.removeEventListener('focus', visible); };
   });
 
   async function load() {

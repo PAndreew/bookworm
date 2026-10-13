@@ -21,8 +21,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'/home/pi/pi-web-local/n
  assert.equal(await page.locator('.award img').first().getAttribute('src'),'/achievements/first-card.webp');
  assert.equal(await page.locator('.award').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
  await page.route('**/v1/me/achievements',r=>r.fulfill({json:{achievements:[{id:'first-card',unlocked_at:null},{id:'full-book',unlocked_at:'2026-01-01T00:00:00Z'},{id:'hundred-cards',unlocked_at:'2026-01-01T00:00:00Z'}]}}));
- await page.reload();
- await page.getByRole('heading',{name:'Achievements'}).waitFor();
+ // Returning to an open profile fetches awards earned on another device.
+ await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+ await page.getByRole('button',{name:'Share A whole book'}).waitFor();
  assert.equal(await page.locator('.award img').first().getAttribute('src'),'/achievements/first-card-locked.webp');
  assert.equal(await page.locator('.award img').nth(1).getAttribute('src'),'/achievements/full-book.webp');
  assert.equal(await page.locator('.award img').nth(2).getAttribute('src'),'/achievements/hundred-cards.webp');

@@ -78,6 +78,27 @@ func TestAchievementsBackfillAndShare(t *testing.T) {
 	if a := get(); !a["hundred-cards"] || !a["full-book"] {
 		t.Fatal("complete book", a)
 	}
+	// Coverage is account-wide, ignores headings/archived layouts, and reports
+	// exact missing indices even when a previously earned award stays unlocked.
+	var missingCard string
+	if err = pool.QueryRow(ctx, `INSERT INTO reader_cards(edition_id,idx,page_id,kind,start_off,end_off) VALUES($1,101,$2,'text',0,1) RETURNING id`, edition, page).Scan(&missingCard); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = pool.Exec(ctx, `INSERT INTO reader_cards(edition_id,idx,page_id,kind,start_off,end_off,archived) VALUES($1,102,$2,'text',0,1,true)`, edition, page); err != nil {
+		t.Fatal(err)
+	}
+	coverage, err := st.BookCompletion(ctx, user.ID, edition)
+	if err != nil || coverage.TotalCards != 101 || coverage.ReadCards != 100 || len(coverage.MissingCardIndices) != 1 || coverage.MissingCardIndices[0] != 101 {
+		t.Fatalf("missing text coverage: %+v, %v", coverage, err)
+	}
+	// A read from another client/session belongs to the same user ledger.
+	if decision, _, err := st.RecordCard(ctx, user.ID, missingCard, time.Now()); err != nil || !decision.Allowed {
+		t.Fatalf("record missing card: %+v, %v", decision, err)
+	}
+	coverage, err = st.BookCompletion(ctx, user.ID, edition)
+	if err != nil || coverage.ReadCards != coverage.TotalCards || len(coverage.MissingCardIndices) != 0 {
+		t.Fatalf("completed account-wide coverage: %+v, %v", coverage, err)
+	}
 	if _, _, err = st.SharedAchievement(ctx, user.Handle, "hundred-cards"); err != nil {
 		t.Fatal(err)
 	}
