@@ -48,11 +48,11 @@ async function waitWorkers(page,active){for(let i=0;i<40&&active.size;i++)await 
    assert(await page.getByRole('button',{name:'Download/check weights',exact:true}).isDisabled());
    assert.equal(await page.locator('meta[name="robots"]').getAttribute('content'),'noindex, follow');
    await page.evaluate(()=>localStorage.setItem('bw:reading-marker','keep'));
+   await page.getByLabel('GPU buffer budget',{exact:true}).selectOption('2048');
    await page.getByLabel('Device / OS label (optional)',{exact:true}).fill('iPhone 16 · iOS 26 · test PWA');
    await page.getByRole('button',{name:'Inspect device',exact:true}).click();
    await page.waitForFunction(()=>document.querySelector('[data-diag-phase]').textContent==='device-inspected');
    assert.equal(files.length,0,'inspect fetched model weights');assert.equal(workers.length,0);
-   await page.getByLabel('GPU buffer budget',{exact:true}).selectOption('2048');
    await page.getByRole('checkbox').check();
    await page.getByRole('button',{name:'Download/check weights',exact:true}).click();
    await page.waitForFunction(()=>document.querySelector('[data-diag-phase]').textContent==='weights-cached');
