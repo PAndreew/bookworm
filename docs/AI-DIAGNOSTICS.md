@@ -59,8 +59,36 @@ compiled artifact or a separately validated runtime, not a misleading dropdown.
 - New report resets only the diagnostic record, not model caches or reading data.
 - The page is noindex and excluded by the existing sitemap filter.
 
+## Recorder v2: preserve the actual failure
+
+The iPhone report successfully initialized the model in 4,695 ms, then failed
+before first output with approximately 749 MiB tracked live buffers against the
+768 MiB guard. Its `[object Object]` failure summary discarded the thrown runtime
+object. It does not establish whether iOS, the runtime or our guard caused failure.
+
+Recorder v2 keeps bounded structured error fields, stack, code and nested causes,
+including plain/cross-realm error objects. Independently, a guard rejection records
+requested bytes, already-live bytes, the proposed total, budget, usage and buffer
+label **before** the error can be wrapped by WASM. This is saved immediately without
+replacing the active phase, so `failedAt` still identifies prefill/load correctly.
+Native GPU errors and device loss have separate source labels. No limits, precision,
+context, prompts or automatic-retry behavior were relaxed.
+
+The regression runs the real diagnostic worker/core with a stub model runtime.
+It starts at the report's 784,869,392 live bytes and attempts a **synthetic** 32 MiB
+allocation, confirming that native allocation is blocked and both the independent
+rejection and runtime-wrapped cause survive. This is not evidence that the phone's
+actual next allocation was 32 MiB. A separate native-error case verifies that it
+is not mislabeled as a budget rejection.
+
+Refresh the diagnostic page, export the old record if wanted, choose New report,
+then repeat the same default short test. Cached model URLs are unchanged. New
+reports include `recorderVersion: 2`; existing reports remain readable unchanged.
+
 ## Verification
 
+- `node web/tests/ai-diagnostics-errors.cjs`: actual worker error forwarding,
+  independently captured rejected allocation, wrapped causes and native-error distinction.
 - `node --experimental-strip-types web/tests/ai-diagnostics-core.cjs`: configuration,
   report bounds and crash flags, pinned shard URLs, fixed prompts and allocation
   budget enforced before native createBuffer.

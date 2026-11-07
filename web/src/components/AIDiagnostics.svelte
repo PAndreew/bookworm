@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { DiagnosticSession, type DiagnosticView } from '../lib/ai-diagnostics-session';
-  import { DIAG_MODEL, type DiagnosticConfig, type DiagnosticCase, type DiagnosticTask, type BufferStats } from '../lib/ai-diagnostics-core';
+  import { DIAG_MODEL, type DiagnosticConfig, type DiagnosticCase, type DiagnosticTask, type BufferStats, type BufferRejection } from '../lib/ai-diagnostics-core';
 
   let session: DiagnosticSession | undefined;
   let view = $state<DiagnosticView | null>(null);
@@ -20,6 +20,7 @@
   const load = $derived(view?.report.measurements.load as { loadMs?: number; compiledPrefill?: number; actualContext?: number } | undefined);
   const runs = $derived((view?.report.measurements.runs ?? []) as Array<{ firstTextMs?: number; totalMs?: number; finishReason?: string }>);
   const lastRun = $derived(runs.at(-1));
+  const rejection = $derived(view?.report.measurements.lastBudgetRejection as BufferRejection | undefined);
   const blocked = $derived(!view || view.busy || view.needsReset || !!view.storageWarning);
   const locked = $derived(blocked || !!view?.ready);
   const gpuAllowed = $derived((view?.report.measurements.adapter as { shaderF16?: boolean; hardwareAdapter?: boolean } | undefined)?.shaderF16 === true && (view?.report.measurements.adapter as { hardwareAdapter?: boolean } | undefined)?.hardwareAdapter === true);
@@ -63,7 +64,7 @@
 <main class="diagnostics">
   <header>
     <a href="/app">← Back to library</a>
-    <p class="eyebrow">Potpuri · isolated test lab</p>
+    <p class="eyebrow">Potpuri · isolated test lab · recorder v2</p>
     <h1>iPhone AI diagnostics</h1>
     <p>Test Qwen3.5 0.8B one stage at a time. The reader’s local AI stays paused. This page never uses cloud AI, your account, reading history or monthly allowance.</p>
   </header>
@@ -84,6 +85,13 @@
     {/if}
     {#if view.storageWarning}<p class="recovery" role="alert">{view.storageWarning}</p>{/if}
     {#if actionError || view.error}<p class="recovery" role="alert">{actionError || view.error}</p>{/if}
+    {#if rejection}
+      <aside class="recovery" aria-label="GPU allocation rejection">
+        <strong>The diagnostic guard refused a GPU allocation before calling the native allocator.</strong>
+        <p>Next allocation: {bytes(rejection.requestedBytes ?? undefined)}. Already live: {bytes(rejection.liveBytes)}. Would become: {bytes(rejection.wouldBeBytes ?? undefined)}. Budget: {bytes(rejection.budgetBytes)}.</p>
+        <p>This records our guard’s decision, not proof that iOS ran out of memory. The limit has not been raised automatically.</p>
+      </aside>
+    {/if}
 
     <section class="status" aria-label="Diagnostic status">
       <div><span>Last phase</span><strong data-diag-phase>{view.report.phase}</strong></div>
@@ -149,6 +157,7 @@
       </div>
       <p>Reports contain browser/device information, timing and synthetic model output—not cookies, account data or book selections. Nothing is uploaded automatically. New report resets only this diagnostic record, never books or cached weights.</p>
       <ol class="events" aria-label="Recent diagnostic phases">{#each view.report.events.slice(-12).reverse() as event}<li><code>{event.phase}</code><span>{event.detail}</span></li>{/each}</ol>
+      {#if view.report.measurements.errorDetails !== undefined}<details open><summary>Full captured error ({view.report.measurements.errorSource ?? 'unknown source'})</summary><pre class="output" aria-label="Structured diagnostic error">{JSON.stringify(view.report.measurements.errorDetails, null, 2)}</pre></details>{/if}
       <details><summary>Report preview / manual copy</summary><textarea aria-label="Diagnostic report JSON" readonly value={reportJSON} rows="12"></textarea></details>
     </section>
     <div class="stop-bar"><button class="stop" onclick={() => session?.stop()} disabled={!view.busy && !view.ready}>Stop and release model</button><a href="/app">Return to library</a></div>

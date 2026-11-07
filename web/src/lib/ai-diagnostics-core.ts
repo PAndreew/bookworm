@@ -9,8 +9,42 @@ export type DiagnosticConfig = { context: 512 | 1024 | 2048; budgetMiB: 512 | 76
 export type DiagnosticCase = 'short' | 'card';
 export type DiagnosticTask = 'explain' | 'translate';
 export type BufferStats = { liveBytes: number; peakBytes: number; largestBufferBytes: number; allocatedBuffers: number; budgetBytes: number };
+export type BufferRejection = { reason: 'budget-exceeded' | 'invalid-size'; requestedBytes: number | null; liveBytes: number; wouldBeBytes: number | null; budgetBytes: number; label: string; usage: number | null };
+
+// Errors thrown through WASM/runtime callbacks may be plain objects, not Error
+// instances. Keep non-enumerable fields and nested causes, with bounded output.
+export function diagnosticError(error: unknown): { message: string; details: any } {
+  const seen = new WeakSet<object>();
+  let nodes = 0;
+  let characters = 12_000;
+  const text = (value: string) => { const result = value.slice(0, Math.min(4000, characters)); characters -= result.length; return result; };
+  const read = (value: object, key: string) => { try { return (value as any)[key]; } catch { return '[Unreadable property]'; } };
+  const copy = (value: any, depth: number): any => {
+    if (++nodes > 80 || characters <= 0 || depth > 5) return '[Truncated]';
+    if (value === null || typeof value === 'boolean') return value;
+    if (typeof value === 'string') return text(value);
+    if (typeof value === 'number') return Number.isFinite(value) ? value : String(value);
+    if (typeof value !== 'object') { try { return text(String(value)); } catch { return '[Unprintable]'; } }
+    if (seen.has(value)) return '[Circular or repeated reference]';
+    seen.add(value);
+    if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) return '[Binary data omitted]';
+    if (Array.isArray(value)) return value.slice(0, 8).map(item => copy(item, depth + 1));
+    let own: string[] = [];
+    try { own = Object.getOwnPropertyNames(value); } catch { return '[Unreadable object]'; }
+    const keys = [...new Set(['name', 'message', 'stack', 'cause', 'code', 'reason', ...own])].slice(0, 20);
+    const result: Record<string, unknown> = {};
+    for (const key of keys) { const item = read(value, key); if (item !== undefined) Object.defineProperty(result, key, { value: copy(item, depth + 1), enumerable: true }); }
+    return result;
+  };
+  const details = copy(error, 0);
+  let message: string;
+  if (typeof details === 'string') message = details;
+  else if (typeof details?.message === 'string' && details.message) message = details.message;
+  else { try { message = JSON.stringify(details) ?? 'Unknown diagnostic error'; } catch { message = 'Unserializable diagnostic error'; } }
+  return { message: message.slice(0, 600), details };
+}
 export type DiagnosticReport = {
-  version: 1; id: string; model: string; revision: string; runtime: string;
+  version: 1; recorderVersion?: number; id: string; model: string; revision: string; runtime: string;
   environment: Record<string, unknown>; config: DiagnosticConfig;
   phase: string; active: boolean; resident: boolean;
   events: Array<{ at: string; phase: string; detail: string }>;
@@ -23,7 +57,7 @@ export function validateConfig(value: DiagnosticConfig): DiagnosticConfig {
 }
 
 export function createReport(config: DiagnosticConfig, environment: Record<string, unknown>): DiagnosticReport {
-  return { version: 1, id: crypto.randomUUID(), model: DIAG_MODEL, revision: DIAG_REVISION, runtime: '@mlc-ai/web-llm@0.2.87', environment, config: validateConfig(config), phase: 'idle', active: false, resident: false, events: [], measurements: {} };
+  return { version: 1, recorderVersion: 2, id: crypto.randomUUID(), model: DIAG_MODEL, revision: DIAG_REVISION, runtime: '@mlc-ai/web-llm@0.2.87', environment, config: validateConfig(config), phase: 'idle', active: false, resident: false, events: [], measurements: {} };
 }
 
 export function recordPhase(report: DiagnosticReport, phase: string, detail = '', active = report.active, resident = report.resident): DiagnosticReport {
@@ -63,13 +97,20 @@ export function shardURLs(manifest: unknown): Array<{ url: string; bytes: number
 }
 
 // Requested GPUBuffer bytes only: not total process RAM, GPU textures or driver memory.
-export function installBufferBudget(device: { createBuffer: (descriptor: any) => any }, budgetBytes: number, update: (stats: BufferStats) => void) {
+export function installBufferBudget(device: { createBuffer: (descriptor: any) => any }, budgetBytes: number, update: (stats: BufferStats) => void, rejected: (allocation: BufferRejection) => void = () => {}) {
   if (!Number.isSafeInteger(budgetBytes) || budgetBytes <= 0) throw new Error('Invalid GPU buffer budget.');
   const stats: BufferStats = { liveBytes: 0, peakBytes: 0, largestBufferBytes: 0, allocatedBuffers: 0, budgetBytes };
   const create = device.createBuffer.bind(device);
   device.createBuffer = descriptor => {
     const bytes = Number(descriptor.size);
-    if (!Number.isSafeInteger(bytes) || bytes < 0 || stats.liveBytes + bytes > budgetBytes) throw new Error(`Diagnostic GPU buffer budget exceeded (${Math.round((stats.liveBytes + bytes) / MIB)} MiB requested; ${Math.round(budgetBytes / MIB)} MiB budget). This is not a measurement of total RAM.`);
+    if (!Number.isSafeInteger(bytes) || bytes < 0 || stats.liveBytes + bytes > budgetBytes) {
+      const valid = Number.isSafeInteger(bytes) && bytes >= 0;
+      const allocation: BufferRejection = { reason: valid ? 'budget-exceeded' : 'invalid-size', requestedBytes: Number.isFinite(bytes) ? bytes : null, liveBytes: stats.liveBytes, wouldBeBytes: Number.isSafeInteger(stats.liveBytes + bytes) ? stats.liveBytes + bytes : null, budgetBytes, label: typeof descriptor.label === 'string' ? descriptor.label.slice(0, 160) : '', usage: typeof descriptor.usage === 'number' ? descriptor.usage : null };
+      // Send evidence before throwing: a WASM layer may replace/wrap this Error.
+      try { rejected(allocation); } catch { /* Telemetry must not bypass the guard. */ }
+      const message = valid ? `Diagnostic GPU buffer budget exceeded: next allocation ${bytes} bytes; live ${stats.liveBytes}; would become ${stats.liveBytes + bytes}; budget ${budgetBytes}. No native allocation was made. This is not total RAM.` : 'Diagnostic refused an invalid GPU buffer size before native allocation.';
+      throw Object.assign(new Error(message), { name: 'DiagnosticBufferBudgetError', code: valid ? 'DIAGNOSTIC_GPU_BUFFER_BUDGET' : 'DIAGNOSTIC_GPU_BUFFER_SIZE', allocation });
+    }
     const buffer = create(descriptor);
     const destroy = buffer.destroy.bind(buffer);
     let released = false;

@@ -38,7 +38,7 @@ async function waitWorkers(page,active){for(let i=0;i<40&&active.size;i++)await 
    });
    await page.route('**/ai-diagnostics.worker-*.js',route=>{
     workers.push(route.request().url());
-    const body=mode==='fail'?`self.onmessage=({data:c})=>{postMessage({id:c.id,kind:'phase',phase:'gpu-device-created',detail:'Mock load'});postMessage({id:c.id,kind:'failure',error:'Diagnostic GPU buffer budget exceeded (test).'});};`:mode==='stall'?'self.onmessage=()=>{};':normalWorker;
+    const body=mode==='fail'?`self.onmessage=({data:c})=>{postMessage({id:c.id,kind:'phase',phase:'gpu-device-created',detail:'Mock load'});postMessage({id:c.id,kind:'budget-rejected',allocation:{reason:'budget-exceeded',requestedBytes:33554432,liveBytes:784869392,wouldBeBytes:818423824,budgetBytes:805306368,label:'prefill-scratch',usage:8}});postMessage({id:c.id,kind:'failure',error:'Diagnostic GPU buffer budget exceeded (test).',errorSource:'runtime',errorDetails:{name:'RuntimeError',message:'GPU callback failed',cause:{message:'budget exceeded',code:'DIAGNOSTIC_GPU_BUFFER_BUDGET'}}});};`:mode==='stall'?'self.onmessage=()=>{};':normalWorker;
     return route.fulfill({contentType:'text/javascript',body});
    });
    await page.goto(base+'/ai-diagnostics/',{waitUntil:'networkidle'});
@@ -86,6 +86,9 @@ async function waitWorkers(page,active){for(let i=0;i<40&&active.size;i++)await 
    await page.getByRole('button',{name:'Load GPU model',exact:true}).click();
    await page.getByRole('alert').filter({hasText:'budget exceeded'}).waitFor();await waitWorkers(page,active);
    report=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);assert.equal(report.phase,'failure');assert.equal(report.measurements.failedAt,'gpu-device-created');
+   assert.equal(report.measurements.lastBudgetRejection.requestedBytes,33554432);assert.equal(report.measurements.lastBudgetRejection.rejectedDuring,'gpu-device-created');
+   assert.equal(report.measurements.errorDetails.cause.code,'DIAGNOSTIC_GPU_BUFFER_BUDGET');assert.equal(report.measurements.errorSource,'runtime');
+   await page.getByLabel('GPU allocation rejection',{exact:true}).waitFor();assert((await page.getByLabel('Structured diagnostic error',{exact:true}).textContent()).includes('GPU callback failed'));
    await page.reload({waitUntil:'networkidle'});assert.equal(workers.length,2,'failure automatically retried after reload');
    assert(await page.getByRole('button',{name:'Inspect device',exact:true}).isDisabled());
    await page.getByRole('button',{name:'New report / reset test lock',exact:true}).click();

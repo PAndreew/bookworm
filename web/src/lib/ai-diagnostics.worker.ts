@@ -1,5 +1,5 @@
 import { MLCEngine, prebuiltAppConfig } from '@mlc-ai/web-llm';
-import { DIAG_MODEL, DIAG_MODEL_URL, MIB, diagnosticPrompt, installBufferBudget, validateConfig, type DiagnosticConfig, type BufferStats } from './ai-diagnostics-core';
+import { DIAG_MODEL, DIAG_MODEL_URL, MIB, diagnosticPrompt, diagnosticError, installBufferBudget, validateConfig, type DiagnosticConfig, type BufferStats } from './ai-diagnostics-core';
 
 let currentId = '';
 let busy = false;
@@ -8,6 +8,10 @@ let config: DiagnosticConfig;
 let memory: BufferStats | undefined;
 const send = (kind: string, data: Record<string, unknown> = {}) => self.postMessage({ id: currentId, kind, ...data });
 const phase = (name: string, detail = '') => send('phase', { phase: name, detail });
+const failure = (error: unknown, source = 'runtime', prefix = '') => {
+  const formatted = diagnosticError(error);
+  send('failure', { error: prefix + formatted.message, errorDetails: formatted.details, errorSource: source, memory });
+};
 
 async function instrumentGPU() {
   phase('adapter-check', 'Checking a real WebGPU adapter with shader-f16; FP32 fallback is disabled.');
@@ -26,9 +30,9 @@ async function instrumentGPU() {
     installBufferBudget(device, config.budgetMiB * MIB, stats => {
       memory = stats;
       if (performance.now() - lastMemoryMessage > 100) { lastMemoryMessage = performance.now(); send('memory', { memory }); }
-    });
-    device.lost.then((info: any) => { if (info.reason !== 'destroyed') send('failure', { error: `GPU device lost: ${String(info.message || info.reason).slice(0, 300)}`, memory }); });
-    device.addEventListener('uncapturederror', (event: any) => send('failure', { error: `GPU error: ${String(event.error?.message ?? 'Unknown validation error').slice(0, 300)}`, memory }));
+    }, allocation => send('budget-rejected', { allocation, memory }));
+    device.lost.then((info: any) => { if (info.reason !== 'destroyed') failure(info, 'gpu-device-lost', 'GPU device lost: '); });
+    device.addEventListener('uncapturederror', (event: any) => failure(event.error ?? 'Unknown GPU validation error', 'gpu-uncaptured-error', 'GPU error: '));
     return device;
   };
 }
@@ -88,6 +92,6 @@ self.onmessage = async ({ data: command }: MessageEvent) => {
       config = validateConfig(command.config);
       await load();
     } else await run(command);
-  } catch (error) { send('failure', { error: (error instanceof Error ? error.message : String(error)).slice(0, 500), memory }); }
+  } catch (error) { failure(error); }
   finally { busy = false; }
 };

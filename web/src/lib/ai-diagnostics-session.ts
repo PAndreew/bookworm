@@ -1,4 +1,4 @@
-import { DIAG_MODEL_URL, DIAG_STORAGE_KEY, createReport, parseReport, recordPhase, shardURLs, validateConfig, type DiagnosticConfig, type DiagnosticReport, type DiagnosticCase, type DiagnosticTask } from './ai-diagnostics-core';
+import { DIAG_MODEL_URL, DIAG_STORAGE_KEY, createReport, diagnosticError, parseReport, recordPhase, shardURLs, validateConfig, type DiagnosticConfig, type DiagnosticReport, type DiagnosticCase, type DiagnosticTask } from './ai-diagnostics-core';
 
 export type DiagnosticView = { report: DiagnosticReport; ready: boolean; busy: boolean; weightsReady: boolean; needsReset: boolean; error: string; progress: string; output: string; storageWarning: string };
 const DEFAULT: DiagnosticConfig = { context: 512, budgetMiB: 768, maxTokens: 32 };
@@ -151,7 +151,7 @@ export class DiagnosticSession {
       if (this.view.storageWarning) throw new Error(this.view.storageWarning);
       this.worker = new Worker(new URL('./ai-diagnostics.worker.ts', import.meta.url), { type: 'module' });
       this.worker.onmessage = event => this.message(event.data);
-      this.worker.onerror = event => { event.preventDefault(); this.fail(new Error(event.message || 'Diagnostic worker crashed.')); };
+      this.worker.onerror = event => { event.preventDefault(); this.fail(event.error ?? { name: 'WorkerError', message: event.message || 'Diagnostic worker crashed.', filename: event.filename, line: event.lineno, column: event.colno }, undefined, 'worker-error-event'); };
       this.worker.onmessageerror = () => this.fail(new Error('Could not read a diagnostic worker response.'));
       this.deadline = setTimeout(() => this.fail(new Error('GPU initialization exceeded 60 seconds. No retry was started.')), 60_000);
       this.worker.postMessage({ id: this.id, kind: 'load', config: this.view.report.config });
@@ -181,7 +181,13 @@ export class DiagnosticSession {
     } else if (message.kind === 'adapter') this.measurements({ workerAdapter: message }, true);
     else if (message.kind === 'memory') this.measurements({ lastGPUBufferStats: message.memory }, performance.now() - this.lastSave > 1000);
     else if (message.kind === 'output') { this.view.output = String(message.text).slice(0, 4000); this.publish(); }
-    else if (message.kind === 'failure') { if (message.memory) this.measurements({ lastGPUBufferStats: message.memory }); this.fail(new Error(String(message.error))); }
+    else if (message.kind === 'budget-rejected') {
+      // Persist before the runtime handles the thrown guard error. Do not change
+      // the active phase or terminate early and lose the ensuing runtime exception.
+      if (message.memory) this.measurements({ lastGPUBufferStats: message.memory });
+      this.measurements({ lastBudgetRejection: { ...message.allocation, rejectedDuring: this.view.report.phase } }, true);
+    }
+    else if (message.kind === 'failure') { if (message.memory) this.measurements({ lastGPUBufferStats: message.memory }); this.fail(message.error, message.errorDetails, message.errorSource ?? 'worker'); }
     else if (message.kind === 'complete') {
       clearTimeout(this.deadline);
       this.view.busy = false;
@@ -197,12 +203,13 @@ export class DiagnosticSession {
     }
   }
 
-  private fail(error: unknown) {
+  private fail(error: unknown, details?: unknown, source = 'client') {
     const failedAt = this.view.report.phase;
+    const formatted = diagnosticError(error);
     this.disposeResources();
-    this.view.error = (error instanceof Error ? error.message : String(error)).slice(0, 600);
+    this.view.error = formatted.message;
     this.view.needsReset = true;
-    this.measurements({ failedAt });
+    this.measurements({ failedAt, errorDetails: details ?? formatted.details, errorSource: source });
     this.phase('failure', this.view.error, false, false);
   }
   private disposeResources() {
