@@ -52,6 +52,7 @@ async function waitWorkers(page,active){for(let i=0;i<40&&active.size;i++)await 
    await page.getByRole('button',{name:'Inspect device',exact:true}).click();
    await page.waitForFunction(()=>document.querySelector('[data-diag-phase]').textContent==='device-inspected');
    assert.equal(files.length,0,'inspect fetched model weights');assert.equal(workers.length,0);
+   await page.getByLabel('GPU buffer budget',{exact:true}).selectOption('2048');
    await page.getByRole('checkbox').check();
    await page.getByRole('button',{name:'Download/check weights',exact:true}).click();
    await page.waitForFunction(()=>document.querySelector('[data-diag-phase]').textContent==='weights-cached');
@@ -60,6 +61,7 @@ async function waitWorkers(page,active){for(let i=0;i<40&&active.size;i++)await 
    await page.waitForFunction(()=>document.querySelector('[data-diag-phase]').textContent==='model-ready');
    assert.equal(workers.length,1);
    const loaded=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
+   assert.equal(loaded.config.budgetMiB,2048);
    assert.equal(loaded.resident,true);assert.equal(loaded.active,false);assert.equal(loaded.measurements.runs,undefined,'load secretly ran a prompt');
    assert.equal(loaded.measurements.load.actualContext,512);assert.equal(loaded.measurements.load.compiledPrefill,1024);
    await page.getByRole('button',{name:'Run selected test',exact:true}).click();

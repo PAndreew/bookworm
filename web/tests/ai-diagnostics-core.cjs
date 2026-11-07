@@ -2,6 +2,8 @@ const assert=require('node:assert/strict');
 (async()=>{
  const core=await import('../src/lib/ai-diagnostics-core.ts');
  const config={context:512,budgetMiB:768,maxTokens:32};
+ assert.equal(core.validateConfig({...config,budgetMiB:2048}).budgetMiB,2048);
+ assert.throws(()=>core.validateConfig({...config,budgetMiB:4096}));
  assert.deepEqual(core.validateConfig(config),config);
  assert.throws(()=>core.validateConfig({...config,context:262144}),/Unsupported/);
  let report=core.createReport(config,{standalone:true});

@@ -5,7 +5,7 @@ export const DIAG_MODEL_URL = `https://huggingface.co/mlc-ai/${DIAG_MODEL}/resol
 export const DIAG_STORAGE_KEY = 'bw:ai-diagnostics:v1';
 export const MIB = 1024 * 1024;
 
-export type DiagnosticConfig = { context: 512 | 1024 | 2048; budgetMiB: 512 | 768 | 1024; maxTokens: 16 | 32 | 64 | 96 };
+export type DiagnosticConfig = { context: 512 | 1024 | 2048; budgetMiB: 512 | 768 | 1024 | 2048; maxTokens: 16 | 32 | 64 | 96 };
 export type DiagnosticCase = 'short' | 'card';
 export type DiagnosticTask = 'explain' | 'translate';
 export type BufferStats = { liveBytes: number; peakBytes: number; largestBufferBytes: number; allocatedBuffers: number; budgetBytes: number };
@@ -52,7 +52,7 @@ export type DiagnosticReport = {
 };
 
 export function validateConfig(value: DiagnosticConfig): DiagnosticConfig {
-  if (![512, 1024, 2048].includes(value.context) || ![512, 768, 1024].includes(value.budgetMiB) || ![16, 32, 64, 96].includes(value.maxTokens)) throw new Error('Unsupported diagnostic configuration.');
+  if (![512, 1024, 2048].includes(value.context) || ![512, 768, 1024, 2048].includes(value.budgetMiB) || ![16, 32, 64, 96].includes(value.maxTokens)) throw new Error('Unsupported diagnostic configuration.');
   return { context: value.context, budgetMiB: value.budgetMiB, maxTokens: value.maxTokens };
 }
 

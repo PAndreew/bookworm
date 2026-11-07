@@ -140,7 +140,7 @@
       <p><code>{DIAG_MODEL}</code> · FP16 only, with no silent FP32 fallback.</p>
       <div class="settings">
         <label>Context tokens<select aria-label="Context tokens" bind:value={context} disabled={settingsLocked}><option value={512}>512 · start here</option><option value={1024}>1,024</option><option value={2048}>2,048 · previous reader setting</option></select></label>
-        <label>GPU buffer budget<select aria-label="GPU buffer budget" bind:value={budgetMiB} disabled={settingsLocked}><option value={512}>512 MiB</option><option value={768}>768 MiB · default</option><option value={1024}>1,024 MiB · higher risk</option></select></label>
+        <label>GPU buffer budget<select aria-label="GPU buffer budget" bind:value={budgetMiB} disabled={settingsLocked}><option value={512}>512 MiB</option><option value={768}>768 MiB · default</option><option value={1024}>1,024 MiB · higher risk</option><option value={2048}>2,048 MiB · high crash risk</option></select></label>
         <label>Output cap<select aria-label="Output cap" bind:value={maxTokens} disabled={settingsLocked}><option value={16}>16 tokens</option><option value={32}>32 tokens</option><option value={64}>64 tokens</option><option value={96}>96 tokens</option></select></label>
       </div>
       <p><strong>Prefill is compiled into this MLC artifact (expected 1,024).</strong> This page does not pretend that an unsupported “128” option changes it. Actual runtime metadata is recorded after loading. The smaller context reduces one variable; it is not a proven fix.</p>
