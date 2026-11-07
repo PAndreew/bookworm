@@ -321,6 +321,7 @@
         {#if usage}<p>{Math.max(0, usage.limit - usage.used)} of {usage.limit} on-device requests left this month. Resets {new Date(usage.resets_at).toLocaleDateString(undefined, { timeZone: 'UTC' })} (UTC).</p>{/if}
         {#if tier === 'free'}<p><a href="/app/upgrade">Plus: 100 on-device requests/month and cloud AI</a>.</p>{/if}
         {#if !localAllowed}<p>On-device AI is temporarily paused while we investigate browser crashes. Reading and Plus cloud AI remain available.</p>
+        <p><a href="/ai-diagnostics/">Open isolated diagnostic page</a> · advanced, explicit tests only.</p>
         {:else if supported === false}<p>This browser/device cannot run this model. A usable WebGPU adapter is required. No text will be sent to cloud AI automatically.</p>
         {:else if !localLoaded}
           <p>First use downloads about 447 MB plus the runtime and needs roughly 1.6–1.9 GB of GPU memory. Download hosts receive connection metadata. We cache downloaded weights, but only start AI after you choose Enable in this session. Closing Puri or leaving the tab releases GPU memory.</p>
