@@ -1,6 +1,6 @@
 import { DIAG_MODEL_URL, DIAG_STORAGE_KEY, createReport, diagnosticError, parseReport, recordPhase, shardURLs, validateConfig, type DiagnosticConfig, type DiagnosticReport, type DiagnosticCase, type DiagnosticTask } from './ai-diagnostics-core';
 
-export type DiagnosticView = { report: DiagnosticReport; ready: boolean; busy: boolean; weightsReady: boolean; needsReset: boolean; error: string; progress: string; output: string; storageWarning: string };
+export type DiagnosticView = { report: DiagnosticReport; ready: boolean; busy: boolean; weightsReady: boolean; cacheChecked: boolean; needsReset: boolean; error: string; progress: string; output: string; storageWarning: string };
 const DEFAULT: DiagnosticConfig = { context: 512, budgetMiB: 768, maxTokens: 32 };
 
 export class DiagnosticSession {
@@ -12,6 +12,8 @@ export class DiagnosticSession {
   private idle?: ReturnType<typeof setTimeout>;
   private lastSave = 0;
   private environment: Record<string, unknown>;
+  private actionEpoch = 0;
+  private queuedTest?: { test: DiagnosticCase; task: DiagnosticTask; language: string };
   constructor(private changed: (view: DiagnosticView) => void) {
     let previous: DiagnosticReport | null = null;
     let storageWarning = '';
@@ -19,9 +21,34 @@ export class DiagnosticSession {
     catch { storageWarning = 'Diagnostic storage is unavailable; model tests are disabled because crash markers cannot be saved.'; }
     const environment = { userAgent: navigator.userAgent, standalone: !!(navigator as any).standalone || window.matchMedia('(display-mode: standalone)').matches, hardwareConcurrency: navigator.hardwareConcurrency, deviceMemoryGiB: (navigator as any).deviceMemory ?? null, viewport: { width: window.innerWidth, height: window.innerHeight } };
     this.environment = environment;
-    this.view = { report: previous ?? createReport(DEFAULT, environment), ready: false, busy: false, weightsReady: false, needsReset: !!previous && (previous.active || previous.resident || previous.phase === 'failure'), error: '', progress: '', output: '', storageWarning };
+    this.view = { report: previous ?? createReport(DEFAULT, environment), ready: false, busy: false, weightsReady: false, cacheChecked: false, needsReset: !!previous && (previous.active || previous.resident || previous.phase === 'failure'), error: '', progress: '', output: '', storageWarning };
     if (!previous) this.publish(true);
     else this.changed({ ...this.view });
+    // Metadata/keys only: no adapter, worker, weight body or network request.
+    void this.checkSavedWeights();
+  }
+
+  private async checkSavedWeights() {
+    try {
+      const cache = await this.cacheStatus();
+      if (!this.view.busy) this.view.weightsReady = cache.complete;
+    } catch { /* A manual check can explain missing/unavailable cache later. */ }
+    this.view.cacheChecked = true;
+    this.publish();
+  }
+
+  async retry(config: DiagnosticConfig, test: DiagnosticCase, task: DiagnosticTask, language: string, deviceLabel = '') {
+    if (this.view.busy) throw new Error('A diagnostic step is already running.');
+    if (this.view.ready && JSON.stringify(config) === JSON.stringify(this.view.report.config)) { this.run(test, task, language); return; }
+    if (this.view.ready) this.stop('Stopped to change diagnostic configuration.');
+    // This explicit click replaces the failed report. Export is never required.
+    this.newReport(config);
+    const epoch = this.actionEpoch;
+    await this.inspect(deviceLabel);
+    if (epoch !== this.actionEpoch || document.hidden || this.view.needsReset) return;
+    if (!this.view.weightsReady) throw new Error('Some weight files are not cached. Use Download/check weights once; retry never downloads them automatically.');
+    this.queuedTest = { test, task, language };
+    try { this.load(); } catch (error) { this.queuedTest = undefined; throw error; }
   }
 
   private publish(save = false) {
@@ -47,6 +74,7 @@ export class DiagnosticSession {
 
   newReport(config: DiagnosticConfig = DEFAULT) {
     if (this.view.busy || this.view.ready) throw new Error('Stop and release the model first.');
+    this.actionEpoch++;
     this.view = { ...this.view, report: createReport(validateConfig(config), this.environment), needsReset: false, error: '', progress: '', output: '', storageWarning: '' };
     this.publish(true);
   }
@@ -68,6 +96,7 @@ export class DiagnosticSession {
 
   async inspect(deviceLabel = '') {
     this.allowed();
+    const epoch = this.actionEpoch;
     this.view.report = { ...this.view.report, environment: { ...this.view.report.environment, userProvidedDeviceLabel: deviceLabel.slice(0, 80) } };
     this.view.busy = true;
     this.view.error = '';
@@ -76,13 +105,16 @@ export class DiagnosticSession {
       const adapter = await (navigator as any).gpu?.requestAdapter();
       const info = adapter?.info;
       const cache = await this.cacheStatus();
+      if (epoch !== this.actionEpoch) return;
       this.view.weightsReady = cache.complete;
+      this.view.cacheChecked = true;
       let storage: unknown = null;
       try { storage = await navigator.storage?.estimate(); } catch { /* Optional disk-space information. */ }
+      if (epoch !== this.actionEpoch) return;
       this.measurements({ adapter: adapter ? { hardwareAdapter: !adapter.isFallbackAdapter && !info?.isFallbackAdapter && !/swiftshader|llvmpipe|software/i.test(`${info?.description ?? ''} ${info?.architecture ?? ''}`), shaderF16: adapter.features.has('shader-f16'), features: [...adapter.features], vendor: info?.vendor ?? '', architecture: info?.architecture ?? '', description: info?.description ?? '', maxBufferSize: adapter.limits?.maxBufferSize, maxStorageBufferBindingSize: adapter.limits?.maxStorageBufferBindingSize } : null, cache, diskStorageEstimate: storage });
       this.phase('device-inspected', cache.complete ? 'Cached weight files are present. Presence is not a cryptographic integrity check.' : 'Some or all weights are missing; use Download/check weights before GPU loading.', false, false);
     } catch (error) { this.fail(error); }
-    finally { this.view.busy = false; this.publish(true); }
+    finally { if (epoch === this.actionEpoch) { this.view.busy = false; this.publish(true); } }
   }
 
   async downloadWeights() {
@@ -128,6 +160,7 @@ export class DiagnosticSession {
       controller.signal.throwIfAborted();
       if (!status.complete) throw new Error('The browser did not retain every weight shard.');
       this.view.weightsReady = true;
+      this.view.cacheChecked = true;
       this.measurements({ cache: status, download: { reusedShards: cached, fetchedShards: shards.length - cached } });
       this.phase('weights-cached', 'Weights are cached. Tokenizer/config/WASM files may still be fetched during GPU initialization. No model is loaded.', false, false);
     } catch (error) { if (!controller.signal.aborted) this.fail(error); }
@@ -199,6 +232,12 @@ export class DiagnosticSession {
         this.view.output = String(message.output ?? '').slice(0, 4000);
       }
       this.phase(message.operation === 'load' ? 'model-ready' : 'test-completed', message.operation === 'load' ? 'GPU initialization completed, but no prompt has been tested. Idle model unloads after 60 seconds.' : `Generation finished (${message.finishReason ?? 'unknown finish reason'}). Idle model unloads after 60 seconds.`, false, true);
+      if (message.operation === 'load' && this.queuedTest) {
+        const next = this.queuedTest;
+        this.queuedTest = undefined;
+        try { this.run(next.test, next.task, next.language); } catch (error) { this.fail(error); }
+        return;
+      }
       this.idle = setTimeout(() => this.stop('Idle model released after 60 seconds.'), 60_000);
     }
   }
@@ -213,8 +252,10 @@ export class DiagnosticSession {
     this.phase('failure', this.view.error, false, false);
   }
   private disposeResources() {
+    this.actionEpoch++;
     clearTimeout(this.deadline); clearTimeout(this.idle);
     this.id = '';
+    this.queuedTest = undefined;
     this.download?.abort(); this.download = undefined;
     this.worker?.terminate(); this.worker = undefined;
     this.view.ready = false; this.view.busy = false;

@@ -29,7 +29,7 @@ async function waitWorkers(page,active){for(let i=0;i<40&&active.size;i++)await 
    page.on('worker',w=>{active.add(w);w.on('close',()=>active.delete(w))});
    await page.addInitScript(()=>{
     Object.defineProperty(navigator,'standalone',{value:true});
-    Object.defineProperty(navigator,'gpu',{value:{requestAdapter:async()=>({features:new Set(['shader-f16']),info:{vendor:'mock',architecture:'apple-test'},limits:{maxBufferSize:1024**3,maxStorageBufferBindingSize:128*1024**2}})}});
+    Object.defineProperty(navigator,'gpu',{value:{requestAdapter:async()=>{if(window.__diagDelayAdapter)await new Promise(resolve=>setTimeout(resolve,250));return {features:new Set(['shader-f16']),info:{vendor:'mock',architecture:'apple-test'},limits:{maxBufferSize:1024**3,maxStorageBufferBindingSize:128*1024**2}}}}});
    });
    await page.route('**/v1/**',route=>{api.push(route.request().url());return route.fulfill({status:500,json:{error:'unexpected API'}})});
    await page.route(model+'**',route=>{
@@ -91,12 +91,22 @@ async function waitWorkers(page,active){for(let i=0;i<40&&active.size;i++)await 
    await page.getByLabel('GPU allocation rejection',{exact:true}).waitFor();assert((await page.getByLabel('Structured diagnostic error',{exact:true}).textContent()).includes('GPU callback failed'));
    await page.reload({waitUntil:'networkidle'});assert.equal(workers.length,2,'failure automatically retried after reload');
    assert(await page.getByRole('button',{name:'Inspect device',exact:true}).isDisabled());
+   // Saved failures can be retried directly: no export, manual reset, cache
+   // redownload or separate GPU-load click is required.
+   mode='normal';
+   const oldId=report.id;
+   await page.getByRole('button',{name:'Run / retry test',exact:true}).click();
+   await page.waitForFunction(k=>JSON.parse(localStorage.getItem(k)).phase==='test-completed',key);
+   report=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
+   assert.notEqual(report.id,oldId);assert.equal(report.measurements.runs.length,1);
+   assert.equal(files.length,3,'retry downloaded already-cached weights');assert.equal(workers.length,3);
+   await page.getByRole('button',{name:'Stop test',exact:true}).click();await waitWorkers(page,active);
    await page.getByRole('button',{name:'New report / reset test lock',exact:true}).click();
    assert.equal(await page.evaluate(()=>localStorage.getItem('bw:reading-marker')),'keep');
    // Simulate a process kill: there is no live worker to run pagehide cleanup.
    await page.evaluate(k=>{const r=JSON.parse(localStorage.getItem(k));r.phase='prompt-prefill';r.active=true;r.resident=true;localStorage.setItem(k,JSON.stringify(r))},key);
    await page.reload({waitUntil:'networkidle'});await page.getByText('A previous test failed or did not finish cleanly.',{exact:true}).waitFor();
-   assert.equal(workers.length,2);assert.equal(files.length,3);assert.equal(api.length,0);
+   assert.equal(workers.length,3);assert.equal(files.length,3);assert.equal(api.length,0);
    report=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);assert.equal(report.phase,'prompt-prefill','reopening overwrote the crash marker');
    await page.getByRole('button',{name:'New report / reset test lock',exact:true}).click();
    await page.getByRole('button',{name:'Inspect device',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[data-diag-phase]').textContent==='device-inspected');
@@ -107,6 +117,12 @@ async function waitWorkers(page,active){for(let i=0;i<40&&active.size;i++)await 
    await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'))});
    await waitWorkers(page,active);
    report=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);assert.equal(report.phase,'stopped');assert.equal(report.resident,false);
+   const beforeCancelledRetry=workers.length;
+   await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:false});window.__diagDelayAdapter=true});
+   await page.getByRole('button',{name:'Run / retry test',exact:true}).click();
+   await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'))});
+   await page.waitForTimeout(400);
+   assert.equal(workers.length,beforeCancelledRetry,'retry started a model after the page was hidden during inspection');
    assert.deepEqual(errors,[]);assert.deepEqual(api,[]);
    console.log(`${width}px: no automatic model/API activity, staged cached download/load, explicit prompts, report export, budget failure, crash lock and background termination passed`);
    await context.close();

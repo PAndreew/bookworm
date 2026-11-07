@@ -7,19 +7,22 @@ quota or hosted-model APIs. It uses fixed synthetic prompts only.
 
 ## Suggested first run on iPhone 16 / iOS 26
 
-1. Close other Potpuri tabs. Open this page in the installed PWA.
-2. Inspect device. This reads adapter features and cached shard presence, not model
-   weights into RAM. It records standalone/browser mode and optional device label.
-3. Read/check the risk acknowledgement, then Download/check weights. Complete
-   cached FP16 MLC shards are reused, without allocating a GPU model. Cache presence
-   is not an integrity verification. Existing FP32 weights are not silently reused.
+1. Open this page inside the same installed PWA that downloaded the weights.
+   The page checks local cache metadata/keys automatically, without reading the
+   large weight bodies, requesting a GPU adapter or starting a model.
+2. If cached weights are present, tap **Run / retry test** at the top. This explicit,
+   risk-labelled action starts a fresh report after failure, inspects capabilities,
+   loads the existing cached model and runs the selected test. **No export or
+   separate reset/load sequence is required.** It never downloads missing weights.
+3. Only if files are genuinely missing, use Download/check weights once. Existing
+   shards are skipped. Cache presence is not an integrity verification; FP32 files
+   cannot silently substitute for the pinned FP16 model.
 4. Keep the initial **512-token context, 768 MiB GPU-buffer budget, 32 output tokens**.
-   Click Load GPU model. FP16 hardware support is required; no FP32 fallback.
-5. Once model-ready, run the short Explain prompt first. Then explicitly choose
-   the card-sized sample / Translate test. A low output cap can truncate translation;
-   this page is for stability/timing, not a quality certification.
-6. Stop and export the report. If iOS reloads the page, reopen the diagnostic URL:
-   the last saved active/resident phase is shown, with no automatic retry.
+   Advanced controls remain below, including separate inspect/load/test actions.
+   Failed runs no longer lock the configuration selectors.
+5. Reports are optional to export. If iOS reloads the page, the previous phase is
+   retained and nothing restarts until another explicit Run / retry click. Closing,
+   hiding or stopping during the combined flow cancels its remaining steps too.
 
 **This test may still crash the tab.** The buffer budget tracks requested
 GPUBuffer allocations, not CPU/WASM memory, GPU textures, driver memory, or total
@@ -51,7 +54,8 @@ compiled artifact or a separately validated runtime, not a misleading dropdown.
   Stop, page hiding, navigation and component teardown terminate the worker.
 - Before each risky step the current phase is synchronously saved under
   `bw:ai-diagnostics:v1`. Known failures and interrupted/resident prior sessions
-  require an explicit new report before another test. Model testing is disabled
+  require an explicit action before another test. Run / retry creates the fresh
+  report itself; exporting the previous report is never required. Model testing is disabled
   when diagnostic storage cannot be written.
 - Report events are bounded. JSON includes browser/GPU metadata, configuration,
   observed buffer counts, timings, errors and synthetic output. Nothing is uploaded;
@@ -81,8 +85,8 @@ rejection and runtime-wrapped cause survive. This is not evidence that the phone
 actual next allocation was 32 MiB. A separate native-error case verifies that it
 is not mislabeled as a budget rejection.
 
-Refresh the diagnostic page, export the old record if wanted, choose New report,
-then repeat the same default short test. Cached model URLs are unchanged. New
+Refresh the diagnostic page and use Run / retry test to repeat the default short
+test directly. Exporting the old record is optional. Cached model URLs are unchanged. New
 reports include `recorderVersion: 2`; existing reports remain readable unchanged.
 
 ## Verification

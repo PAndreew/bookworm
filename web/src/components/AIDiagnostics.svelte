@@ -22,6 +22,7 @@
   const lastRun = $derived(runs.at(-1));
   const rejection = $derived(view?.report.measurements.lastBudgetRejection as BufferRejection | undefined);
   const blocked = $derived(!view || view.busy || view.needsReset || !!view.storageWarning);
+  const settingsLocked = $derived(!view || view.busy || view.ready || !!view.storageWarning);
   const locked = $derived(blocked || !!view?.ready);
   const gpuAllowed = $derived((view?.report.measurements.adapter as { shaderF16?: boolean; hardwareAdapter?: boolean } | undefined)?.shaderF16 === true && (view?.report.measurements.adapter as { hardwareAdapter?: boolean } | undefined)?.hardwareAdapter === true);
   const bytes = (value?: number) => typeof value === 'number' ? `${(value / 1024 / 1024).toFixed(1)} MiB` : 'Not measured';
@@ -50,6 +51,11 @@
     await session.inspect(deviceLabel);
   }
   function newReport() { session?.newReport(config); consent = false; }
+  async function retry() {
+    if (!session) return;
+    consent = true; // Explicit risk-labelled Run/retry click, never an automatic retry.
+    await session.retry(config, test, task, language, deviceLabel);
+  }
   function exportReport() {
     const blob = new Blob([reportJSON], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -69,6 +75,17 @@
     <p>Test Qwen3.5 0.8B one stage at a time. The reader’s local AI stays paused. This page never uses cloud AI, your account, reading history or monthly allowance.</p>
   </header>
 
+  {#if view}
+    <section class="quick" aria-label="Quick diagnostic test">
+      <h2>Run / retry — no export needed</h2>
+      <p>{test === 'short' ? 'Short phrase' : 'Card-sized sample'} · {task} · {language}. Uses the settings below.</p>
+      <p><strong>This explicit test may crash the tab.</strong> Cached weights are reused. Retry never downloads missing weights automatically.</p>
+      <p role="status">{!view.cacheChecked ? 'Checking saved weight entries…' : view.weightsReady ? '✓ All weight shards are already on this device.' : 'Some weights are missing. Use Download/check weights below once.'}</p>
+      <div class="buttons"><button onclick={() => perform(retry)} disabled={view.busy || !!view.storageWarning || !view.cacheChecked || !view.weightsReady}>Run / retry test</button><button class="stop" onclick={() => session?.stop()} disabled={!view.busy && !view.ready}>Stop test</button></div>
+      <p>Starts a fresh report after failure and runs the selected test. Export is optional. No model starts until you click.</p>
+    </section>
+  {/if}
+
   <aside class="warning" aria-label="Diagnostic safety warning">
     <strong>This experiment can crash or reload this tab.</strong>
     <p>Close other Potpuri tabs first. Nothing runs automatically, even with cached weights. Stop is always available, and hiding or leaving this page terminates its worker.</p>
@@ -80,7 +97,7 @@
     {#if view.needsReset}
       <aside class="recovery" role="alert">
         <strong>A previous test failed or did not finish cleanly.</strong>
-        <p>Saved phase: <code>{view.report.measurements.failedAt ?? view.report.phase}</code>. No worker was restarted. Export the report below before choosing New report.</p>
+        <p>Saved phase: <code>{view.report.measurements.failedAt ?? view.report.phase}</code>. Nothing restarted automatically. Use Run / retry test above; exporting first is optional.</p>
       </aside>
     {/if}
     {#if view.storageWarning}<p class="recovery" role="alert">{view.storageWarning}</p>{/if}
@@ -102,7 +119,7 @@
     <section>
       <h2>1. Inspect device and cached files</h2>
       <label for="diag-device">Device / OS label (optional)</label>
-      <input id="diag-device" placeholder="iPhone 16 · iOS 26 · installed PWA" maxlength="80" bind:value={deviceLabel} disabled={locked} />
+      <input id="diag-device" placeholder="iPhone 16 · iOS 26 · installed PWA" maxlength="80" bind:value={deviceLabel} disabled={settingsLocked} />
       <button onclick={() => perform(inspect)} disabled={locked}>Inspect device</button>
       <p>Checks WebGPU features and existing weight-cache entries without allocating a model. Reported storage quota is disk space, not available RAM.</p>
       {#if view.report.measurements.adapter !== undefined}
@@ -122,13 +139,13 @@
       <h2>3. Load the model, then send a prompt</h2>
       <p><code>{DIAG_MODEL}</code> · FP16 only, with no silent FP32 fallback.</p>
       <div class="settings">
-        <label>Context tokens<select aria-label="Context tokens" bind:value={context} disabled={locked}><option value={512}>512 · start here</option><option value={1024}>1,024</option><option value={2048}>2,048 · previous reader setting</option></select></label>
-        <label>GPU buffer budget<select aria-label="GPU buffer budget" bind:value={budgetMiB} disabled={locked}><option value={512}>512 MiB</option><option value={768}>768 MiB · default</option><option value={1024}>1,024 MiB · higher risk</option></select></label>
-        <label>Output cap<select aria-label="Output cap" bind:value={maxTokens} disabled={locked}><option value={16}>16 tokens</option><option value={32}>32 tokens</option><option value={64}>64 tokens</option><option value={96}>96 tokens</option></select></label>
+        <label>Context tokens<select aria-label="Context tokens" bind:value={context} disabled={settingsLocked}><option value={512}>512 · start here</option><option value={1024}>1,024</option><option value={2048}>2,048 · previous reader setting</option></select></label>
+        <label>GPU buffer budget<select aria-label="GPU buffer budget" bind:value={budgetMiB} disabled={settingsLocked}><option value={512}>512 MiB</option><option value={768}>768 MiB · default</option><option value={1024}>1,024 MiB · higher risk</option></select></label>
+        <label>Output cap<select aria-label="Output cap" bind:value={maxTokens} disabled={settingsLocked}><option value={16}>16 tokens</option><option value={32}>32 tokens</option><option value={64}>64 tokens</option><option value={96}>96 tokens</option></select></label>
       </div>
       <p><strong>Prefill is compiled into this MLC artifact (expected 1,024).</strong> This page does not pretend that an unsupported “128” option changes it. Actual runtime metadata is recorded after loading. The smaller context reduces one variable; it is not a proven fix.</p>
       <button onclick={() => perform(() => { session!.configure(config); session!.load(); })} disabled={locked || !consent || !view.weightsReady || !gpuAllowed}>Load GPU model</button>
-      <p>Model loading is separate from inference: there is no hidden hello/warm-up prompt. This step may fetch missing tokenizer/config/WASM files. Export before changing profiles, which starts a new report.</p>
+      <p>Model loading is separate from inference: there is no hidden hello/warm-up prompt. This step may fetch missing tokenizer/config/WASM files. Changing profiles starts a new report. Exporting the previous result is optional.</p>
       <div class="settings">
         <label>Input size<select aria-label="Input size" bind:value={test} disabled={view.busy}><option value="short">Short phrase · try first</option><option value="card">Card-sized synthetic sample</option></select></label>
         <label>Task<select aria-label="Diagnostic task" bind:value={task} disabled={view.busy}><option value="explain">Explain</option><option value="translate">Translate</option></select></label>
@@ -176,6 +193,7 @@
   aside { padding: 18px; border-radius: 12px; }
   .warning { background: #fff4d7; color: #5f4200; border: 1px solid #e9cd81; }
   .recovery { padding: 16px; background: #fff0eb; color: #7d2d19; border: 1px solid #efbaaa; border-radius: 12px; }
+  .quick { background: #eff7f5; border-color: #94b9af; }
   .status { background: #eff7f5; display: grid; gap: 12px; }
   .status div { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .status span, .metrics dt { font-size: .8rem; color: #52606c; }
