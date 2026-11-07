@@ -1,5 +1,11 @@
 # AI-only founding membership
 
+Free includes an experimental **10 on-device AI attempts/month** on compatible
+WebGPU devices. Plus increases this separate local allowance to **100** and retains
+its **100 cloud attempts/month**; existing Pro receives 1,000 of each. There is no
+free cloud fallback. Local runs use public model weights, so the account allowance
+controls the official UI, not modified clients. See [BROWSER-AI.md](BROWSER-AI.md).
+
 The only public paid offer is **Plus: €20/year, 100 new AI requests per calendar
 month, limited to 50 founding subscriptions**. Regular monthly Plus/Pro plans are
 not offered. Existing complimentary Pro accounts retain their 1,000-request limit;

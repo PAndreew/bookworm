@@ -11,7 +11,7 @@
 // object to. The API marks what is safe to keep with `Cache-Control: public` on
 // public-domain responses; we do not guess.
 
-const VERSION = 'potpuri-reader-v13';
+const VERSION = 'potpuri-reader-v15';
 const SHELL = `${VERSION}-shell`;
 const BOOKS = `${VERSION}-books`;
 
@@ -28,7 +28,8 @@ self.addEventListener('activate', (e) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k))),
+        // Preserve WebLLM's model/runtime caches across app deployments.
+        Promise.all(keys.filter((k) => /^potpuri-reader-v\d+-(shell|books)$/.test(k) && !k.startsWith(VERSION + '-')).map((k) => caches.delete(k))),
       )
       .then(() => self.clients.claim()),
   );
