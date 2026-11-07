@@ -1,6 +1,8 @@
 # AI-only founding membership
 
-Free includes an experimental **10 on-device AI attempts/month** on compatible
+**On-device AI is currently paused after browser crashes; reading and cloud AI
+are unaffected.** The implemented experimental allowance is **10 on-device AI
+attempts/month** for Free on compatible
 WebGPU devices. Plus increases this separate local allowance to **100** and retains
 its **100 cloud attempts/month**; existing Pro receives 1,000 of each. There is no
 free cloud fallback. Local runs use public model weights, so the account allowance

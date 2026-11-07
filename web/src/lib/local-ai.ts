@@ -24,6 +24,15 @@ export async function localSupport(): Promise<boolean> {
 
 export function localReady() { return ready; }
 
+// Fail closed. This is also checked at execution boundaries, not just in the UI.
+export async function localPolicyEnabled() {
+  if (new URL(window.location.href).searchParams.get('ai') === 'off') return false;
+  try {
+    const response = await fetch('/local-ai-policy.json', { cache: 'no-store' });
+    return response.ok && (await response.json()).enabled === true;
+  } catch { return false; }
+}
+
 // Imported only after an explicit download/warm-up action, never on page load.
 async function runtime(id = modelId) {
   const lib = await import('@mlc-ai/web-llm');
@@ -42,6 +51,7 @@ export function stopLocal() {
 }
 
 export async function warmLocal(progress: (text: string) => void, signal: AbortSignal) {
+  if (!await localPolicyEnabled()) { stopLocal(); throw new Error('On-device AI is temporarily paused. Reading and Plus cloud AI remain available.'); }
   if (ready) return;
   if (running) throw new Error('On-device AI is already busy.');
   running = true;
@@ -76,6 +86,7 @@ export async function warmLocal(progress: (text: string) => void, signal: AbortS
 }
 
 export async function generateLocal(input: { mode: 'explain' | 'translate'; phrase: string; context?: string; language: string }, update: (text: string) => void, signal: AbortSignal) {
+  if (!await localPolicyEnabled()) { stopLocal(); throw new Error('On-device AI is temporarily paused. Reading and Plus cloud AI remain available.'); }
   if (!ready || !engine) throw new Error('Enable on-device AI first.');
   if (running) throw new Error('On-device AI is already busy.');
   if (!input.phrase.trim() || input.phrase.length > 1200) throw new Error('Choose a passage of at most 1,200 characters.');
@@ -124,12 +135,6 @@ export async function generateLocal(input: { mode: 'explain' | 'translate'; phra
     if (!signal.aborted) stopLocal();
     throw error;
   } finally { clearTimeout(timeout); signal.removeEventListener('abort', abort); running = false; }
-}
-
-export async function cachedLocalModel() {
-  if (!await localSupport()) return false;
-  const { lib, appConfig } = await runtime();
-  return lib.hasModelInCache(modelId, appConfig);
 }
 
 export async function removeLocalModel() {

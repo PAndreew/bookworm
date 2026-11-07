@@ -11,7 +11,7 @@
 // object to. The API marks what is safe to keep with `Cache-Control: public` on
 // public-domain responses; we do not guess.
 
-const VERSION = 'potpuri-reader-v15';
+const VERSION = 'potpuri-reader-v17';
 const SHELL = `${VERSION}-shell`;
 const BOOKS = `${VERSION}-books`;
 
@@ -41,6 +41,9 @@ self.addEventListener('fetch', (e) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // Safety policy must never be served from a stale app-shell cache.
+  if (url.pathname === '/local-ai-policy.json') return;
 
   // Never cache anything that depends on who is asking.
   const isPrivateApi =

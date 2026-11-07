@@ -1,5 +1,11 @@
 # Experimental browser AI
 
+**Production is paused after a browser-crash report.** `local-ai-policy.json`
+ships with `enabled: false`; missing/invalid policy fails closed. Nginx also returns
+503 for `/v1/assistant/local` so old cached clients cannot auto-warm after fetching
+an allowance. Both guards must remain in place until real-device validation.
+See [BROWSER-AI-INCIDENT.md](BROWSER-AI-INCIDENT.md).
+
 ## Offer and boundaries
 
 Puri can run Qwen3.5-0.8B locally using WebLLM 0.2.87 in a dedicated Web Worker.
@@ -32,20 +38,21 @@ shaders. Software-emulated WebGPU can be dramatically slower than a real GPU.
 - Weights/runtime are cached by WebLLM; the app service worker must preserve those
   caches when retiring its own versioned shell/book caches.
 - A one-token warm-up exercises the actual model before declaring it ready.
-- The engine remains loaded through Puri dismissal and card changes in the reader.
-- After a successful opt-in, later reader visits automatically warm an already
-  cached model in the background. This is skipped when data-saving/2G is reported.
-  The cache availability check is not a browser guarantee against partial eviction;
-  the original download consent remains relevant for restoring incomplete files.
+- No automatic warm-up, even with cached weights and previous consent. The old
+  remembered auto-warm preference is retired without deleting model/reading data.
+- Each activation requires an explicit Enable action. Closing Puri, moving to a
+  different card, or hiding/leaving the tab cancels work and releases its worker.
+- Both warm-up and generation check the no-store safety policy before execution.
+  `?ai=off` forces safe mode even if the deployment policy is enabled.
 - Leaving the reader releases the worker; an unloaded/reopened reader still has
   GPU initialization even if weights are cached. No promise of instant startup.
 - Remove downloaded AI clears both supported quantization variants and disables
   remembered automatic warm-up. Browser storage settings are the recovery path
   if cache deletion fails.
 
-The browser can evict caches or discard tabs. Keeping a model loaded indefinitely
-would trade faster requests for memory/battery usage; this implementation retains
-it only during the reader component's lifetime, not globally in a service worker.
+The browser can evict caches or discard tabs. Holding GPU memory during ordinary
+reading proved too risky to retain without real-device validation. The model now
+lives only during explicit Puri use, never automatically or in a service worker.
 
 ## Runtime and models
 
@@ -97,7 +104,17 @@ the original. Other phrase-output languages are not quality-certified.
   web/tests/local-ai.browser.cjs`. `PLAYWRIGHT_MODULE` and
   `PLAYWRIGHT_EXECUTABLE` can override the browser installation. Default tests mock
   the worker, not generation quality; cover 320/390/1280px, opt-in, streamed output,
-  metadata-only accounting, warm reuse, translation, exhaustion and unsupported GPU.
+  metadata-only accounting, worker release on dismissal, translation, exhaustion
+  and unsupported GPU. Tests explicitly mock policy enabled to exercise the disabled
+  implementation; they do not override the actual production safety policy.
+- `node --experimental-strip-types web/tests/local-ai-policy.cjs`: execution-boundary
+  policy guards fail closed before touching GPU/Worker; malformed/offline policy and
+  `?ai=off` are covered.
+- `web/tests/local-ai-recovery.browser.cjs`: real reader plus seeded model cache and
+  remembered opt-in, opening/reloading card 26. Before the fix this started two
+  workers without a click; afterwards zero, with both enabled/disabled test policy.
+- The service worker bypasses the policy path, and Nginx sends `Cache-Control:
+  no-store` for it.
 - `REAL_LOCAL_AI=1` runs the actual pinned model and reports cold warm-up and
   first-text latency. It downloads the model and requires sufficient device RAM.
   Software WebGPU results must not be presented as representative laptop/phone GPU

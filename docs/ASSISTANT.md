@@ -2,7 +2,11 @@
 
 ## Experimental on-device AI
 
-Signed-in Free readers can enable **Qwen3.5-0.8B** in their browser for explanations,
+**Currently paused after a browser-crash report.** Reading and paid cloud AI remain
+available. Cached models never auto-start, and the edge blocks local allowance
+requests from older clients. See [BROWSER-AI-INCIDENT.md](BROWSER-AI-INCIDENT.md).
+
+The implementation (not currently enabled in production): signed-in Free readers can enable **Qwen3.5-0.8B** in their browser for explanations,
 phrase translations and short full-card translations. Free allows **10 local
 attempts/month**, Plus **100**, and existing Pro **1,000**; these are separate
 from paid cloud allowances. WebGPU is required. See [BROWSER-AI.md](BROWSER-AI.md)

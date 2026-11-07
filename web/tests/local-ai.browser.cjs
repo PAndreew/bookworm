@@ -21,10 +21,12 @@ self.onmessage = ({data: msg}) => {
   for (const width of real ? [1280] : [320,390,1280]) {
    const context = await browser.newContext({viewport:{width,height:800},serviceWorkers:'block'});
    const page = await context.newPage(); const errors=[],reservations=[],cloud=[],downloads=[];
+   const activeWorkers=new Set();page.on('worker',worker=>{activeWorkers.add(worker);worker.on('close',()=>activeWorkers.delete(worker))});
    const monitor = real ? setInterval(async()=>{try{console.log('progress',await page.locator('.local-progress').allTextContents(),await page.locator('.error').allTextContents())}catch{}},15000) : null;
    page.on('pageerror',e=>errors.push(e.message));
    page.on('request',r=>{if(/huggingface|githubusercontent/.test(r.url()))downloads.push(r.url())});
    page.on('console',msg=>{if(real && /error|warn/.test(msg.type()))console.log(msg.type(),msg.text().slice(0,600))});
+   await page.route('**/local-ai-policy.json',route=>route.fulfill({json:{enabled:true}}));
    let used=0,limit=10,workerBehavior='normal';
    if(!real) {
     await page.addInitScript(()=>Object.defineProperty(navigator,'gpu',{value:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}}));
@@ -80,6 +82,8 @@ self.onmessage = ({data: msg}) => {
    await page.getByLabel('Help me',{exact:true}).selectOption('card_translate');
    await page.getByRole('button',{name:'Translate card',exact:true}).click();
    await page.waitForSelector('.ai-badge');
+   for(let i=0;i<30&&activeWorkers.size;i++)await page.waitForTimeout(50);
+   assert.equal(activeWorkers.size,0,'closing Puri must terminate its GPU worker');
    assert.equal(await page.locator('.ai-badge').textContent(),'On-device AI translation');
    assert((await page.locator('[data-body]').textContent()).includes('Bonjour'));
    assert(await page.getByRole('button',{name:'Highlight the selected text',exact:true}).isDisabled());
@@ -87,7 +91,9 @@ self.onmessage = ({data: msg}) => {
    assert.equal(await page.locator('.ai-badge').count(),0);
    const before=reservations.length;
    await selectPhrase();
-   assert.equal(await page.getByRole('button',{name:'Enable on-device AI',exact:true}).count(),0,'warm model lost on close/reopen');
+   await page.getByRole('button',{name:'Enable on-device AI',exact:true}).waitFor();
+   assert.equal(reservations.length,before,'closing Puri must not consume another request');
+   await page.getByRole('button',{name:'Enable on-device AI',exact:true}).click();
    await page.getByLabel('Help me',{exact:true}).selectOption('explain');
    await page.waitForFunction(()=>!document.querySelector('.submit').disabled);
    limit=used;
@@ -99,6 +105,7 @@ self.onmessage = ({data: msg}) => {
   }
   if(!real)for(const software of [false,true]){
    const page=await browser.newPage({serviceWorkers:'block'});
+   await page.route('**/local-ai-policy.json',route=>route.fulfill({json:{enabled:true}}));
    await page.addInitScript(flag=>Object.defineProperty(navigator,'gpu',{value:flag?{requestAdapter:async()=>({features:new Set(),info:{description:'SwiftShader software GPU'}})}:undefined}),software);
    await page.route('**/v1/**',r=>r.fulfill({json:r.request().url().endsWith('/me')?{user:{tier:'free'}}:r.request().url().endsWith('/local')?{used:0,limit:10,resets_at:'2027-01-01T00:00:00Z'}:r.request().url().includes('/cards?')?{page_count:1,pages:[{idx:0,kind:'text',id:'source',card_id:'card',content:'A short reading passage.',char_count:24}]}:{book:{title:'Test',author:'Tester'}}}));
    await page.goto(base+'/read/');await page.getByRole('button',{name:/Ask Puri/}).click();await page.getByText(/cannot run this model/).waitFor();
@@ -107,6 +114,7 @@ self.onmessage = ({data: msg}) => {
   }
   if(!real){
    const page=await browser.newPage({serviceWorkers:'block'});const cloud=[];
+   await page.route('**/local-ai-policy.json',route=>route.fulfill({json:{enabled:false}}));
    await page.route('**/v1/**',async route=>{
     const req=route.request(),u=new URL(req.url());let body={};
     if(u.pathname==='/v1/me')body={user:{tier:'plus'}};
@@ -128,6 +136,6 @@ self.onmessage = ({data: msg}) => {
    assert.equal(cloud.length,1);assert.equal(cloud[0].card_id,'card');
    await page.close();
   }
-  console.log(real?'Real Qwen WebGPU smoke passed':'Local AI: opt-in, quota-only metadata, streaming, warm reuse, card translation, exhaustion and unsupported-device paths passed');
+  console.log(real?'Real Qwen WebGPU smoke passed':'Local AI: opt-in, quota-only metadata, streaming, GPU release on close, card translation, exhaustion and unsupported-device paths passed');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});
