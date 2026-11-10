@@ -170,7 +170,7 @@ with visibility rules, user search, the takedown endpoint, and the PWA shell.
 **Deliberately not built:**
 - **Payments.** The meter, limits, and paywall are live; Stripe is not wired up. The pricing page says so rather than pretending.
 - **Publisher portal.** No upload UI and no review queue. The data path is real and exercised — `ingest -commercial` creates publisher accounts (one deliberately unverified) and publishes against them — but a publisher cannot yet do any of that themselves.
-- **Email.** No verification or password reset; `email_verified` is always false.
+- **Email delivery requires configuration.** Verification, password reset, and private signup alerts use Resend; provision its secret before production deployment. See [EMAIL.md](docs/EMAIL.md).
 - **Discovery feed.** The cross-book "For You" page is v2. The schema already supports it.
 - **Quote card images.** `/q/<slug>` is a real page; the server-rendered PNG is a seam, not an implementation.
 - **GDPR export/erasure endpoints.** `deleted_at` exists; the actual flows do not. See `docs/LEGAL.md`.

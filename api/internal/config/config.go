@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -24,6 +25,9 @@ type Config struct {
 	StripeCoupon        string
 	StripeWebhookSecret string
 	PublicURL           string
+	ResendKey           string
+	EmailFrom           string
+	SignupNotify        string
 }
 
 func Load() (*Config, error) {
@@ -51,9 +55,27 @@ func Load() (*Config, error) {
 		}
 	}
 
+	c.EmailFrom = env("BW_EMAIL_FROM", "Potpuri <noreply@potpuri.cc>")
+	c.SignupNotify = env("BW_SIGNUP_NOTIFY", "thepandras@gmail.com")
+	if file := os.Getenv("BW_RESEND_KEY_FILE"); file != "" {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("config: could not read Resend secret file")
+		}
+		c.ResendKey = strings.TrimSpace(string(data))
+		if c.ResendKey == "" {
+			return nil, fmt.Errorf("config: empty Resend key")
+		}
+	}
 	c.StripePrice = env("BW_STRIPE_PRICE", "")
 	c.StripeCoupon = env("BW_STRIPE_COUPON", "")
 	c.PublicURL = env("BW_PUBLIC_URL", "http://localhost:4321")
+	if c.ResendKey != "" {
+		u, err := url.Parse(c.PublicURL)
+		if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && (c.Env == "production" || u.Scheme != "http")) {
+			return nil, fmt.Errorf("config: email requires a valid public URL (HTTPS in production)")
+		}
+	}
 	for _, item := range []struct {
 		env    string
 		target *string

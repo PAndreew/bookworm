@@ -48,9 +48,14 @@ func run() error {
 	}
 	slog.Info("migrations applied")
 
+	st := store.New(pool)
+	workerDone := make(chan struct{})
+	go func() { defer close(workerDone); st.RunEmailWorker(ctx, cfg.ResendKey, cfg.EmailFrom) }()
+	defer func() { stop(); <-workerDone }()
+
 	srv := &http.Server{
 		Addr:    cfg.Addr,
-		Handler: api.New(cfg, store.New(pool)).Routes(),
+		Handler: api.New(cfg, st).Routes(),
 		// Timeouts are set explicitly: Go's defaults are "no timeout", which lets a
 		// slow client hold a connection open indefinitely.
 		ReadHeaderTimeout: 10 * time.Second,

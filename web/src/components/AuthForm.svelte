@@ -34,7 +34,7 @@
           birthdate,
           timezone: tz,
         });
-        location.href = '/app';
+        location.href = '/email-action#purpose=verify';
         return;
       }
 
@@ -147,6 +147,7 @@
         {#if mode === 'signup'}
           Already have an account? <a href="/login">Sign in</a>
         {:else}
+          <a href="/email-action#purpose=reset">Forgot password?</a><br />
           New here? <a href="/signup">Create an account</a>
         {/if}
       </p>

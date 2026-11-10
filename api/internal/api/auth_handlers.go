@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"regexp"
@@ -103,6 +104,16 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 	if err := s.issueSession(w, r, user.ID, false); err != nil {
 		httpx.InternalError(w, r, "handleSignup", err)
 		return
+	}
+	if s.cfg.ResendKey != "" {
+		if err := s.queueAuthEmail(r.Context(), user, "verify"); err != nil {
+			slog.Error("signup verification queue failed")
+		}
+		if s.cfg.SignupNotify != "" {
+			if err := s.store.QueueSignupNotice(r.Context(), s.cfg.SignupNotify, user.Handle, user.CreatedAt); err != nil {
+				slog.Error("signup notification queue failed")
+			}
+		}
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{"user": user})
 }

@@ -143,6 +143,10 @@
       <div class="tier">{user.tier}</div>
     </header>
 
+    {#if !user.email_verified}
+      <p role="status">Your email isn’t confirmed yet. <a href="/email-action#purpose=verify">Resend confirmation email</a></p>
+    {/if}
+
     <Membership {user} onchange={load} />
 
     <section class="box" aria-labelledby="achievements-title">

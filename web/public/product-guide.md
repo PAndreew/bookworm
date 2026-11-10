@@ -23,7 +23,7 @@ These demonstrations use prepared content and do not call a live AI service. Gue
 
 An account saves your place and gives access to personal reading progress, streaks, highlights, quote sharing, book ratings, and friends. The Library offers All and My books views. My books contains books you have opened.
 
-Potpuri currently requires users to be at least 13 years old. Signup asks for an email address, handle, password, date of birth, and time zone. Optional authenticator-based two-factor authentication has recovery codes. Do not assume email verification or password-reset email delivery is available.
+Potpuri currently requires users to be at least 13 years old. Signup asks for an email address, handle, password, date of birth, and time zone. Optional authenticator-based two-factor authentication has recovery codes. Email confirmation and password reset are supported when transactional email delivery is configured. Unverified accounts can still read; the profile offers a confirmation-email resend link.
 
 ## How do streaks work?
 

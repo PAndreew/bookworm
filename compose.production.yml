@@ -26,11 +26,14 @@ services:
       BW_OPENROUTER_KEY_FILE: /run/secrets/openrouter_api_key
       BW_OPENROUTER_MODEL: google/gemini-3.8-flash
       BW_PUBLIC_URL: https://${BOOKWORM_HOST:-potpuri.cc}
+      BW_RESEND_KEY_FILE: /run/secrets/resend_key
+      BW_EMAIL_FROM: 'Potpuri <noreply@potpuri.cc>'
+      BW_SIGNUP_NOTIFY: thepandras@gmail.com
       BW_STRIPE_PRICE: ${BW_STRIPE_PRICE:-}
       BW_STRIPE_COUPON: ${BW_STRIPE_COUPON:-}
       BW_STRIPE_KEY_FILE: /run/secrets/stripe_key
       BW_STRIPE_WEBHOOK_FILE: /run/secrets/stripe_webhook
-    secrets: [openrouter_api_key, stripe_key, stripe_webhook]
+    secrets: [openrouter_api_key, stripe_key, stripe_webhook, resend_key]
     networks: [internal]
     depends_on:
       db:
@@ -44,6 +47,8 @@ services:
         aliases: [bookworm-web]
     depends_on: [api]
 secrets:
+  resend_key:
+    file: /opt/bookworm-secrets/resend_key
   openrouter_api_key:
     file: ${OPENROUTER_SECRET_FILE:-/run/potpuri-reader-secrets/openrouter_api_key}
   stripe_key:

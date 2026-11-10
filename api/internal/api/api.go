@@ -58,6 +58,10 @@ func (s *Server) Routes() http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(authLimit.Middleware)
 			r.Post("/auth/signup", s.handleSignup)
+			r.Post("/auth/forgot-password", s.handleEmailRequest)
+			r.Post("/auth/resend-verification", s.handleEmailRequest)
+			r.Post("/auth/verify-email", s.handleEmailConsume)
+			r.Post("/auth/reset-password", s.handleEmailConsume)
 			r.Post("/auth/login", s.handleLogin)
 			r.Post("/auth/2fa/verify", s.handle2FAVerify) // needs a pending session
 		})

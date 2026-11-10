@@ -11,14 +11,20 @@ The reader borrows Datamat's design language, not its decorative effects:
   1–5-star controls sit below, and locked Plus links sit at the bottom right.
 - Server-side search and genre/access filters support the expanded catalogue;
   explicit loading adds 24 metadata-only cards at a time.
-- Centered landing page with a small wordmark below the rose logo; everywhere
-  else the wordmark sits beside the rose.
+- Puri, the circular green mascot (`web/public/glim.svg`), is the brand icon.
+  The centered landing page places a small wordmark below Puri; elsewhere
+  the wordmark sits beside Puri.
 - “Reading tailored to our times. Read awesome/classic/serious books as a social
   feed.” The adjective gently fades between words without changing its width.
   Reduced-motion preference disables rotation; screen readers receive static copy.
 - An “or” separates the two landing actions.
 - Individual benefit words accented in blue (free), purple (streak), and green (Highlight).
 - No gradient backgrounds or gradient text.
+- The reader T menu controls both text size and card font. Choices: Geist,
+  Fraunces, calligraphic Fondamento, brutalist Space Mono and gothic
+  UnifrakturCook. Google Fonts are self-hosted with SIL OFL licenses. Selection
+  persists locally and refits continuation cards without changing source text
+  or annotation anchors; decorative styles include a readability reminder.
 - Reader text spans the available width above horizontal bottom actions. Balanced
   text cards fit common phone screens at default type size; separate title/chapter
   cards are unmetered. Original annotations and positions retain their anchors.

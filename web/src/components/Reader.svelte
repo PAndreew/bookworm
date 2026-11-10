@@ -19,6 +19,15 @@
   let streak = $state(0);
   let streakPulse = $state(false);
   let fontScale = $state(1);
+  const readerFonts = [
+    { id: 'geist', label: 'Everyday · Geist', family: "'Geist', sans-serif" },
+    { id: 'fraunces', label: 'Literary · Fraunces', family: "'Fraunces', serif" },
+    { id: 'fondamento', label: 'Calligraphic · Fondamento', family: "'Fondamento', serif" },
+    { id: 'space-mono', label: 'Brutalist · Space Mono', family: "'Space Mono', monospace" },
+    { id: 'unifrakturcook', label: 'Gothic · UnifrakturCook', family: "'UnifrakturCook', serif" },
+  ];
+  let readerFont = $state('geist');
+  const readerFamily = $derived(readerFonts.find(font => font.id === readerFont)!.family);
   let showType = $state(false);
   let toast = $state<string | null>(null);
   let fragments = $state<Fragment[]>([]);
@@ -141,6 +150,8 @@
     visibility();
     const saved = Number(localStorage.getItem('bw:fontScale'));
     if ([0.85, 1, 1.2, 1.45].includes(saved)) fontScale = saved;
+    const savedFont = localStorage.getItem('bw:readerFont');
+    if (readerFonts.some(font => font.id === savedFont)) readerFont = savedFont!;
     openBook();
     if (!preview) api.me().then(result => translationPaid = result.user.tier !== 'free').catch(() => {});
     return () => { window.removeEventListener('keydown', key); document.removeEventListener('visibilitychange', visibility); };
@@ -179,7 +190,7 @@
 
   // Font size is never reduced to force a fit. Unusual screens, poetry and
   // accessibility sizes get word-boundary continuation screens instead.
-  function fitCard(node: HTMLElement, params: { page: Page; scale: number }) {
+  function fitCard(node: HTMLElement, params: { page: Page; scale: number; font: string }) {
     let frame = 0;
     function fit() {
       if (params.page.kind !== 'text') return;
@@ -299,6 +310,11 @@
   }
   function showToast(msg: string) { toast = msg; setTimeout(() => (toast = null), 2600); }
   function setScale(v: number) { fontScale = v; localStorage.setItem('bw:fontScale', String(v)); }
+  function setFont(id: string) {
+    if (!readerFonts.some(font => font.id === id)) return;
+    readerFont = id;
+    localStorage.setItem('bw:readerFont', id);
+  }
   async function openReport(page: Page) {
     if (preview) return;
     reportPage = page; reportCategory = 'layout'; reportNote = ''; reportError = '';
@@ -313,15 +329,23 @@
   }
 </script>
 
-<div class="reader" style="--scale:{fontScale}">
+<div class="reader" style="--scale:{fontScale}; --font-read:{readerFamily}">
   <header class="bar">
     <a href={preview ? '/#try-it-now' : '/app'} class="icon-btn" aria-label="Back to library"><ChevronLeft size={22} /></a>
     {#if canSavePosition && !preview}<button class="completion-control" onclick={openCompletion} aria-label="Reading completion">Read cards</button>{/if}
-    <button class="icon-btn" onclick={() => (showType = !showType)} aria-label="Text size"><Type size={20} /></button>
+    <button class="icon-btn" onclick={() => (showType = !showType)} aria-label="Text appearance" aria-expanded={showType} aria-controls="reader-type-panel"><Type size={20} /></button>
   </header>
   <div class="progress" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}><div class="progress-fill" style="width:{progress}%"></div></div>
   {#if showType}
-    <div class="type-panel"><span>Text size</span><div class="scale-row">{#each [0.85, 1, 1.2, 1.45] as s}<button class="scale-btn" class:on={fontScale === s} onclick={() => setScale(s)}>{Math.round(s * 100)}%</button>{/each}</div></div>
+    <div class="type-panel" id="reader-type-panel">
+      <span>Text size</span>
+      <div class="scale-row">{#each [0.85, 1, 1.2, 1.45] as s}<button class="scale-btn" class:on={fontScale === s} aria-pressed={fontScale === s} onclick={() => setScale(s)}>{Math.round(s * 100)}%</button>{/each}</div>
+      <label for="reader-font">Card font</label>
+      <select id="reader-font" value={readerFont} onchange={(event) => setFont(event.currentTarget.value)}>
+        {#each readerFonts as font}<option value={font.id}>{font.label}</option>{/each}
+      </select>
+      <p>Decorative fonts work best for short passages. Choose Everyday for easier reading.</p>
+    </div>
   {/if}
   {#if loading}
     <div class="state"><div class="spinner"></div></div>
@@ -334,7 +358,7 @@
   {:else}
     <div class="feed" ontouchstart={(e) => { touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }} ontouchend={swipe}>
       {#each activePage ? [activePage] : [] as page (page.card_id)}
-        <article class="page" use:fitCard={{ page: displayPage ?? page, scale: fontScale }} data-page-id={page.id} data-card-id={page.card_id} data-kind={page.kind} data-idx={page.idx}>
+        <article class="page" use:fitCard={{ page: displayPage ?? page, scale: fontScale, font: readerFont }} data-page-id={page.id} data-card-id={page.card_id} data-kind={page.kind} data-idx={page.idx}>
           {#if activeTranslation}<span class="ai-badge">AI translation</span>{/if}
           {#if page.kind === 'text' && translations[page.card_id ?? '']?.length}
             <select class="card-language" aria-label="Card language" value={activeTranslation?.language ?? 'Original'} onchange={(e) => { preferredLanguage = e.currentTarget.value; fragmentIdx = 0; fragments = []; fittedCard = ''; }}>
@@ -401,7 +425,7 @@
 
 <style>
   .reader { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
-  .bar { position: absolute; top: calc(3px + env(safe-area-inset-top)); left: 4px; right: 4px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
+  .bar { position: absolute; top: calc(3px + var(--reader-safe-top, env(safe-area-inset-top))); left: 4px; right: 4px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
   .bar .icon-btn { pointer-events: auto; }
   .completion-control { pointer-events: auto; border: none; border-radius: var(--radius-pill); background: var(--bg-card); color: var(--text); padding: 6px 12px; font-size: 13px; align-self: center; }
   .completion-dialog { max-width: min(480px, 90vw); max-height: 80dvh; overflow: auto; border: 1px solid var(--border); border-radius: 16px; padding: 20px; background: var(--bg-card); color: var(--text); }
@@ -414,7 +438,11 @@
   .icon-btn:hover { background: var(--bg-card); }
   .progress { height: calc(3px + env(safe-area-inset-top)); flex-shrink: 0; background: #b9d7ee; }
   .progress-fill { height: 100%; background: #3189c9; transition: width 0.3s ease; }
-  .type-panel { position: absolute; top: 46px; right: 8px; z-index: 11; padding: 12px 16px; background: var(--bg-raised); border-bottom: 1px solid var(--border); font-size: 0.8rem; color: var(--text-dim); flex-shrink: 0; }
+  .type-panel { position: absolute; top: calc(51px + var(--reader-safe-top, env(safe-area-inset-top))); right: 8px; z-index: 11; max-height: calc(100dvh - 67px - var(--reader-safe-top, env(safe-area-inset-top))); overflow-y: auto; padding: 12px 16px; background: var(--bg-raised); border-bottom: 1px solid var(--border); font-size: 0.8rem; color: var(--text-dim); flex-shrink: 0; }
+  .type-panel { width: min(320px, calc(100vw - 16px)); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lift); }
+  .type-panel label { display: block; margin: 16px 0 8px; }
+  .type-panel select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+  .type-panel p { margin: 10px 0 0; color: var(--text-dim); font-size: .72rem; line-height: 1.5; }
   .scale-row { display: flex; gap: 8px; margin-top: 8px; }
   .scale-btn { flex: 1; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-dim); font-size: 0.8rem; }
   .scale-btn.on { border-color: var(--orange); color: var(--orange); }
@@ -426,7 +454,7 @@
   .body::selection { background: var(--selection); }
   .sunny-anchor { display: inline-block; width: 36px; height: 32px; vertical-align: middle; }
   .heading-card { width: 100%; max-width: 38rem; margin: auto; text-align: center; }
-  .heading-card h2 { overflow-wrap: anywhere; white-space: pre-line; font-size: clamp(1.3rem, 4vw, 2rem); line-height: 1.45; }
+  .heading-card h2 { font-family: var(--font-read); overflow-wrap: anywhere; white-space: pre-line; font-size: clamp(1.3rem, 4vw, 2rem); line-height: 1.45; }
   .heading-label { color: var(--accent); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; }
   .heading-note { font-size: 0.75rem; color: var(--text-faint); margin-top: 24px; }
   .actions { position: absolute; left: 50%; bottom: calc(8px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 14px; }

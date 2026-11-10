@@ -5,6 +5,13 @@ The Bookworm codebase is branded **Potpuri** and serves **https://potpuri.cc**.
 (46.62.236.54), in `/opt/bookworm`. Container/project names remain `bookworm`
 to distinguish it from the original bookmarking app and preserve existing data.
 
+## Transactional email
+
+Before deploying the email-enabled stack, provision the Resend key with
+`bash ops/setup-resend.sh root@YOUR_VPS` from a trusted local terminal.
+See [EMAIL.md](EMAIL.md) for setup, rotation, and verification. The key is mounted
+from `/opt/bookworm-secrets/resend_key`; do not put it in Git or frontend code.
+
 ## Public reader
 
 The frontend (Nginx), API, and PostgreSQL run in `compose.production.yml`.

@@ -14,6 +14,26 @@
   font-display: swap;
 }
 
+/* Google Fonts, self-hosted with their SIL Open Font Licenses. */
+@font-face {
+  font-family: 'Fondamento';
+  src: url('/fonts/Fondamento-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Space Mono';
+  src: url('/fonts/SpaceMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UnifrakturCook';
+  src: url('/fonts/UnifrakturCook-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
   --bg: #ffffff;

@@ -15,6 +15,7 @@ export interface User {
   tier: Tier;
   visibility: 'public' | 'friends' | 'private';
   totp_enabled: boolean;
+  email_verified: boolean;
 }
 
 export interface BillingStatus {
