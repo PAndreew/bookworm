@@ -45,7 +45,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
    assert.equal(posts.length,1);assert.equal(posts[0].language,'French');
    assert((await page.locator('[data-idx="0"] [data-body]').textContent()).includes('Un texte français'));
    const badge=await page.locator('.ai-badge').boundingBox(),card=await page.locator('[data-idx="0"]').boundingBox();
-   assert(Math.abs(badge.x-card.x-16)<1&&Math.abs(badge.y-card.y-12)<1,'AI badge must be top-left');
+   assert(Math.abs(badge.x-card.x-48)<1&&Math.abs(badge.y-card.y-12)<1,'AI badge must reserve space for the back control at top-left');
    assert(await page.locator('[data-idx="0"]').getByRole('button',{name:'Share the selected quote',exact:true}).isDisabled());
    await page.locator('[data-idx="0"]').getByLabel('Card language',{exact:true}).selectOption('German');assert((await page.locator('[data-body]').first().textContent()).includes('Ein deutscher Text'));
    await page.locator('[data-idx="0"]').getByLabel('Card language',{exact:true}).selectOption('Original');assert((await page.locator('[data-body]').first().textContent()).includes('An original English'));

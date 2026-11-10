@@ -3,6 +3,7 @@
   import { Heart, Highlighter, Share2, ChevronLeft, ChevronRight, Flag, Type, Flame, Lock } from '@lucide/svelte';
   import { api, ApiError, type Page, type Translation } from '../lib/api';
   import ReadingCompanion from './ReadingCompanion.svelte';
+  import { askBYOK } from '../lib/byok';
   import { fitTextCard, type Fragment } from '../lib/card-fit';
 
   import { guestPages, guestTranslation, type GuestBook } from '../lib/guest-books';
@@ -102,19 +103,28 @@
     const id = activePage?.card_id;
     if (preview || !translationPaid || activePage?.kind !== 'text' || !id || loadedTranslations.has(id)) return;
     loadedTranslations.add(id);
-    api.cardTranslations(id).then(result => translations[id] = result.translations).catch(() => loadedTranslations.delete(id));
+    api.cardTranslations(id).then(result => translations[id] = [...result.translations, ...(translations[id] ?? []).filter(t => t.model.startsWith('BYOK · '))]).catch(() => loadedTranslations.delete(id));
   });
-  async function translateCurrentCard(language: string, signal?: AbortSignal) {
+  async function translateCurrentCard(language: string, signal?: AbortSignal, byok = false) {
+    if (language !== 'French' && language !== 'Spanish' && language !== 'German') throw new Error('Choose French, Spanish or German.');
     const id = activePage?.card_id;
     if (!id || activePage?.kind !== 'text') throw new Error('Choose a text card to translate.');
     const prepared = guestTranslation(preview, activeIdx);
     if (preview && (!prepared || language !== 'French')) return;
-    const result = preview
+    let result;
+    if (byok && !preview) {
+      const existing = (translations[id] ?? []).find(t => t.language === language && t.model.startsWith('BYOK · '));
+      if (existing) result = {cached:true,translation:existing};
+      else {
+        const answer = await askBYOK({mode:'card_translate',phrase:activePage.content,language},signal);
+        result = {cached:false,translation:{language,content:answer.answer,model:answer.model}};
+      }
+    } else result = preview
       ? { cached: true, translation: { language: 'French' as const, content: prepared, model: 'Prepared demo — no AI' } }
       : await api.translateCard(id, language, signal);
     translations[id] = [...(translations[id] ?? []).filter(t => t.language !== language), result.translation];
     if (activePage?.card_id === id) { preferredLanguage = language; fragmentIdx = 0; fragments = []; fittedCard = ''; }
-    showToast(result.cached ? 'Showing saved translation.' : 'AI translation saved.');
+    showToast(byok ? 'BYOK translation · this page only.' : result.cached ? 'Showing saved translation.' : 'AI translation saved.');
   }
   const progress = $derived(pageCount > 0 ? ((activeIdx + 1) / pageCount) * 100 : 0);
 

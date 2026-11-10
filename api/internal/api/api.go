@@ -101,6 +101,8 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/cards/{id}/translations", s.handleCardTranslations)
 			r.Post("/cards/{id}/translations", s.handleCardTranslations)
 			r.Post("/assistant", s.handleAssistant)
+			r.Get("/byok/quota", s.handleBYOKQuota)
+			r.Post("/byok/reservations", s.handleBYOKReserve)
 			r.Post("/reads", s.handleRecordRead)
 			r.Post("/card-reads", s.handleCardRead)
 			r.Post("/cards/{id}/reports", s.handleCardReport)

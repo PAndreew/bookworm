@@ -222,6 +222,7 @@
       <a href="/legal/terms">Terms</a>
       <a href="/legal/privacy">Privacy</a>
       <a href="/legal/takedown">Report a work</a>
+      <a href="https://github.com/PAndreew/bookworm">Source · AGPL-3.0</a>
     </footer>
   {/if}
 

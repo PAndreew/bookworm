@@ -57,6 +57,25 @@ import Base from '../../layouts/Base.astro';
     <a href="https://stripe.com/privacy">Stripe privacy policy</a>.
     AI answers may be inaccurate; using the companion is optional.</p>
 
+    <h2>Bring your own API key (BYOK)</h2>
+    <p>Free BYOK supports OpenAI, Anthropic and OpenRouter. Your browser sends your selected
+    text, chosen language, model and API key directly to the selected provider over HTTPS.
+    The provider also receives your IP address. Your own API account is billed; consumer
+    ChatGPT/Codex subscriptions are not API credits. We do not receive or store the key,
+    prompt or BYOK answer. We keep only an account-level monthly reservation count for
+    the 50-request app allowance. Reservations count even if a provider request fails or is cancelled.</p>
+    <p>Keys and BYOK translations are held only in page memory and disappear on reload or
+    navigation. No encrypted vault, sync or key recovery is provided. Browser scripts,
+    extensions or a compromised device could still access an active key. Use a dedicated,
+    revocable key with a low provider-side spending limit. The app allowance is not a
+    security boundary or a spending cap. No automatic fallback to paid membership inference occurs.</p>
+    <p>Direct providers have their own retention and privacy policies. For OpenRouter BYOK
+    we request zero-data-retention routing and deny data collection; this may limit model
+    availability. Those routing controls do not apply to direct OpenAI or Anthropic requests.
+    <a href="https://openai.com/policies/privacy-policy/">OpenAI privacy</a> ·
+    <a href="https://www.anthropic.com/legal/privacy">Anthropic privacy</a> ·
+    <a href="https://openrouter.ai/privacy">OpenRouter privacy</a>.</p>
+
     <h2>How we protect it</h2>
     <ul>
       <li>Passwords are hashed with Argon2id and are never recoverable.</li>

@@ -2,10 +2,20 @@
 
 Books rendered as a social feed. Go API, Astro + Svelte PWA, Postgres.
 
-Every public-domain book is free and unmetered. Plus adds 30 licensed text cards/day; Pro adds 1,000/month. Both include Sunny AI.
+Every public-domain book is free and unmetered. Plus adds 30 licensed text cards/day; Pro adds 1,000/month. Both retain included paid AI. Free accounts can instead use their own OpenAI, Anthropic or OpenRouter API key for 50 app-enforced AI requests per UTC calendar month (provider charges apply).
 Reading three text cards a day keeps a streak; friends
 can see what you are reading if you let them; any passage can be highlighted and
 shared as a quote link.
+
+## BYOK — free, for the brave
+
+Open a book and ask Puri, then choose **Free BYOK**. Keys go directly from your browser to your provider over HTTPS and live only in page memory; reload/navigation clears them. BYOK card translations also stay on the page, not in the shared server cache. Our API stores only a monthly reservation counter; failed/cancelled attempts count. The 50-request app allowance is not a tamper-proof spending cap. Use a dedicated provider key with a low credit limit. Plus/Pro inference remains separate with no automatic fallback.
+
+OpenAI requires a Platform API key and API billing. ChatGPT/Codex subscription tokens and `auth.json` are **not** general API keys. Supported Codex subscription integration needs a separate local Codex app-server client, not this direct-browser API flow; see [OpenAI's authentication docs](https://developers.openai.com/codex/auth/).
+
+## License and source
+
+Original project code: **GNU Affero General Public License v3.0 only** ([LICENSE](LICENSE)). Third-party libraries, fonts and book content retain their own terms; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Source: <https://github.com/PAndreew/bookworm>.
 
 ## Running it
 

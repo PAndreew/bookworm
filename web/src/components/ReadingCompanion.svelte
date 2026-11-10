@@ -2,13 +2,14 @@
   import { onMount, tick } from 'svelte';
   import { api, ApiError } from '../lib/api';
   import { renderMarkdown } from '../lib/markdown';
+  import { askBYOK, configureBYOK, clearBYOK, hasBYOK, providers, type BYOKProvider } from '../lib/byok';
 
   import PuriCoach from './PuriCoach.svelte';
   let { progress, positionLabel, cardIndex, experience = 'live', demoWord = '', demoDefinition = '', demoTranslation = false, demoTranslated = false, onTranslateCard }: {
     progress?: number; positionLabel?: string; cardIndex?: number;
     experience?: 'live' | 'facts' | 'demo'; demoWord?: string; demoDefinition?: string;
     demoTranslation?: boolean; demoTranslated?: boolean;
-    onTranslateCard?: (language: string, signal?: AbortSignal) => Promise<void>;
+    onTranslateCard?: (language: string, signal?: AbortSignal, byok?: boolean) => Promise<void>;
   } = $props();
   let coaching = $state(false);
   let demoDismissed = $state(false);
@@ -68,6 +69,21 @@
   let busy = $state(false);
   let auth = $state<'checking' | 'signed-in' | 'signed-out' | 'upgrade'>('checking');
   let controller: AbortController | null = null;
+  let funding = $state<'paid' | 'byok'>('byok');
+  let paid = $state(false);
+  let provider = $state<BYOKProvider>('openai');
+  let model = $state(providers.openai.model);
+  let apiKey = $state('');
+  let keyReady = $state(false);
+  let consent = $state(false);
+  let quota = $state<{used:number;limit:number;resets_at:string} | null>(null);
+  async function refreshBYOKQuota() { try { quota = await api.byokQuota(); } catch { quota = null; } }
+  function forgetKey() { clearBYOK(); apiKey = ''; keyReady = false; consent = false; }
+  function enableKey() {
+    error = '';
+    try { configureBYOK({provider,model,key:apiKey}); apiKey = ''; keyReady = hasBYOK(); }
+    catch(e) { error = e instanceof Error ? e.message : 'Could not use that API key.'; }
+  }
   let lastHop = 0;
   let hop: Animation | null = null;
   const percent = $derived(Math.max(0, Math.min(100, progress ?? documentProgress)));
@@ -172,7 +188,13 @@
     auth = 'checking';
     await tick();
     dialog?.show();
-    try { const me = await api.me(); auth = me.user.tier === 'free' ? 'upgrade' : 'signed-in'; }
+    try {
+      const me = await api.me();
+      paid = me.user.tier !== 'free';
+      funding = paid ? 'paid' : 'byok';
+      auth = 'signed-in';
+      await refreshBYOKQuota();
+    }
     catch { auth = 'signed-out'; }
   }
 
@@ -181,6 +203,8 @@
   async function ask(event: SubmitEvent) {
     event.preventDefault();
     if (experience !== 'live' || busy || auth !== 'signed-in') return;
+    if (funding === 'byok' && (!keyReady || !consent || !quota || quota.used >= quota.limit)) return;
+    if (funding === 'paid' && !paid) return;
     if (mode !== 'card_translate' && (!phrase || !phraseCardId)) return;
     busy = true;
     error = '';
@@ -189,15 +213,17 @@
     try {
       if (mode === 'card_translate') {
         if (!onTranslateCard) { error = 'Choose a text card to translate.'; return; }
-        await onTranslateCard(language, controller.signal);
+        await onTranslateCard(language, controller.signal, funding === 'byok');
         close();
         return;
       }
-      const result = await api.assistant({ mode, phrase, card_id: phraseCardId, language, consent: true }, controller.signal);
+      const result = funding === 'byok'
+        ? await askBYOK({mode,phrase,language}, controller.signal)
+        : await api.assistant({ mode, phrase, card_id: phraseCardId, language, consent: true }, controller.signal);
       answer = result.answer;
     } catch (e) {
-      if (!controller.signal.aborted) error = e instanceof ApiError ? e.message : 'Could not connect. Please try again.';
-    } finally { busy = false; }
+      if (!controller.signal.aborted) error = e instanceof Error ? e.message : 'Could not connect. Please try again.';
+    } finally { busy = false; if (funding === 'byok') await refreshBYOKQuota(); }
   }
 </script>
 
@@ -227,20 +253,50 @@
   aria-labelledby="sunny-title" onclose={() => { controller?.abort(); }}>
   <div class="bubble-content">
   <header><h2 id="sunny-title">Ask Puri</h2><button class="close" type="button" onclick={close} aria-label="Close reading companion">×</button></header>
-  <p class="intro">Explain a selected phrase, or translate this reading card and save it for later.</p>
+  <p class="intro">Explain a selected phrase, or translate this reading card.</p>
   {#if auth === 'checking'}<p role="status">Checking sign-in…</p>{/if}
-  {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> with Plus to explain or translate phrases.</p>{/if}
-  {#if auth === 'upgrade'}<p class="sign-in">AI explanations and translations are a paid feature. <a href="/app/upgrade">Subscribe to Plus</a>.</p>{/if}
+  {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> to use free BYOK or your Plus/Pro membership.</p>{/if}
+  {#if auth === 'signed-in'}
+    <label for="ai-funding">AI access</label>
+    <select id="ai-funding" bind:value={funding} disabled={busy}>
+      <option value="byok">Free BYOK · your API credits</option>
+      {#if paid}<option value="paid">{paid ? 'Membership' : 'Plus'} · included AI</option>{/if}
+    </select>
+    {#if funding === 'byok'}
+      <p class="intro">For the brave: {quota ? `${quota.used} / ${quota.limit}` : '50'} requests per calendar month (UTC). Failed or cancelled attempts count. This is an app-enforced allowance, not a provider spending cap.</p>
+      <fieldset disabled={busy}>
+        <legend>Your provider · this page only</legend>
+        <label for="byok-provider">Provider</label>
+        <select id="byok-provider" bind:value={provider} onchange={() => { forgetKey(); model = providers[provider].model; }}>
+          {#each Object.entries(providers) as [id, info]}<option value={id}>{info.name}</option>{/each}
+        </select>
+        <label for="byok-model">Model ID</label>
+        <input id="byok-model" bind:value={model} oninput={forgetKey} maxlength="150" spellcheck="false" autocomplete="off" />
+        {#if keyReady}
+          <p role="status">API key ready in memory. Reloading or leaving this page clears it.</p>
+          <button type="button" onclick={forgetKey}>Forget key</button>
+        {:else}
+          <label for="byok-key">API key</label>
+          <input id="byok-key" type="password" bind:value={apiKey} autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="512" />
+          <button type="button" onclick={enableKey} disabled={!apiKey.trim()}>Use key for this page</button>
+        {/if}
+        <p class="intro">Use a dedicated key with a low spending limit. Keys go directly to the provider, never to Potpuri, and are not saved. Browser scripts or extensions could still steal an active key. Your password manager can hold it between visits.</p>
+        <p class="intro">OpenAI requires a Platform API key with API billing. ChatGPT/Codex subscriptions, access tokens and auth.json are not supported here.</p>
+      </fieldset>
+      <label class="consent"><input type="checkbox" bind:checked={consent} disabled={busy} />I agree to send this text and my IP directly to {providers[provider].name}, using my own paid API credits. BYOK answers stay on this page.</label>
+      {#if !paid}<p class="sign-in">Prefer included AI without handling keys? <a href="/app/upgrade">Subscribe to Plus</a>.</p>{/if}
+    {/if}
+  {/if}
   <form onsubmit={ask}>
     {#if mode !== 'card_translate'}
       {#if phrase}<blockquote class="selected-phrase">{phrase}</blockquote>
       {:else}<p class="intro">Highlight a word or passage on the card, then click Puri.</p>{/if}
-    {:else}<p class="intro">Translate the entire current card. Saved translations do not use another request.</p>{/if}
+    {:else}<p class="intro">{funding === 'byok' ? 'Translate the original current card. BYOK translations stay on this page, not in the shared translation library.' : 'Translate the entire current card. Saved translations do not use another request.'}</p>{/if}
     <div class="options">
       <div><label for="sunny-mode">Help me</label><select id="sunny-mode" bind:value={mode}><option value="explain">Explain this phrase</option>{#if onTranslateCard}<option value="card_translate">Translate current card</option>{/if}<option value="translate">Translate this phrase</option></select></div>
       <div><label for="sunny-language">Answer in</label><select id="sunny-language" bind:value={language}>{#each (mode === 'card_translate' ? ['French', 'Spanish', 'German'] : ['English', 'Romanian', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Polish', 'Japanese', 'Chinese', 'Arabic']) as name}<option>{name}</option>{/each}</select></div>
     </div>
-    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || (mode !== 'card_translate' && (!phrase.trim() || !phraseCardId))}>{busy ? 'Thinking…' : mode === 'card_translate' ? 'Translate card' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
+    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || (funding === 'byok' && (!keyReady || !consent || !quota || quota.used >= quota.limit)) || (mode !== 'card_translate' && (!phrase.trim() || !phraseCardId))}>{busy ? 'Thinking…' : mode === 'card_translate' ? 'Translate card' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
   </form>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   <div class="answer" role="status" aria-live="polite">{@html renderMarkdown(answer)}</div>
@@ -279,6 +335,10 @@
   label { display: block; margin-bottom: 6px; font-size: 0.82rem; font-weight: 500; }
   textarea, select { width: 100%; padding: 10px; border: 1px solid #75cfc5; border-radius: var(--radius-sm); background: #fff; color: #164e4a; font-size: 0.88rem; }
   textarea { resize: vertical; }
+  fieldset { margin: 12px 0; padding: 10px; border: 1px solid #75cfc5; border-radius: 8px; min-width: 0; }
+  fieldset label { margin-top: 10px; }
+  fieldset input { width: 100%; min-width: 0; padding: 9px; border: 1px solid #75cfc5; border-radius: 6px; background: white; color: #164e4a; }
+  fieldset button { margin-top: 10px; padding: 7px 12px; border: 1px solid #519d94; border-radius: 16px; background: white; color: #164e4a; }
   .options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
   .options > div { min-width: 0; }
   .consent { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0; font-size: 0.76rem; line-height: 1.6; color: var(--text-dim); }

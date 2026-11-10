@@ -165,6 +165,9 @@ export const api = {
   cardTranslations: (id:string) => request<{translations:Translation[]}>(`/cards/${encodeURIComponent(id)}/translations`),
   translateCard: (id:string,language:string,signal?:AbortSignal) => request<{translation:Translation;cached:boolean}>(`/cards/${encodeURIComponent(id)}/translations`,{method:'POST',body:JSON.stringify({language}),signal}),
 
+  byokQuota: () => request<{used:number;limit:number;resets_at:string}>('/byok/quota'),
+  reserveByok: (signal?:AbortSignal) => request<{used:number;limit:number;resets_at:string}>('/byok/reservations', {method:'POST',body:'{}',signal}),
+
   // ------------------------------------------------------------- catalog
   books: (options: { license?: string; q?: string; genre?: string; offset?: number; sort?: string; mine?: boolean } = {}, signal?: AbortSignal) => {
     const query = new URLSearchParams({ limit: '24', offset: String(options.offset ?? 0) });

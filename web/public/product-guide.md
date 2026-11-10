@@ -37,9 +37,11 @@ Books in common are distinct canonical books both readers have started or earned
 
 ## What is Puri?
 
-Puri is Potpuri's reading companion. Outside the prepared guest demonstration, its AI explanations and translations are paid features. Readers can ask about selected words or phrases, or translate a reading card into French, Spanish, or German. Saved card translations may be reused.
+Puri is Potpuri's reading companion. Readers can ask about selected words or phrases, or translate a reading card into French, Spanish, or German. Plus/Pro retain included AI; membership card translations may be saved and reused.
 
-The live AI service uses OpenRouter and Google Gemini. AI answers may be inaccurate. The current [privacy page](https://potpuri.cc/legal/privacy) describes what is sent to providers. Check the live app for current membership availability, pricing, and usage limits.
+Free BYOK — for the brave — supports user-owned OpenAI Platform, Anthropic and OpenRouter API keys with 50 app-enforced requests per account per UTC calendar month. Your provider bills your API usage. Requests go directly from the browser to that provider; keys and BYOK translations stay in page memory and are cleared by reload/navigation. Failed/cancelled attempts count. This allowance is not a provider spending cap. ChatGPT/Codex subscription credentials are not accepted as API keys.
+
+The membership AI service uses OpenRouter and Google Gemini. AI answers may be inaccurate. The current [privacy page](https://potpuri.cc/legal/privacy) describes what is sent to providers. Check the live app for current membership availability, pricing, and usage limits.
 
 ## Official information
 
