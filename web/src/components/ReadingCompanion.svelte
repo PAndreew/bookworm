@@ -4,14 +4,11 @@
   import { renderMarkdown } from '../lib/markdown';
 
   import PuriCoach from './PuriCoach.svelte';
-  import { localSupport, localReady, warmLocal, generateLocal, stopLocal, removeLocalModel, localPolicyEnabled } from '../lib/local-ai';
-  let { progress, positionLabel, cardIndex, experience = 'live', demoWord = '', demoDefinition = '', demoTranslation = false, demoTranslated = false, onTranslateCard, currentCard, onLocalTranslation }: {
+  let { progress, positionLabel, cardIndex, experience = 'live', demoWord = '', demoDefinition = '', demoTranslation = false, demoTranslated = false, onTranslateCard }: {
     progress?: number; positionLabel?: string; cardIndex?: number;
     experience?: 'live' | 'facts' | 'demo'; demoWord?: string; demoDefinition?: string;
     demoTranslation?: boolean; demoTranslated?: boolean;
     onTranslateCard?: (language: string, signal?: AbortSignal) => Promise<void>;
-    currentCard?: { id: string; content: string };
-    onLocalTranslation?: (id: string, language: string, content: string) => void;
   } = $props();
   let coaching = $state(false);
   let demoDismissed = $state(false);
@@ -23,8 +20,6 @@
   });
   $effect(() => {
     cardIndex; demoWord;
-    controller?.abort();
-    if (experience === 'live') { warmController?.abort(); stopLocal(); localLoaded = false; }
     selected = ''; selectedCardId = ''; phrase = ''; phraseCardId = ''; answer = ''; coaching = false;
     dialog?.close();
   });
@@ -69,19 +64,9 @@
   });
   let language = $state('English');
   let answer = $state('');
-  let answerLocal = $state(false);
   let error = $state('');
   let busy = $state(false);
-  let auth = $state<'checking' | 'signed-in' | 'signed-out'>('checking');
-  let tier = $state('free');
-  let execution = $state<'local' | 'cloud'>('local');
-  let supported = $state<boolean | null>(null);
-  let localAllowed = $state(false);
-  let localLoaded = $state(false);
-  let warming = $state(false);
-  let progressText = $state('');
-  let usage = $state<{ used: number; limit: number; resets_at: string } | null>(null);
-  let warmController: AbortController | null = null;
+  let auth = $state<'checking' | 'signed-in' | 'signed-out' | 'upgrade'>('checking');
   let controller: AbortController | null = null;
   let lastHop = 0;
   let hop: Animation | null = null;
@@ -100,13 +85,6 @@
   }
 
   onMount(() => {
-    // Cached weights are not permission to allocate GPU memory on page load.
-    // Retire the old auto-warm preference without deleting model or reading data.
-    if (experience === 'live') {
-      try { localStorage.removeItem('bw:local-ai-enabled'); } catch { /* Storage may be unavailable. */ }
-    }
-    const suspendLocal = () => { if (document.hidden) close(); };
-    document.addEventListener('visibilitychange', suspendLocal);
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const updateMotion = () => { reducedMotion = motion.matches; if (reducedMotion) hop?.cancel(); };
     updateMotion();
@@ -170,13 +148,10 @@
     document.fonts.addEventListener('loadingdone', schedule);
     document.addEventListener('selectionchange', selection);
     return () => {
-      document.removeEventListener('visibilitychange', suspendLocal);
       cancelAnimationFrame(frame);
       if (scrollTimer !== null) clearTimeout(scrollTimer);
       hop?.cancel();
       controller?.abort();
-      warmController?.abort();
-      stopLocal();
       resize.disconnect();
       mutations.disconnect();
       window.removeEventListener('scroll', scroll, true);
@@ -197,50 +172,11 @@
     auth = 'checking';
     await tick();
     dialog?.show();
-    localLoaded = localReady();
-    localAllowed = await localPolicyEnabled();
-    supported = localAllowed ? await localSupport() : null;
-    try {
-      const me = await api.me();
-      tier = me.user.tier;
-      execution = tier === 'free' ? 'local' : 'cloud';
-      auth = 'signed-in';
-      usage = localAllowed ? await api.localAllowance() : null;
-    } catch (e) {
-      if (auth !== 'signed-in') auth = 'signed-out';
-      else error = e instanceof ApiError ? e.message : 'Could not check your on-device allowance.';
-    }
+    try { const me = await api.me(); auth = me.user.tier === 'free' ? 'upgrade' : 'signed-in'; }
+    catch { auth = 'signed-out'; }
   }
 
-  function close() {
-    demoDismissed = true; coaching = false;
-    controller?.abort(); warmController?.abort();
-    if (experience === 'live') { stopLocal(); localLoaded = false; }
-    dialog?.close();
-  }
-
-  async function enableLocal() {
-    if (warming || busy || auth !== 'signed-in' || !localAllowed) return;
-    warming = true;
-    error = '';
-    warmController = new AbortController();
-    try {
-      await warmLocal(text => progressText = text, warmController.signal);
-      localLoaded = true;
-    } catch (e) {
-      localLoaded = false;
-      if (!warmController.signal.aborted) error = e instanceof Error ? e.message : String(e || 'Could not load on-device AI.');
-    } finally { warming = false; }
-  }
-
-  async function forgetLocal() {
-    if (warming || busy) return;
-    error = '';
-    localStorage.removeItem('bw:local-ai-enabled');
-    localLoaded = false;
-    try { await removeLocalModel(); progressText = 'Downloaded model removed.'; }
-    catch { error = 'Could not remove every model file. You can clear this site’s storage in browser settings.'; }
-  }
+  function close() { demoDismissed = true; coaching = false; controller?.abort(); dialog?.close(); }
 
   async function ask(event: SubmitEvent) {
     event.preventDefault();
@@ -250,22 +186,7 @@
     error = '';
     answer = '';
     controller = new AbortController();
-    answerLocal = execution === 'local';
     try {
-      if (execution === 'local') {
-        localAllowed = await localPolicyEnabled();
-        if (!localAllowed) { stopLocal(); localLoaded = false; error = 'On-device AI is temporarily paused. Reading and Plus cloud AI remain available.'; return; }
-        if (!localReady()) { localLoaded = false; error = 'Enable on-device AI first.'; return; }
-        const source = currentCard;
-        const id = mode === 'card_translate' ? source?.id : phraseCardId;
-        const text = mode === 'card_translate' ? source?.content : phrase;
-        if (!id || !text || (mode === 'card_translate' && !onLocalTranslation)) { error = 'Choose a text card first.'; return; }
-        if (text.length > 1200) { error = 'Select a shorter passage: on-device AI supports up to 1,200 characters.'; return; }
-        usage = await api.localAllowance(id, controller.signal);
-        const result = await generateLocal({ mode: mode === 'explain' ? 'explain' : 'translate', phrase: text, context: mode === 'explain' ? source?.content : undefined, language }, text => answer = text, controller.signal);
-        if (mode === 'card_translate') { onLocalTranslation?.(id, language, result); close(); }
-        return;
-      }
       if (mode === 'card_translate') {
         if (!onTranslateCard) { error = 'Choose a text card to translate.'; return; }
         await onTranslateCard(language, controller.signal);
@@ -275,8 +196,7 @@
       const result = await api.assistant({ mode, phrase, card_id: phraseCardId, language, consent: true }, controller.signal);
       answer = result.answer;
     } catch (e) {
-      localLoaded = localReady();
-      if (!controller.signal.aborted) error = e instanceof Error ? e.message : 'Could not connect. Please try again.';
+      if (!controller.signal.aborted) error = e instanceof ApiError ? e.message : 'Could not connect. Please try again.';
     } finally { busy = false; }
   }
 </script>
@@ -304,58 +224,30 @@
 <svelte:window onkeydown={(event) => { if (event.key === 'Escape') close(); }} />
 <dialog bind:this={dialog} class:live-below={liveBelow}
   style="left:{coachLeft}px;top:{liveBelow ? y + 44 : y - 12}px;--tail-x:{x + 16 - coachLeft}px;--bubble-height:{Math.max(120, liveBelow ? viewportHeight - y - 64 : y - 28)}px"
-  aria-labelledby="sunny-title" onclose={() => { controller?.abort(); warmController?.abort(); if (experience === 'live') { stopLocal(); localLoaded = false; } }}>
+  aria-labelledby="sunny-title" onclose={() => { controller?.abort(); }}>
   <div class="bubble-content">
   <header><h2 id="sunny-title">Ask Puri</h2><button class="close" type="button" onclick={close} aria-label="Close reading companion">×</button></header>
-  <p class="intro">Explain a selected phrase, or translate this reading card.</p>
+  <p class="intro">Explain a selected phrase, or translate this reading card and save it for later.</p>
   {#if auth === 'checking'}<p role="status">Checking sign-in…</p>{/if}
-  {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> to use free on-device AI.</p>{/if}
-  {#if auth === 'signed-in'}
-    {#if tier !== 'free'}
-      <label for="ai-execution">Run with</label>
-      <select id="ai-execution" bind:value={execution} disabled={busy} onchange={(event) => { if (event.currentTarget.value === 'cloud') warmController?.abort(); }}><option value="cloud">Plus cloud AI</option><option value="local">On-device AI · experimental</option></select>
-    {/if}
-    {#if execution === 'local'}
-      <section class="local-ai" aria-label="On-device AI">
-        <p>Qwen3.5 0.8B · experimental. Text stays on this device; only card ID and usage are sent to Potpuri. Answers may be inaccurate.</p>
-        {#if usage}<p>{Math.max(0, usage.limit - usage.used)} of {usage.limit} on-device requests left this month. Resets {new Date(usage.resets_at).toLocaleDateString(undefined, { timeZone: 'UTC' })} (UTC).</p>{/if}
-        {#if tier === 'free'}<p><a href="/app/upgrade">Plus: 100 on-device requests/month and cloud AI</a>.</p>{/if}
-        {#if !localAllowed}<p>On-device AI is temporarily paused while we investigate browser crashes. Reading and Plus cloud AI remain available.</p>
-        <p><a href="/ai-diagnostics/">Open isolated diagnostic page</a> · advanced, explicit tests only.</p>
-        {:else if supported === false}<p>This browser/device cannot run this model. A usable WebGPU adapter is required. No text will be sent to cloud AI automatically.</p>
-        {:else if !localLoaded}
-          <p>First use downloads about 447 MB plus the runtime and needs roughly 1.6–1.9 GB of GPU memory. Download hosts receive connection metadata. We cache downloaded weights, but only start AI after you choose Enable in this session. Closing Puri or leaving the tab releases GPU memory.</p>
-          <button type="button" onclick={enableLocal} disabled={warming || busy || !supported || !usage || usage.used >= usage.limit}>{warming ? 'Preparing on-device AI…' : 'Enable on-device AI'}</button>
-        {/if}
-        {#if progressText}<p class="local-progress" role="status">{progressText}</p>{/if}
-        {#if warming}<button type="button" onclick={() => warmController?.abort()}>Cancel download / warm-up</button>{/if}
-        {#if !warming}<button type="button" onclick={forgetLocal} disabled={busy}>Remove downloaded AI</button>{/if}
-        <p>Local card translations stay only in this reader tab. New attempts, including failed generations, count; enabling and warm-up do not.</p>
-      </section>
-    {/if}
-  {/if}
+  {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> with Plus to explain or translate phrases.</p>{/if}
+  {#if auth === 'upgrade'}<p class="sign-in">AI explanations and translations are a paid feature. <a href="/app/upgrade">Subscribe to Plus</a>.</p>{/if}
   <form onsubmit={ask}>
     {#if mode !== 'card_translate'}
       {#if phrase}<blockquote class="selected-phrase">{phrase}</blockquote>
       {:else}<p class="intro">Highlight a word or passage on the card, then click Puri.</p>{/if}
-    {:else}<p class="intro">Translate the entire current card. {execution === 'local' ? 'Experimental; check the result against the original.' : 'Saved translations do not use another request.'}</p>{/if}
+    {:else}<p class="intro">Translate the entire current card. Saved translations do not use another request.</p>{/if}
     <div class="options">
-      <div><label for="sunny-mode">Help me</label><select id="sunny-mode" bind:value={mode} disabled={busy}><option value="explain">Explain this phrase</option>{#if onTranslateCard}<option value="card_translate">Translate current card</option>{/if}<option value="translate">Translate this phrase</option></select></div>
-      <div><label for="sunny-language">Answer in</label><select id="sunny-language" bind:value={language} disabled={busy}>{#each (mode === 'card_translate' ? ['French', 'Spanish', 'German'] : ['English', 'Romanian', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Polish', 'Japanese', 'Chinese', 'Arabic']) as name}<option>{name}</option>{/each}</select></div>
+      <div><label for="sunny-mode">Help me</label><select id="sunny-mode" bind:value={mode}><option value="explain">Explain this phrase</option>{#if onTranslateCard}<option value="card_translate">Translate current card</option>{/if}<option value="translate">Translate this phrase</option></select></div>
+      <div><label for="sunny-language">Answer in</label><select id="sunny-language" bind:value={language}>{#each (mode === 'card_translate' ? ['French', 'Spanish', 'German'] : ['English', 'Romanian', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Polish', 'Japanese', 'Chinese', 'Arabic']) as name}<option>{name}</option>{/each}</select></div>
     </div>
-    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || (execution === 'local' && (!localAllowed || warming || !localLoaded || !usage || usage.used >= usage.limit)) || (mode !== 'card_translate' && (!phrase.trim() || !phraseCardId))}>{busy ? 'Thinking…' : mode === 'card_translate' ? 'Translate card' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
+    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || (mode !== 'card_translate' && (!phrase.trim() || !phraseCardId))}>{busy ? 'Thinking…' : mode === 'card_translate' ? 'Translate card' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
   </form>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
-  <div class="answer" role="status" aria-live="polite">{#if answerLocal}<span class="local-answer">{answer}</span>{:else}{@html renderMarkdown(answer)}{/if}</div>
+  <div class="answer" role="status" aria-live="polite">{@html renderMarkdown(answer)}</div>
   </div>
 </dialog>
 
 <style>
-  .local-ai { display: grid; gap: 8px; margin: 8px 0; padding: 10px; border: 1px solid var(--border, #bbb); border-radius: 10px; font-size: 0.8rem; }
-  .local-ai p { margin: 0; }
-  .local-ai button { padding: 8px; min-height: 36px; }
-  .local-progress { overflow-wrap: anywhere; }
-  .local-answer { white-space: pre-wrap; overflow-wrap: anywhere; }
   .mascot { position: fixed; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; z-index: 36; transition: top 280ms ease, left 180ms ease; touch-action: manipulation; }
   .mascot.facts { transition: none; }
   .coach { position: fixed; width: min(310px, calc(100vw - 32px)); transform: translateY(-100%); z-index: 37; }

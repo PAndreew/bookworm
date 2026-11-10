@@ -11,7 +11,7 @@
 // object to. The API marks what is safe to keep with `Cache-Control: public` on
 // public-domain responses; we do not guess.
 
-const VERSION = 'potpuri-reader-v17';
+const VERSION = 'potpuri-reader-v13';
 const SHELL = `${VERSION}-shell`;
 const BOOKS = `${VERSION}-books`;
 
@@ -28,8 +28,7 @@ self.addEventListener('activate', (e) => {
     caches
       .keys()
       .then((keys) =>
-        // Preserve WebLLM's model/runtime caches across app deployments.
-        Promise.all(keys.filter((k) => /^potpuri-reader-v\d+-(shell|books)$/.test(k) && !k.startsWith(VERSION + '-')).map((k) => caches.delete(k))),
+        Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k))),
       )
       .then(() => self.clients.claim()),
   );
@@ -41,9 +40,6 @@ self.addEventListener('fetch', (e) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-
-  // Safety policy must never be served from a stale app-shell cache.
-  if (url.pathname === '/local-ai-policy.json') return;
 
   // Never cache anything that depends on who is asking.
   const isPrivateApi =

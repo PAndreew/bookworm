@@ -1,13 +1,5 @@
 # AI-only founding membership
 
-**On-device AI is currently paused after browser crashes; reading and cloud AI
-are unaffected.** The implemented experimental allowance is **10 on-device AI
-attempts/month** for Free on compatible
-WebGPU devices. Plus increases this separate local allowance to **100** and retains
-its **100 cloud attempts/month**; existing Pro receives 1,000 of each. There is no
-free cloud fallback. Local runs use public model weights, so the account allowance
-controls the official UI, not modified clients. See [BROWSER-AI.md](BROWSER-AI.md).
-
 The only public paid offer is **Plus: €20/year, 100 new AI requests per calendar
 month, limited to 50 founding subscriptions**. Regular monthly Plus/Pro plans are
 not offered. Existing complimentary Pro accounts retain their 1,000-request limit;

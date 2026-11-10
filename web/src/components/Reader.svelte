@@ -102,17 +102,8 @@
     const id = activePage?.card_id;
     if (preview || !translationPaid || activePage?.kind !== 'text' || !id || loadedTranslations.has(id)) return;
     loadedTranslations.add(id);
-    api.cardTranslations(id).then(result => {
-      const local = (translations[id] ?? []).filter(item => item.model.startsWith('local:'));
-      translations[id] = [...result.translations.filter(item => !local.some(saved => saved.language === item.language)), ...local];
-    }).catch(() => loadedTranslations.delete(id));
+    api.cardTranslations(id).then(result => translations[id] = result.translations).catch(() => loadedTranslations.delete(id));
   });
-  function saveLocalTranslation(id: string, language: string, content: string) {
-    if (!['French', 'Spanish', 'German'].includes(language)) return;
-    translations[id] = [...(translations[id] ?? []).filter(t => t.language !== language), { language: language as Translation['language'], content, model: 'local:Qwen3.5-0.8B' }];
-    if (activePage?.card_id === id) { preferredLanguage = language; fragmentIdx = 0; fragments = []; fittedCard = ''; }
-    showToast('On-device translation · saved only in this tab.');
-  }
   async function translateCurrentCard(language: string, signal?: AbortSignal) {
     const id = activePage?.card_id;
     if (!id || activePage?.kind !== 'text') throw new Error('Choose a text card to translate.');
@@ -334,7 +325,7 @@
     <div class="feed" ontouchstart={(e) => { touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }} ontouchend={swipe}>
       {#each activePage ? [activePage] : [] as page (page.card_id)}
         <article class="page" use:fitCard={{ page: displayPage ?? page, scale: fontScale }} data-page-id={page.id} data-card-id={page.card_id} data-kind={page.kind} data-idx={page.idx}>
-          {#if activeTranslation}<span class="ai-badge">{activeTranslation.model.startsWith('local:') ? 'On-device AI translation' : 'AI translation'}</span>{/if}
+          {#if activeTranslation}<span class="ai-badge">AI translation</span>{/if}
           {#if page.kind === 'text' && translations[page.card_id ?? '']?.length}
             <select class="card-language" aria-label="Card language" value={activeTranslation?.language ?? 'Original'} onchange={(e) => { preferredLanguage = e.currentTarget.value; fragmentIdx = 0; fragments = []; fittedCard = ''; }}>
               <option value="Original">Original</option>
@@ -394,8 +385,6 @@
 {#if !previewFinished}
 <ReadingCompanion {progress} cardIndex={activeIdx} positionLabel={pageCount ? `Card ${activeIdx + 1} of ${pageCount}` : 'Opening your book'}
   onTranslateCard={activePage?.kind === 'text' ? translateCurrentCard : undefined}
-  currentCard={activePage?.kind === 'text' ? { id: activePage.card_id!, content: activePage.content } : undefined}
-  onLocalTranslation={saveLocalTranslation}
   demoTranslation={!!guestTranslation(preview, activeIdx)} demoTranslated={!!activeTranslation}
   experience={preview ? 'demo' : 'live'} demoWord={preview?.pages[activeIdx]?.word ?? ''} demoDefinition={preview?.pages[activeIdx]?.definition ?? ''} />
 {/if}

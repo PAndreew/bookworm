@@ -1,20 +1,5 @@
 # Puri: reading companion
 
-## Experimental on-device AI
-
-**Currently paused after a browser-crash report.** Reading and paid cloud AI remain
-available. Cached models never auto-start, and the edge blocks local allowance
-requests from older clients. See [BROWSER-AI-INCIDENT.md](BROWSER-AI-INCIDENT.md).
-
-The implementation (not currently enabled in production): signed-in Free readers can enable **Qwen3.5-0.8B** in their browser for explanations,
-phrase translations and short full-card translations. Free allows **10 local
-attempts/month**, Plus **100**, and existing Pro **1,000**; these are separate
-from paid cloud allowances. WebGPU is required. See [BROWSER-AI.md](BROWSER-AI.md)
-for downloads, warm-up, privacy, limits, tests and deployment details.
-
-The sections below describe the existing **cloud** service. Free remains blocked
-from provider calls: local errors never silently fall back to cloud AI.
-
 Puri uses the Glim SVG artwork, shared with the Potpuri logo. On the landing
 page, Puri is non-interactive and occasionally displays one of five prepared
 book facts in a turquoise bubble. Guest previews also use prepared explanations,
@@ -31,8 +16,8 @@ reader page, so rounding a percentage never hides small progress changes.
 Click Puri after selecting book text, paste a phrase, or choose Translate current
 card. A card's dropdown offers Original plus its saved translations. The native dialog supports
 keyboard focus trapping, Escape/close, explanation, translation and output language.
-For cloud execution the user must sign in with Plus or Pro. Submitting a phrase
-in cloud mode sends it to the provider by default, without a separate consent checkbox. Free accounts are blocked server-side before any provider call.
+The user must sign in with Plus or Pro. Submitting a phrase sends it to the
+provider by default, without a separate consent checkbox. Free accounts are blocked server-side before any provider call.
 Results are plain text, never interpreted HTML. Closing cancels the browser request.
 
 ## API and privacy

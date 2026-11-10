@@ -194,11 +194,6 @@ export const api = {
   assistant: (data: { mode: 'explain' | 'translate'; phrase: string; card_id: string; language: string; consent: boolean }, signal?: AbortSignal) =>
     request<{ answer: string; model: string }>('/assistant', { method: 'POST', body: JSON.stringify(data), signal }),
 
-  localAllowance: (card_id?: string, signal?: AbortSignal) =>
-    request<{ used: number; limit: number; resets_at: string }>('/assistant/local', card_id
-      ? { method: 'POST', body: JSON.stringify({ card_id }), signal }
-      : { signal }),
-
   // ------------------------------------------------------------- reading
   cards: (slug: string, from = 0, limit = 12, sourceFrom = 0) =>
     request<{ pages: Page[]; page_count: number }>(`/books/${encodeURIComponent(slug)}/cards?card_from=${from}&source_from=${sourceFrom}&limit=${limit}`),
