@@ -77,6 +77,7 @@ const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:4333';
    // Paid users retain the existing membership route and default.
    tier='plus';failQuota=false;await page.reload();await page.waitForSelector('[data-body]');await open();assert.equal(await page.getByLabel('AI access',{exact:true}).inputValue(),'paid');
    await page.getByLabel('AI access',{exact:true}).selectOption('byok');assert.equal(await page.getByLabel('API key',{exact:true}).inputValue(),'','reload must clear key');
+   await page.getByRole('button',{name:'Close reading companion',exact:true}).click();await open();assert.equal(await page.getByLabel('AI access',{exact:true}).inputValue(),'byok','reopening must not silently switch funding');
    assert.deepEqual(errors,[]);await page.close();
   }
   console.log('BYOK browser checks passed: three direct providers, metadata-only quota, consent, free/paid separation, page-local translations/cache, failures, forget/reload and token rejection (320/390/1280px).');

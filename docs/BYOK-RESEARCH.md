@@ -1,6 +1,6 @@
 # Device-only API credentials: research, not implementation
 
-Researched 2026-11-10. No BYOK product code or credential storage implemented.
+Researched 2026-11-10. This is the original pre-implementation research; see [BYOK.md](BYOK.md) for the subsequently shipped OpenAI/Anthropic/OpenRouter feature. Persistent credential storage and OpenRouter OAuth remain unimplemented.
 
 ## Conclusion
 

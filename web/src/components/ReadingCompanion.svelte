@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { api, ApiError } from '../lib/api';
+  import { api } from '../lib/api';
   import { renderMarkdown } from '../lib/markdown';
   import { askBYOK, configureBYOK, clearBYOK, hasBYOK, providers, type BYOKProvider } from '../lib/byok';
 
@@ -21,6 +21,7 @@
   });
   $effect(() => {
     cardIndex; demoWord;
+    controller?.abort();
     selected = ''; selectedCardId = ''; phrase = ''; phraseCardId = ''; answer = ''; coaching = false;
     dialog?.close();
   });
@@ -67,10 +68,11 @@
   let answer = $state('');
   let error = $state('');
   let busy = $state(false);
-  let auth = $state<'checking' | 'signed-in' | 'signed-out' | 'upgrade'>('checking');
+  let auth = $state<'checking' | 'signed-in' | 'signed-out'>('checking');
   let controller: AbortController | null = null;
   let funding = $state<'paid' | 'byok'>('byok');
   let paid = $state(false);
+  let fundingInitialized = false;
   let provider = $state<BYOKProvider>('openai');
   let model = $state(providers.openai.model);
   let apiKey = $state('');
@@ -191,7 +193,8 @@
     try {
       const me = await api.me();
       paid = me.user.tier !== 'free';
-      funding = paid ? 'paid' : 'byok';
+      if (!fundingInitialized) { funding = paid ? 'paid' : 'byok'; fundingInitialized = true; }
+      else if (!paid) funding = 'byok';
       auth = 'signed-in';
       await refreshBYOKQuota();
     }
@@ -260,7 +263,7 @@
     <label for="ai-funding">AI access</label>
     <select id="ai-funding" bind:value={funding} disabled={busy}>
       <option value="byok">Free BYOK · your API credits</option>
-      {#if paid}<option value="paid">{paid ? 'Membership' : 'Plus'} · included AI</option>{/if}
+      {#if paid}<option value="paid">Membership · included AI</option>{/if}
     </select>
     {#if funding === 'byok'}
       <p class="intro">For the brave: {quota ? `${quota.used} / ${quota.limit}` : '50'} requests per calendar month (UTC). Failed or cancelled attempts count. This is an app-enforced allowance, not a provider spending cap.</p>
