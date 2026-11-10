@@ -33,7 +33,8 @@ func TestEmailFlows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	suffix := strings.ToLower(token[:10])
+	// Session tokens use base64url; '-' is not valid in a user handle.
+	suffix := strings.ToLower(strings.ReplaceAll(token[:10], "-", "_"))
 	u, err := st.CreateUser(ctx, suffix+"@example.com", suffix, suffix, "old", time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), "UTC")
 	if err != nil {
 		t.Fatal(err)

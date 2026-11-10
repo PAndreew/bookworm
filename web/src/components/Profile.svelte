@@ -4,6 +4,7 @@
   import { api, ApiError, type User, type Achievement, type AchievementID } from '../lib/api';
   import Membership from './Membership.svelte';
   import Avatar from './Avatar.svelte';
+  import BYOKSettings from './BYOKSettings.svelte';
 
   let user = $state<User | null>(null);
   let achievements = $state<Achievement[]>([]);
@@ -148,6 +149,7 @@
     {/if}
 
     <Membership {user} onchange={load} />
+    {#key user.id ?? user.handle}<BYOKSettings userId={user.id ?? user.handle} />{/key}
 
     <section class="box" aria-labelledby="achievements-title">
       <h2 id="achievements-title">Achievements</h2>

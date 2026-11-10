@@ -300,10 +300,11 @@ func (s *Server) handleCreateHighlight(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListHighlights(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	limit := httpx.QueryInt(r, "limit", 50, 1, 100)
 	offset := httpx.QueryInt(r, "offset", 0, 0, 100000)
 
-	hs, err := s.store.ListHighlights(r.Context(), currentUser(r).ID, limit, offset)
+	hs, err := s.store.ListHighlights(r.Context(), currentUser(r).ID, limit, offset, r.URL.Query().Get("book"))
 	if err != nil {
 		httpx.InternalError(w, r, "handleListHighlights", err)
 		return

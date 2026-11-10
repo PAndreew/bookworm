@@ -308,7 +308,7 @@ func (s *Store) DeleteHighlight(ctx context.Context, userID, id string) error {
 	return nil
 }
 
-func (s *Store) ListHighlights(ctx context.Context, userID string, limit, offset int) ([]Highlight, error) {
+func (s *Store) ListHighlights(ctx context.Context, userID string, limit, offset int, bookSlug string) ([]Highlight, error) {
 	const q = `
 		SELECT h.id, h.page_id, h.start_off, h.end_off, h.quote, h.share_slug,
 		       h.created_at, b.title, b.author
@@ -316,11 +316,11 @@ func (s *Store) ListHighlights(ctx context.Context, userID string, limit, offset
 		JOIN pages p ON p.id = h.page_id
 		JOIN book_editions e ON e.id = p.edition_id
 		JOIN books b ON b.id = e.book_id
-		WHERE h.user_id = $1
-		ORDER BY h.created_at DESC
+		WHERE h.user_id = $1 AND ($4 = '' OR b.slug = $4)
+		ORDER BY h.created_at DESC, h.id DESC
 		LIMIT $2 OFFSET $3`
 
-	rows, err := s.pool.Query(ctx, q, userID, limit, offset)
+	rows, err := s.pool.Query(ctx, q, userID, limit, offset, bookSlug)
 	if err != nil {
 		return nil, err
 	}

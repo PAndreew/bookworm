@@ -23,6 +23,7 @@ export interface BillingStatus {
  subscription: {status:string;period_end:string;cancel_at_period_end:boolean} | null;
 }
 export interface Translation { language: 'French' | 'Spanish' | 'German'; content: string; model: string; }
+export interface Highlight { id:string; page_id:string; start_off:number; end_off:number; quote:string; share_slug?:string|null; created_at?:string; book_title?:string; author?:string; }
 export interface Offer {available:boolean;remaining:number;limit?:number;price_eur?:number;requests_per_month?:number;}
 
 export interface Book {
@@ -218,9 +219,9 @@ export const api = {
     end_off: number;
     quote: string;
     share: boolean;
-  }) => post<{ highlight: any }>('/highlights', data),
+  }) => post<{ highlight: Highlight }>('/highlights', data),
 
-  highlights: () => request<{ highlights: any[] }>('/highlights'),
+  highlights: (book?:string, offset=0) => request<{ highlights: Highlight[] }>(`/highlights?limit=100&offset=${offset}${book ? `&book=${encodeURIComponent(book)}` : ''}`),
   deleteHighlight: (id: string) => request<void>(`/highlights/${id}`, { method: 'DELETE' }),
 
   // -------------------------------------------------------------- social

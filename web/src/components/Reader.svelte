@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
   import { Heart, Highlighter, Share2, ChevronLeft, ChevronRight, Flag, Type, Flame, Lock } from '@lucide/svelte';
-  import { api, ApiError, type Page, type Translation } from '../lib/api';
+  import { api, ApiError, type Page, type Translation, type Highlight } from '../lib/api';
+  import { highlightRuns } from '../lib/reader-highlights';
   import ReadingCompanion from './ReadingCompanion.svelte';
   import { askBYOK } from '../lib/byok';
   import { fitTextCard, type Fragment } from '../lib/card-fit';
@@ -30,6 +31,21 @@
   const readerFamily = $derived(readerFonts.find(font => font.id === readerFont)!.family);
   let showType = $state(false);
   let toast = $state<string | null>(null);
+  let savedHighlights = $state<Highlight[]>([]);
+  let rememberedSelection: {key:string;start:number;end:number;text:string}|null = null;
+  $effect(() => { renderKey; fragmentIdx; rememberedSelection = null; });
+  async function loadHighlights() {
+    if (preview) return;
+    try {
+      for (let offset=0; alive; offset+=100) {
+        const result = await api.highlights(slug,offset);
+        if (!alive) return;
+        const incoming = result.highlights ?? [];
+        savedHighlights = [...savedHighlights, ...incoming.filter(h => !savedHighlights.some(old => old.id === h.id))];
+        if (incoming.length < 100) break;
+      }
+    } catch { /* Signed-out readers can read but cannot load private marks. */ }
+  }
   let fragments = $state<Fragment[]>([]);
   let fragmentIdx = $state(0);
   let fittedCard = $state('');
@@ -135,6 +151,7 @@
     if (activePage?.card_id === id) { preferredLanguage = language; fragmentIdx = 0; fragments = []; fittedCard = ''; }
     showToast(byok ? 'BYOK translation · this page only.' : result.cached ? 'Showing saved translation.' : 'AI translation saved.');
   }
+  const markedRuns = $derived(highlightRuns(activePage, activeTranslation ? [] : savedHighlights, fittedCard === renderKey ? fragment?.start ?? 0 : 0, fittedCard === renderKey ? fragment?.end ?? Array.from(activePage?.content ?? '').length : Array.from(activePage?.content ?? '').length));
   const progress = $derived(pageCount > 0 ? ((activeIdx + 1) / pageCount) * 100 : 0);
 
   onMount(() => {
@@ -147,6 +164,12 @@
     const visibility = () => { documentVisible = !document.hidden; if (documentVisible && completionOpen) void refreshCompletion(); };
     window.addEventListener('keydown', key);
     document.addEventListener('visibilitychange', visibility);
+    const remember = () => {
+      const node = document.querySelector<HTMLElement>('.page[data-kind="text"]');
+      const offsets = node && selectionOffsets(node);
+      if (offsets && !activeTranslation) rememberedSelection = {key:renderKey,...offsets};
+    };
+    document.addEventListener('selectionchange', remember);
     visibility();
     const saved = Number(localStorage.getItem('bw:fontScale'));
     if ([0.85, 1, 1.2, 1.45].includes(saved)) fontScale = saved;
@@ -154,7 +177,7 @@
     if (readerFonts.some(font => font.id === savedFont)) readerFont = savedFont!;
     openBook();
     if (!preview) api.me().then(result => translationPaid = result.user.tier !== 'free').catch(() => {});
-    return () => { window.removeEventListener('keydown', key); document.removeEventListener('visibilitychange', visibility); };
+    return () => { window.removeEventListener('keydown', key); document.removeEventListener('visibilitychange', visibility); document.removeEventListener('selectionchange', remember); };
   });
   let alive = true;
   onDestroy(() => { alive = false; });
@@ -182,6 +205,7 @@
       const res = await api.cards(slug, hasCard ? requestedCard : 0, 12, hasCard ? 0 : from);
       if (!alive) return;
       pages = res.pages; pageCount = res.page_count; activeIdx = pages[0]?.idx ?? 0;
+      void loadHighlights();
     } catch (e) {
       if (e instanceof ApiError && e.isPaywall) gated = e.message;
       else error = e instanceof ApiError ? e.message : 'Could not load this book.';
@@ -289,8 +313,8 @@
   }
   async function highlight(page: Page, pageEl: HTMLElement, share: boolean) {
     if (preview || activeTranslation) return;
-    const sel = selectionOffsets(pageEl);
-    if (!sel || sel.text.trim().length < 4) { showToast('Select the words you want to keep first.'); return; }
+    const sel = selectionOffsets(pageEl) ?? (rememberedSelection?.key === renderKey ? rememberedSelection : null);
+    if (!sel || sel.text.trim().length === 0) { showToast('Select the words you want to keep first.'); return; }
     try {
       const parts = page.parts?.length ? page.parts : [{ page_id: page.id, start_off: page.start_off ?? 0, end_off: (page.start_off ?? 0) + Array.from(page.content).length, card_start: 0 }];
       const results = [];
@@ -300,6 +324,8 @@
         results.push(await api.createHighlight({ page_id: part.page_id, start_off: part.start_off + start - part.card_start, end_off: part.start_off + end - part.card_start, quote: Array.from(page.content).slice(start, end).join(''), share }));
       }
       if (!results.length) { showToast('Select book text first.'); return; }
+      savedHighlights = [...savedHighlights, ...results.map(r => r.highlight).filter(h => !savedHighlights.some(old => old.id === h.id))];
+      rememberedSelection = null;
       if (share) {
         const urls = results.filter(res => res.highlight.share_slug).map(res => `${location.origin}/q/${res.highlight.share_slug}`);
         if (navigator.share) await navigator.share({ title: `${title} — ${author}`, text: urls.length > 1 ? `${sel.text}\n${urls.slice(1).join('\n')}` : sel.text, url: urls[0] });
@@ -368,7 +394,7 @@
           {/if}
           <button class="report-icon" disabled={!!preview} onclick={() => openReport(page)} aria-label="Report text or layout issue" title="Report an issue"><Flag size={13} /></button>
           {#if page.kind === 'text'}
-            <div class="body" data-body>{displayedText}<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></div>
+            <div class="body" data-body onpointerdown={() => { rememberedSelection = null; }}>{#if activeTranslation}{displayedText}{:else}{#each markedRuns as run}{#if run.marked}<mark>{run.text}</mark>{:else}{run.text}{/if}{/each}{/if}<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></div>
             <div class="actions">
               <button class="action" disabled={!!preview} class:liked={page.liked_by_me} onclick={() => toggleLike(page)} aria-label={page.liked_by_me ? 'Unlike this page' : 'Like this page'}><Heart size={24} fill={page.liked_by_me ? 'currentColor' : 'none'} />{#if page.like_count > 0}<span class="count">{page.like_count}</span>{/if}</button>
               <button class="action" disabled={!!preview || !!activeTranslation} onclick={(e) => highlight(page, e.currentTarget.closest('.page')!, false)} aria-label="Highlight the selected text"><Highlighter size={24} /></button>
@@ -452,6 +478,8 @@
   .card-language { position: absolute; right: 48px; top: 12px; max-width: 45%; border: 1px solid var(--border); background: var(--bg-raised); border-radius: 999px; padding: 4px 9px; font-size: .7rem; }
   .body { font-family: var(--font-read); font-size: calc(clamp(16px, 2.7dvh, 18px) * var(--scale)); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; flex-shrink: 0; width: 100%; }
   .body::selection { background: var(--selection); }
+  .body mark { background: #fde68a; color: inherit; border-radius: 2px; padding: 0; }
+  .body { -webkit-user-select: text; user-select: text; }
   .sunny-anchor { display: inline-block; width: 36px; height: 32px; vertical-align: middle; }
   .heading-card { width: 100%; max-width: 38rem; margin: auto; text-align: center; }
   .heading-card h2 { font-family: var(--font-read); overflow-wrap: anywhere; white-space: pre-line; font-size: clamp(1.3rem, 4vw, 2rem); line-height: 1.45; }

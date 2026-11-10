@@ -1,4 +1,6 @@
-# BYOK release — 2026-11-10
+# BYOK initial release — 2026-11-10
+
+Historical record: the subsequent reader/settings update supersedes memory-only keys with explicit device-local storage, one-time terms and live model selection under You. See [BYOK.md](BYOK.md) for current behavior.
 
 ## Shipped
 

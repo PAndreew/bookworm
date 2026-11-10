@@ -17,7 +17,7 @@
 
 <nav class="plans" aria-label="Membership">
  {#if user.tier==='free'}
-  <p class="offer"><strong>Free BYOK · for the brave</strong><br/>50 app-enforced AI requests per calendar month with your OpenAI, Anthropic or OpenRouter API key. You pay the provider; keys stay in this page’s memory. Open a book and ask Puri to set it up.</p>
+  <p class="offer"><strong>Free BYOK · for the brave</strong><br/>50 app-enforced AI requests per calendar month with your OpenAI, Anthropic or OpenRouter API key. You pay the provider. Set up your key below; it stays in this browser.</p>
   <p class="offer"><strong>Founding Plus · €20/year</strong><br/>100 AI explanations or translations per month. First 50 subscribers only.</p>
   <button class="cta" disabled={busy||!offer?.available} onclick={subscribe}>{busy?'Opening Stripe…':'Subscribe'}</button>
   {#if offer}<p class="dim">{offer.available?`${offer.remaining} founding places available.`:'The founding offer is currently unavailable.'}</p>{/if}

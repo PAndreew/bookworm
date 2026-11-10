@@ -9,7 +9,7 @@ shared as a quote link.
 
 ## BYOK — free, for the brave
 
-Open a book and ask Puri, then choose **Free BYOK**. Keys go directly from your browser to your provider over HTTPS and live only in page memory; reload/navigation clears them. BYOK card translations also stay on the page, not in the shared server cache. Our API stores only a monthly reservation counter; failed/cancelled attempts count. The 50-request app allowance is not a tamper-proof spending cap. Use a dedicated provider key with a low credit limit. Plus/Pro inference remains separate with no automatic fallback.
+Set up **BYOK under You**, refresh the provider’s current model list, choose a model and accept the terms once. **Save on this device** remembers your key/model in account-scoped browser local storage. Keys go directly from your browser to your provider over HTTPS, never to the VPS. They are not encrypted against scripts/extensions or device access; use **Forget key** to remove them. Cookies are not used for provider credentials. BYOK card translations also stay on the page, not in the shared server cache. Our API stores only a monthly reservation counter; failed/cancelled attempts count. The 50-request app allowance is not a tamper-proof spending cap. Use a dedicated provider key with a low credit limit. Plus/Pro inference remains separate with no automatic fallback.
 
 OpenAI requires a Platform API key and API billing. ChatGPT/Codex subscription tokens and `auth.json` are **not** general API keys. Supported Codex subscription integration needs a separate local Codex app-server client, not this direct-browser API flow; see [OpenAI's authentication docs](https://developers.openai.com/codex/auth/).
 
