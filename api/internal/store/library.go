@@ -17,7 +17,7 @@ type LibraryBook struct {
 	RatingCount   int        `json:"rating_count"`
 }
 
-func (s *Store) ListLibraryBooks(ctx context.Context, viewer, license, search, genre, sort string, mine bool, limit, offset int) ([]LibraryBook, error) {
+func (s *Store) ListLibraryBooks(ctx context.Context, viewer, license, search, genre, sort, direction string, mine bool, limit, offset int) ([]LibraryBook, error) {
 	const q = `
  SELECT b.id,b.slug,b.title,b.author,b.description,b.cover_url,b.language,b.license,
  e.id,e.page_count,e.word_count,b.genres,e.reader_card_count,
@@ -34,18 +34,21 @@ func (s *Store) ListLibraryBooks(ctx context.Context, viewer, license, search, g
  AND ($3='' OR b.genres @> ARRAY[$3]::text[])
  AND (NOT $8 OR rp.user_id IS NOT NULL)
  ORDER BY
- CASE WHEN $7='recent' AND ($8 OR rp.last_read_at >= now()-interval '1 month') THEN rp.last_read_at END DESC NULLS LAST,
- CASE WHEN $7='rating' THEN reviews.average END DESC NULLS LAST,
- CASE WHEN $7 IN ('rating','reviews') THEN reviews.total END DESC NULLS LAST,
- CASE WHEN $7='shortest' THEN e.page_count END ASC,
- CASE WHEN $7='longest' THEN e.page_count END DESC,
+ CASE WHEN $7='recent' AND $9='asc' AND ($8 OR rp.last_read_at >= now()-interval '1 month') THEN rp.last_read_at END ASC NULLS LAST,
+ CASE WHEN $7='recent' AND $9='desc' AND ($8 OR rp.last_read_at >= now()-interval '1 month') THEN rp.last_read_at END DESC NULLS LAST,
+ CASE WHEN $7='rating' AND $9='asc' THEN COALESCE(reviews.average,0) END ASC,
+ CASE WHEN $7='rating' AND $9='desc' THEN COALESCE(reviews.average,0) END DESC,
+ CASE WHEN $7 IN ('rating','reviews') AND $9='asc' THEN reviews.total END ASC,
+ CASE WHEN $7 IN ('rating','reviews') AND $9='desc' THEN reviews.total END DESC,
+ CASE WHEN $7='pages' AND $9='asc' THEN e.page_count END ASC,
+ CASE WHEN $7='pages' AND $9='desc' THEN e.page_count END DESC,
  b.title,b.id
  LIMIT $4 OFFSET $5`
 	pattern := ""
 	if search != "" {
 		pattern = "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(strings.ToLower(search)) + "%"
 	}
-	rows, err := s.pool.Query(ctx, q, license, pattern, genre, limit, offset, viewer, sort, mine)
+	rows, err := s.pool.Query(ctx, q, license, pattern, genre, limit, offset, viewer, sort, mine, direction)
 	if err != nil {
 		return nil, err
 	}

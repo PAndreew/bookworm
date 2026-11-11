@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Flame } from '@lucide/svelte';
+  import { ArrowDown, ArrowUp, Flame } from '@lucide/svelte';
   import BookCard from './BookCard.svelte';
   import { api, type Book } from '../lib/api';
 
@@ -11,6 +11,7 @@
   let tier = $state<'free' | 'plus' | 'pro'>('free');
   let myBooks = $state(false);
   let sort = $state('recent');
+  let direction = $state<'asc' | 'desc'>('desc');
   let genre = $state('');
   let search = $state('');
   let ratings = $state<Record<string, number>>({});
@@ -41,7 +42,7 @@
   });
 
   function query() {
-    return { license: 'public_domain', genre, q: search.trim(), sort, mine: myBooks };
+    return { license: 'public_domain', genre, q: search.trim(), sort, direction, mine: myBooks };
   }
 
   $effect(() => {
@@ -119,25 +120,30 @@
     </div>
   {/if}
 
-  <div class="filters" aria-label="Book access">
-    <button class:on={!myBooks} aria-pressed={!myBooks} onclick={() => (myBooks = false)}>All</button>
-    <button class:on={myBooks} aria-pressed={myBooks} onclick={() => { if (signedIn) myBooks = !myBooks; else window.location.href = '/login'; }}>My books</button>
+  <div class="toolbar">
+    <div class="filters" aria-label="Book access">
+      <button class:on={!myBooks} aria-pressed={!myBooks} onclick={() => (myBooks = false)}>All</button>
+      <button class:on={myBooks} aria-pressed={myBooks} onclick={() => { if (signedIn) myBooks = !myBooks; else window.location.href = '/login'; }}>My books</button>
+    </div>
+    <div class="sorter">
+      <label class="sr-only" for="book-sort">Sort by</label>
+      <select id="book-sort" bind:value={sort}>
+        <option value="recent">Recently read</option>
+        <option value="rating">Rating</option>
+        <option value="reviews">Reviews</option>
+        <option value="pages">Page count</option>
+      </select>
+      <button class="direction" aria-label={`Sort ${direction === 'asc' ? 'ascending' : 'descending'}; switch to ${direction === 'asc' ? 'descending' : 'ascending'}`}
+        title={direction === 'asc' ? 'Ascending' : 'Descending'} onclick={() => direction = direction === 'asc' ? 'desc' : 'asc'}>
+        {#if direction === 'asc'}<ArrowUp size={16} />{:else}<ArrowDown size={16} />{/if}
+      </button>
+    </div>
   </div>
   <div class="discovery">
     <input type="search" aria-label="Search books or authors" placeholder="Find a book or author" maxlength="200" bind:value={search} />
     <select aria-label="Filter by genre" bind:value={genre}>
       <option value="">All genres</option>
       {#each genres as name}<option value={name}>#{name}</option>{/each}
-    </select>
-  </div>
-  <div class="sorter">
-    <label for="book-sort">Sort by</label>
-    <select id="book-sort" bind:value={sort}>
-      <option value="recent">Recently read</option>
-      <option value="rating">Highest rated</option>
-      <option value="reviews">Most reviews</option>
-      <option value="shortest">Page count: shortest first</option>
-      <option value="longest">Page count: longest first</option>
     </select>
   </div>
   <p class="status" role="status">{message}</p>
@@ -173,15 +179,19 @@
   @keyframes breathe { 50% { opacity: 0.72; } }
   .signin { padding: 8px 16px; border-radius: var(--radius-pill); border: 1px solid var(--border-bright); font-size: 0.85rem; }
   .nudge { padding: 11px 15px; margin-bottom: 16px; border-radius: var(--radius-sm); background: var(--bg-card); border: 1px solid var(--border); font-size: 0.84rem; color: var(--text-dim); }
-  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .filters { display: flex; gap: 8px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .filters button { padding: 7px 16px; border-radius: var(--radius-pill); border: 1px solid var(--border); background: transparent; color: var(--text-dim); font-size: 0.82rem; }
   .filters button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
   .discovery { display: flex; gap: 12px; margin-bottom: 14px; }
   .discovery input, .discovery select { min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font-size: 0.85rem; }
   .discovery input { flex: 1; width: 100%; }
   .discovery select { max-width: 45%; }
-  .sorter { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 0.82rem; }
-  .sorter select { min-width: 0; padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: #fff; color: var(--text); font-size: 0.82rem; }
+  .sorter { display: flex; align-items: center; gap: 4px; margin-left: auto; font-size: 0.82rem; }
+  .sorter select { min-width: 0; max-width: 145px; padding: 7px 8px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg); color: var(--text); font-size: 0.82rem; }
+  .direction { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 50%; background: var(--bg); color: var(--text); }
+  .direction:hover { border-color: var(--border-bright); }
   .status { font-size: 0.82rem; color: var(--text-dim); }
   .status:empty { display: none; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }

@@ -171,7 +171,42 @@ func TestPersonalLibraryAndPositions(t *testing.T) {
 			}
 		}
 	}
+	for _, sort := range []string{"rating", "reviews", "pages"} {
+		for _, direction := range []string{"asc", "desc"} {
+			got = list("&sort="+sort+"&direction="+direction, tokens[0])
+			value := func(b store.LibraryBook) float64 {
+				switch sort {
+				case "rating":
+					return b.RatingAverage
+				case "reviews":
+					return float64(b.RatingCount)
+				default:
+					return float64(b.PageCount)
+				}
+			}
+			for i := 1; i < len(got); i++ {
+				if (direction == "asc" && value(got[i-1]) > value(got[i])) || (direction == "desc" && value(got[i-1]) < value(got[i])) {
+					t.Fatalf("%s %s ordering failed", sort, direction)
+				}
+			}
+			first := list("&sort="+sort+"&direction="+direction+"&limit=1", tokens[0])
+			if first[0].Slug != got[0].Slug {
+				t.Fatal("direction must apply before pagination")
+			}
+		}
+	}
+	for _, direction := range []string{"asc", "desc"} {
+		got = list("&mine=true&sort=recent&direction="+direction, tokens[0])
+		want := books[0].Slug
+		if direction == "desc" {
+			want = books[2].Slug
+		}
+		if got[0].Slug != want {
+			t.Fatalf("recent %s ordering failed", direction)
+		}
+	}
 	call("GET", "/v1/books?sort=invalid", "", "", 400)
+	call("GET", "/v1/books?direction=invalid", "", "", 400)
 	pages, err := st.PagesReadToday(ctx, users[0].ID, store.LocalDay("UTC", time.Now()))
 	if err != nil || pages != 0 {
 		t.Fatal("navigation earned streak credit", pages, err)

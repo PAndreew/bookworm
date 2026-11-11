@@ -20,7 +20,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
    else if (path === '/v1/books') {
     queries.push(url.searchParams);
     let result = url.searchParams.get('mine') === 'true' ? [books[0]] : [...books];
-    if (url.searchParams.get('sort') === 'shortest' || url.searchParams.get('sort') === 'rating') result.reverse();
+    const sort = url.searchParams.get('sort'), ascending = url.searchParams.get('direction') === 'asc';
+    const value = b => sort === 'pages' ? b.page_count : sort === 'rating' ? b.rating_average : sort === 'reviews' ? b.rating_count : Date.parse(b.last_read_at) || 0;
+    result.sort((a,b) => (value(a)-value(b)) * (ascending ? 1 : -1));
     body = {books:result,next_offset:null};
    } else if (path.endsWith('/position')) {
     if (route.request().method() === 'POST') { saves.push(route.request().postDataJSON().card_id); body = {status:'saved'}; }
@@ -43,9 +45,21 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   assert.equal(queries.at(-1).get('mine'),'true');
   await page.getByRole('button',{name:'My books',exact:true}).click();
   await page.waitForFunction(()=>document.querySelectorAll('.card').length===2);
-  await page.getByLabel('Sort by').selectOption('shortest');
-  await page.waitForFunction(()=>document.querySelector('.card h2')?.textContent==='New Book');
-  assert.equal(queries.at(-1).get('sort'),'shortest');
+  const filters = await page.locator('.filters').boundingBox();
+  const sorter = await page.locator('.sorter').boundingBox();
+  assert(Math.abs(filters.y - sorter.y) < 5, 'sorting must sit next to the book filters on mobile');
+  for (const sort of ['pages', 'rating', 'reviews', 'recent']) {
+    await page.getByLabel('Sort by', {exact:true}).selectOption(sort);
+    await page.waitForResponse(r => r.url().includes('/v1/books?') && new URL(r.url()).searchParams.get('sort') === sort);
+    assert.equal(queries.at(-1).get('direction'), 'desc');
+    await page.getByRole('button', {name:'Sort descending; switch to ascending',exact:true}).click();
+    await page.waitForResponse(r => r.url().includes('/v1/books?') && new URL(r.url()).searchParams.get('direction') === 'asc');
+    assert.equal(queries.at(-1).get('sort'), sort);
+    await page.waitForFunction(title => document.querySelector('.card h2')?.textContent === title, sort === 'rating' ? 'Latest Book' : 'New Book');
+    await page.getByRole('button', {name:'Sort ascending; switch to descending',exact:true}).click();
+    await page.waitForResponse(r => r.url().includes('/v1/books?') && new URL(r.url()).searchParams.get('direction') === 'desc');
+    await page.waitForFunction(title => document.querySelector('.card h2')?.textContent === title, sort === 'rating' ? 'New Book' : 'Latest Book');
+  }
   // Astro's preview lacks production Nginx's /read/:slug fallback.
   await page.route('**/read/recent', async route => {
     const response = await page.request.get(base + '/read/');

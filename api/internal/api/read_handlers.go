@@ -36,10 +36,25 @@ func (s *Server) handleListBooks(w http.ResponseWriter, r *http.Request) {
 		sort = "recent"
 	}
 	switch sort {
-	case "recent", "rating", "reviews", "shortest", "longest":
+	case "recent", "rating", "reviews", "pages", "shortest", "longest":
 	default:
 		httpx.Error(w, 400, "bad_filter", "Unknown sort order.")
 		return
+	}
+	direction := r.URL.Query().Get("direction")
+	if direction == "" {
+		direction = "desc"
+		if sort == "shortest" {
+			direction = "asc"
+		}
+	}
+	if direction != "asc" && direction != "desc" {
+		httpx.Error(w, 400, "bad_filter", "Unknown sort direction.")
+		return
+	}
+	// Keep existing page-count sort URLs working.
+	if sort == "shortest" || sort == "longest" {
+		sort = "pages"
 	}
 	mine := r.URL.Query().Get("mine") == "true"
 	if mine && currentUser(r) == nil {
@@ -47,7 +62,7 @@ func (s *Server) handleListBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Sort/filter before pagination; never expose someone else's progress.
-	books, err := s.store.ListLibraryBooks(r.Context(), viewerID(r), license, search, genre, sort, mine, limit+1, offset)
+	books, err := s.store.ListLibraryBooks(r.Context(), viewerID(r), license, search, genre, sort, direction, mine, limit+1, offset)
 	if err != nil {
 		httpx.InternalError(w, r, "handleListBooks", err)
 		return

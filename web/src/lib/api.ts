@@ -171,12 +171,13 @@ export const api = {
   reserveByok: (signal?:AbortSignal) => request<{used:number;limit:number;resets_at:string}>('/byok/reservations', {method:'POST',body:'{}',signal}),
 
   // ------------------------------------------------------------- catalog
-  books: (options: { license?: string; q?: string; genre?: string; offset?: number; sort?: string; mine?: boolean } = {}, signal?: AbortSignal) => {
+  books: (options: { license?: string; q?: string; genre?: string; offset?: number; sort?: string; direction?: 'asc' | 'desc'; mine?: boolean } = {}, signal?: AbortSignal) => {
     const query = new URLSearchParams({ limit: '24', offset: String(options.offset ?? 0) });
     if (options.license) query.set('license', options.license);
     if (options.q) query.set('q', options.q);
     if (options.genre) query.set('genre', options.genre);
     if (options.sort) query.set('sort', options.sort);
+    if (options.direction) query.set('direction', options.direction);
     if (options.mine) query.set('mine', 'true');
     return request<{ books: Book[]; next_offset: number | null }>(`/books?${query}`, { signal });
   },

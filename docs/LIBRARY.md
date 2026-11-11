@@ -5,13 +5,19 @@ books the reader opened within the past rolling calendar month lead the shelf,
 ordered newest first. Other titles follow alphabetically. The latest recent book
 has a green border. Explicit review/length sorting overrides this default order.
 
-**My books** is an independent toggle, combined with All/Free/Plus, genre and
-search filters. It includes all opened books, even those older than a month.
+**All / My books** sits beside the sort dropdown and its up/down direction
+button. My books is an independent toggle, combined with genre and search filters. It includes all opened books, even those older than a month.
 Signed-out users are directed to sign in. Turning it off restores the full shelf.
 
-`GET /v1/books` accepts `sort=recent|rating|reviews|shortest|longest` and
-`mine=true`. Highest rated uses community average stars, breaking ties by review
-count; Most reviews uses review count. Length sorting uses original `page_count`.
+`GET /v1/books` accepts `sort=recent|rating|reviews|pages`,
+`direction=asc|desc` (default descending), and `mine=true`. The dropdown offers
+Recently read, Rating, Reviews, and Page count; the adjacent arrow toggles the
+ordering for every attribute and retains the direction when switching attributes.
+Rating uses community average stars, breaking ties by review count in the same
+direction; Reviews uses review count. Unrated books count as zero. Page count
+uses original `page_count`. Recent ordering keeps unopened/out-of-window books
+last in either direction (My books includes older opened books). Legacy
+`shortest`/`longest` sort URLs remain supported.
 Filtering and ordering happen in PostgreSQL before pagination. Personal bookmarks
 are joined only for the authenticated viewer. Responses are private/no-store and
 the service worker never caches the catalogue or position endpoints.
