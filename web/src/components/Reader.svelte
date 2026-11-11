@@ -114,7 +114,7 @@
     if (canSavePosition && cardID && !loading && documentVisible) void savePosition(cardID);
   });
   const activePage = $derived(pages.find(p => p.idx === activeIdx));
-  let translationPaid = $state(false);
+  let translationSignedIn = $state(false);
   let translations = $state<Record<string, Translation[]>>({});
   let preferredLanguage = $state('Original');
   const loadedTranslations = new Set<string>();
@@ -126,30 +126,36 @@
     ? Array.from(displayPage.content).slice(fragment.start, fragment.end).join('') : displayPage?.content ?? '');
   $effect(() => {
     const id = activePage?.card_id;
-    if (preview || !translationPaid || activePage?.kind !== 'text' || !id || loadedTranslations.has(id)) return;
+    if (preview || !translationSignedIn || activePage?.kind !== 'text' || !id || loadedTranslations.has(id)) return;
     loadedTranslations.add(id);
-    api.cardTranslations(id).then(result => translations[id] = [...result.translations, ...(translations[id] ?? []).filter(t => t.model.startsWith('BYOK · '))]).catch(() => loadedTranslations.delete(id));
+    api.puriResults(id).then(result => translations[id] = result.results.filter(t => t.mode === 'card_translate') as Translation[]).catch(() => loadedTranslations.delete(id));
   });
   async function translateCurrentCard(language: string, signal?: AbortSignal, byok = false) {
     if (language !== 'French' && language !== 'Spanish' && language !== 'German') throw new Error('Choose French, Spanish or German.');
     const id = activePage?.card_id;
     if (!id || activePage?.kind !== 'text') throw new Error('Choose a text card to translate.');
+    const source = activePage.content;
     const prepared = guestTranslation(preview, activeIdx);
     if (preview && (!prepared || language !== 'French')) return;
     let result;
+    let saveFailed = false;
     if (byok && !preview) {
       const existing = (translations[id] ?? []).find(t => t.language === language && t.model.startsWith('BYOK · '));
       if (existing) result = {cached:true,translation:existing};
       else {
-        const answer = await askBYOK({mode:'card_translate',phrase:activePage.content,language},signal);
+        const answer = await askBYOK({mode:'card_translate',phrase:source,language},signal);
         result = {cached:false,translation:{language,content:answer.answer,model:answer.model}};
+      }
+      if (translationSignedIn) {
+        try { await api.savePuriResult(id,{mode:'card_translate',phrase:'',source,...result.translation}); }
+        catch { saveFailed = true; }
       }
     } else result = preview
       ? { cached: true, translation: { language: 'French' as const, content: prepared, model: 'Prepared demo — no AI' } }
       : await api.translateCard(id, language, signal);
     translations[id] = [...(translations[id] ?? []).filter(t => t.language !== language), result.translation];
     if (activePage?.card_id === id) { preferredLanguage = language; fragmentIdx = 0; fragments = []; fittedCard = ''; }
-    showToast(byok ? 'BYOK translation · this page only.' : result.cached ? 'Showing saved translation.' : 'AI translation saved.');
+    showToast(saveFailed ? 'Translation shown, but saving failed. Keep a copy before leaving.' : preview ? 'Prepared demo translation.' : byok && !translationSignedIn ? 'Guest translation · not saved. Sign in to keep future translations.' : result.cached ? 'Showing saved translation.' : 'Translation saved to your account.');
   }
   const markedRuns = $derived(highlightRuns(activePage, activeTranslation ? [] : savedHighlights, fittedCard === renderKey ? fragment?.start ?? 0 : 0, fittedCard === renderKey ? fragment?.end ?? Array.from(activePage?.content ?? '').length : Array.from(activePage?.content ?? '').length));
   const progress = $derived(pageCount > 0 ? ((activeIdx + 1) / pageCount) * 100 : 0);
@@ -176,7 +182,7 @@
     const savedFont = localStorage.getItem('bw:readerFont');
     if (readerFonts.some(font => font.id === savedFont)) readerFont = savedFont!;
     openBook();
-    if (!preview) api.me().then(result => translationPaid = result.user.tier !== 'free').catch(() => {});
+    if (!preview) api.me().then(() => translationSignedIn = true).catch(() => {});
     return () => { window.removeEventListener('keydown', key); document.removeEventListener('visibilitychange', visibility); document.removeEventListener('selectionchange', remember); };
   });
   let alive = true;
@@ -355,7 +361,7 @@
   }
 </script>
 
-<div class="reader" style="--scale:{fontScale}; --font-read:{readerFamily}">
+<div class="reader" class:demo={!!preview} style="--scale:{fontScale}; --font-read:{readerFamily}">
   <header class="bar">
     <a href={preview ? '/#try-it-now' : '/app'} class="icon-btn" aria-label="Back to library"><ChevronLeft size={22} /></a>
     {#if canSavePosition && !preview}<button class="completion-control" onclick={openCompletion} aria-label="Reading completion">Read cards</button>{/if}
@@ -376,12 +382,13 @@
   {#if loading}
     <div class="state"><div class="spinner"></div></div>
   {:else if previewFinished}
-    <div class="state"><div class="gate"><h2>That’s your first 10 cards!</h2><p>Keep reading for free. Create an account to save your place.</p><a class="cta signup" href="/signup">Create an account</a></div></div>
+    <div class="state"><div class="gate"><h2>Keep reading for free</h2><p>Open the full book—no account or reading limit. Create an account whenever you want to save your place and Puri’s answers.</p><a class="cta" href={`/read/${slug}`}>Continue reading</a></div></div>
   {:else if gated}
     <div class="state"><div class="gate"><div class="gate-badge"><Lock size={22} /></div><h2>{title}</h2><p class="gate-author">{author}</p><p>{gated}</p><a class="cta" href="/app/upgrade">See Plus and Pro</a><a class="ghost" href="/app">Browse free books</a><p class="dim">Every public-domain book is free, with no daily limit.</p></div></div>
   {:else if error}
     <div class="state"><div class="gate"><h2>Could not open this book</h2><p>{error}</p><a class="cta" href="/app">Back to the library</a></div></div>
   {:else}
+    {#if preview}<div class="demo-continue"><a href={`/read/${slug}`}>Continue reading →</a><span>Full book · no account needed</span></div>{/if}
     <div class="feed" ontouchstart={(e) => { touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }} ontouchend={swipe}>
       {#each activePage ? [activePage] : [] as page (page.card_id)}
         <article class="page" use:fitCard={{ page: displayPage ?? page, scale: fontScale, font: readerFont }} data-page-id={page.id} data-card-id={page.card_id} data-kind={page.kind} data-idx={page.idx}>
@@ -443,13 +450,17 @@
   </form>
 </dialog>
 {#if !previewFinished}
-<ReadingCompanion {progress} cardIndex={activeIdx} positionLabel={pageCount ? `Card ${activeIdx + 1} of ${pageCount}` : 'Opening your book'}
+<ReadingCompanion {progress} currentCardId={activePage?.card_id} currentCardSource={activePage?.content} cardIndex={activeIdx} positionLabel={pageCount ? `Card ${activeIdx + 1} of ${pageCount}` : 'Opening your book'}
   onTranslateCard={activePage?.kind === 'text' ? translateCurrentCard : undefined}
   demoTranslation={!!guestTranslation(preview, activeIdx)} demoTranslated={!!activeTranslation}
   experience={preview ? 'demo' : 'live'} demoWord={preview?.pages[activeIdx]?.word ?? ''} demoDefinition={preview?.pages[activeIdx]?.definition ?? ''} />
 {/if}
 
 <style>
+  .demo-continue { position: absolute; bottom: calc(18px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 12; text-align: center; font-size: .8rem; white-space: nowrap; }
+  .reader.demo .actions { visibility: hidden; }
+  .demo-continue a { color: var(--accent); font-weight: 600; }
+  .demo-continue span { display: block; font-size: .7rem; color: var(--text-dim); }
   .reader { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
   .bar { position: absolute; top: calc(3px + var(--reader-safe-top, env(safe-area-inset-top))); left: 4px; right: 4px; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
   .bar .icon-btn { pointer-events: auto; }

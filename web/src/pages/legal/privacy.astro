@@ -15,7 +15,7 @@ import Base from '../../layouts/Base.astro';
       <li><strong>Account:</strong> email, handle, display name, date of birth, time zone.</li>
       <li><strong>Reading:</strong> which pages you have read and when, your position in each book, your streak.</li>
       <li><strong>Your marks:</strong> likes, highlights, and personal book ratings.</li>
-      <li><strong>Reading companion:</strong> monthly request counts and the time of your last request, to enforce usage limits. We do not store personal phrases or their explanation answers. Card translations are stored by public book card and language, and may be reused by other paid readers.</li>
+      <li><strong>Reading companion:</strong> monthly request counts and the time of your last request, to enforce usage limits. When you are signed in, explanations, selected passages, and translations (including BYOK results) are saved privately to your account so you can return to them. Included-AI card translations may also be cached by public book card and language for reuse. BYOK results are never added to that shared cache.</li>
       <li><strong>Subscription:</strong> Stripe customer/subscription identifiers, renewal/end date, membership state, and founding-offer reservations. Card/payment details are handled by Stripe, not stored by Potpuri.</li>
       <li><strong>Social:</strong> friendships, and requests you have sent or received.</li>
       <li><strong>Technical:</strong> session records with approximate IP and browser, kept for security.</li>
@@ -61,16 +61,14 @@ import Base from '../../layouts/Base.astro';
     <p>Free BYOK supports OpenAI, Anthropic and OpenRouter. Your browser sends your selected
     text, chosen language, model and API key directly to the selected provider over HTTPS.
     The provider also receives your IP address. Your own API account is billed; consumer
-    ChatGPT/Codex subscriptions are not API credits. We do not receive or store the key,
-    prompt or BYOK answer. We keep only an account-level monthly reservation count for
+    ChatGPT/Codex subscriptions are not API credits. We never receive or store your API key. When signed in, the source card, selected passage, language, model and answer are sent to Potpuri to save your results privately. We also keep an account-level monthly reservation count for
     the 50-request app allowance. Reservations count even if a provider request fails or is cancelled.</p>
     <p>When you choose “Save on this device” under You, your API key, chosen model and
-    one-time acceptance are saved in this browser’s local storage, scoped to your account.
+    one-time acceptance are saved in this browser’s local storage, scoped to your account or to a separate guest setting when signed out.
     They survive reloads and remain on the device until you choose “Forget key” or clear
     site data. Keys are not placed in cookies or synchronized to our server. This is not
     an encrypted vault: browser scripts, extensions or someone with access to your browser
-    profile could read saved keys. BYOK translations remain in page memory only and
-    disappear on reload or navigation. No key sync or recovery is provided. Use a dedicated,
+    profile could read saved keys. Without an account, BYOK answers and translations remain in page memory only and disappear on reload or navigation; no app monthly quota is applied, and your provider’s limits and charges still apply. Guest keys remain on this device until forgotten, and are not inherited by a signed-in account. Signed-in readers’ results are saved privately; guest results are not transferred automatically. No key sync or recovery is provided. Use a dedicated,
     revocable key with a low provider-side spending limit. The app allowance is not a
     security boundary or a spending cap. No automatic fallback to paid membership inference occurs.</p>
     <p>Direct providers have their own retention and privacy policies. For OpenRouter BYOK

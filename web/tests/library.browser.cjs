@@ -37,6 +37,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   await page.goto(base+'/app');
   await page.waitForSelector('.card.latest');
   assert.equal(await page.locator('.resume').count(),0,'library must not contain the old resume button');
+  assert.equal(await page.locator('.card').first().locator('.p').first().textContent(), '100 cards', 'book cards show card counts without page counts');
+  assert(!/\bpages\b/.test(await page.locator('.card').first().textContent()), 'book cards must not show page counts');
   assert.equal(await page.locator('.card').first().locator('h2').textContent(),'Latest Book');
   assert.equal(await page.locator('.card.latest').evaluate(el=>getComputedStyle(el).borderTopColor),'rgb(22, 163, 74)');
   assert.equal(await page.locator('.book-link').first().getAttribute('href'),'/read/recent?card=5');

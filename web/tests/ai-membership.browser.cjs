@@ -18,6 +18,10 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     else if(u.pathname==='/v1/genres')body={genres:[]};
     else if(u.pathname.endsWith('/position'))body={position:null};
     else if(u.pathname.endsWith('/cards'))body={page_count:3,pages:[0,1,2].map(idx=>({idx,kind:'text',id:`source-${idx}`,card_id:`card-${idx}`,content:source,char_count:source.length,like_count:0,liked_by_me:false}))};
+    else if(u.pathname.endsWith('/puri-results')){
+     const id=u.pathname.split('/')[3];
+     body={results:[{mode:'card_translate',phrase:'',language:id==='card-0'?'German':'Spanish',content:id==='card-0'?'Ein deutscher Text.':'Un texto español guardado.',model:'google/gemini-3.8-flash'}]};
+    }
     else if(u.pathname.endsWith('/translations')){
      const id=u.pathname.split('/')[3];
      if(req.method()==='POST'){posts.push(req.postDataJSON());body={cached:false,translation:{language:'French',content:french,model:'google/gemini-3.8-flash'}}}

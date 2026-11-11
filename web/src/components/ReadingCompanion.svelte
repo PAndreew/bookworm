@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { api } from '../lib/api';
+  import { api, ApiError, type PuriResult } from '../lib/api';
   import { renderMarkdown } from '../lib/markdown';
-  import { askBYOK, loadBYOK, providers } from '../lib/byok';
+  import { askBYOK, guestBYOKOwner, loadBYOK, providers } from '../lib/byok';
 
+  import BYOKSettings from './BYOKSettings.svelte';
   import PuriCoach from './PuriCoach.svelte';
-  let { progress, positionLabel, cardIndex, experience = 'live', demoWord = '', demoDefinition = '', demoTranslation = false, demoTranslated = false, onTranslateCard }: {
-    progress?: number; positionLabel?: string; cardIndex?: number;
+  let { progress, positionLabel, cardIndex, currentCardId = '', currentCardSource = '', experience = 'live', demoWord = '', demoDefinition = '', demoTranslation = false, demoTranslated = false, onTranslateCard }: {
+    progress?: number; positionLabel?: string; cardIndex?: number; currentCardId?: string; currentCardSource?: string;
     experience?: 'live' | 'facts' | 'demo'; demoWord?: string; demoDefinition?: string;
     demoTranslation?: boolean; demoTranslated?: boolean;
     onTranslateCard?: (language: string, signal?: AbortSignal, byok?: boolean) => Promise<void>;
@@ -78,6 +79,12 @@
   let viewportLeft = $state(0);
   let visualWidth = $state(390);
   let visualHeight = $state(800);
+  let savedResults = $state<PuriResult[]>([]);
+  function refreshGuestKey() {
+    const config = loadBYOK(guestBYOKOwner).config;
+    keyReady = !!config;
+    modelLabel = config ? `${providers[config.provider].name} · ${config.model}` : '';
+  }
   let quota = $state<{used:number;limit:number;resets_at:string} | null>(null);
   async function refreshBYOKQuota() { try { quota = await api.byokQuota(); } catch { quota = null; } }
   let lastHop = 0;
@@ -190,6 +197,7 @@
     selected = '';
     error = '';
     auth = 'checking';
+    keyReady = false; paid = false; quota = null; savedResults = [];
     await tick();
     dialog?.showModal();
     try {
@@ -202,16 +210,23 @@
       else if (!paid) funding = 'byok';
       auth = 'signed-in';
       await refreshBYOKQuota();
+      if (currentCardId) {
+        try { savedResults = (await api.puriResults(currentCardId)).results.filter(r => r.mode !== 'card_translate'); }
+        catch { /* Saving remains available if history could not load. */ }
+      }
     }
-    catch { auth = 'signed-out'; }
+    catch (e) {
+      if (e instanceof ApiError && e.status === 401) { auth = 'signed-out'; funding = 'byok'; refreshGuestKey(); }
+      else { error = 'Could not check your account. Please try again.'; }
+    }
   }
 
   function close() { demoDismissed = true; coaching = false; controller?.abort(); dialog?.close(); }
 
   async function ask(event: SubmitEvent) {
     event.preventDefault();
-    if (experience !== 'live' || busy || auth !== 'signed-in') return;
-    if (funding === 'byok' && (!keyReady || !quota || quota.used >= quota.limit)) return;
+    if (experience !== 'live' || busy || auth === 'checking') return;
+    if (funding === 'byok' && (!keyReady || (auth === 'signed-in' && (!quota || quota.used >= quota.limit)))) return;
     if (funding === 'paid' && !paid) return;
     if (mode !== 'card_translate' && (!phrase || !phraseCardId)) return;
     busy = true;
@@ -229,9 +244,13 @@
         ? await askBYOK({mode,phrase,language}, controller.signal)
         : await api.assistant({ mode, phrase, card_id: phraseCardId, language, consent: true }, controller.signal);
       answer = result.answer;
+      if (funding === 'byok' && auth === 'signed-in') {
+        try { await api.savePuriResult(phraseCardId,{mode,phrase,language,source:currentCardSource,content:result.answer,model:result.model}); }
+        catch { error = 'Your answer is shown below, but could not be saved. Keep a copy before leaving.'; }
+      }
     } catch (e) {
       if (!controller.signal.aborted) error = e instanceof Error ? e.message : 'Could not connect. Please try again.';
-    } finally { busy = false; if (funding === 'byok') await refreshBYOKQuota(); }
+    } finally { busy = false; if (funding === 'byok' && auth === 'signed-in') await refreshBYOKQuota(); }
   }
 </script>
 
@@ -265,7 +284,11 @@
   <div class="bubble-content">
   <p class="intro">Explain a selected phrase, or translate this reading card.</p>
   {#if auth === 'checking'}<p role="status">Checking sign-in…</p>{/if}
-  {#if auth === 'signed-out'}<p class="sign-in"><a href="/login">Sign in</a> to use free BYOK or your Plus/Pro membership.</p>{/if}
+  {#if auth === 'signed-out'}
+    <p class="sign-in">Use your own API key without an account. Your provider bills usage. Explanations and translations are not saved—<a href="/login">sign in</a> to keep future results.</p>
+    <BYOKSettings userId={guestBYOKOwner} onSaved={refreshGuestKey} />
+    {#if keyReady}<p class="intro">{modelLabel}</p>{/if}
+  {/if}
   {#if auth === 'signed-in'}
     <label for="ai-funding">AI access</label>
     <select id="ai-funding" bind:value={funding} disabled={busy}>
@@ -282,14 +305,15 @@
     {#if mode !== 'card_translate'}
       {#if phrase}<blockquote class="selected-phrase">{phrase}</blockquote>
       {:else}<p class="intro">Highlight a word or passage on the card, then click Puri.</p>{/if}
-    {:else}<p class="intro">{funding === 'byok' ? 'Translate the original current card. BYOK translations stay on this page, not in the shared translation library.' : 'Translate the entire current card. Saved translations do not use another request.'}</p>{/if}
+    {:else}<p class="intro">{auth === 'signed-out' ? 'Translate the original current card. Guest results are not saved.' : 'Translate the original current card. Results are saved privately to your account, including BYOK translations.'}</p>{/if}
     <div class="options">
       <div><label for="sunny-mode">Help me</label><select id="sunny-mode" bind:value={mode}><option value="explain">Explain this phrase</option>{#if onTranslateCard}<option value="card_translate">Translate current card</option>{/if}<option value="translate">Translate this phrase</option></select></div>
       <div><label for="sunny-language">Answer in</label><select id="sunny-language" bind:value={language}>{#each (mode === 'card_translate' ? ['French', 'Spanish', 'German'] : ['English', 'Romanian', 'French', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Polish', 'Japanese', 'Chinese', 'Arabic']) as name}<option>{name}</option>{/each}</select></div>
     </div>
-    <button class="submit" type="submit" disabled={busy || auth !== 'signed-in' || (funding === 'byok' && (!keyReady || !quota || quota.used >= quota.limit)) || (mode !== 'card_translate' && (!phrase.trim() || !phraseCardId))}>{busy ? 'Thinking…' : mode === 'card_translate' ? 'Translate card' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
+    <button class="submit" type="submit" disabled={busy || auth === 'checking' || (funding === 'byok' && (!keyReady || (auth === 'signed-in' && (!quota || quota.used >= quota.limit)))) || (mode !== 'card_translate' && (!phrase.trim() || !phraseCardId))}>{busy ? 'Thinking…' : mode === 'card_translate' ? 'Translate card' : mode === 'explain' ? 'Explain phrase' : 'Translate phrase'}</button>
   </form>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
+  {#if savedResults.length}<details><summary>Saved explanations and phrase translations</summary>{#each savedResults as result}<button type="button" class="saved-result" onclick={() => answer = result.content}>{result.mode === 'explain' ? 'Explain' : 'Translate'}: {result.phrase} · {result.language}</button>{/each}</details>{/if}
   <div class="answer" role="status" aria-live="polite">{@html renderMarkdown(answer)}</div>
   </div>
 </dialog>
@@ -315,6 +339,7 @@
   dialog::backdrop { background: #0003; }
   dialog > header { flex: none; padding: 6px 10px 6px 16px; }
   .bubble-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px 16px; }
+  .saved-result { display: block; margin: 8px 0; text-align: left; background: #fff; border: 1px solid #75cfc5; border-radius: 8px; padding: 8px; color: #164e4a; }
   .selected-phrase { margin: 10px 0; padding: 10px; border-radius: 10px; background: #fff; overflow-wrap: anywhere; }
   header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   h2 { font-size: 1rem; margin: 0; }

@@ -17,7 +17,7 @@
   <a class="book-link" {href}>
     <h2 class="t">{book.title}</h2>
     <div class="a">{book.author}</div>
-    <div class="p">{book.page_count} pages · {book.card_count || book.page_count} cards</div>
+    {#if book.card_count}<div class="p">{book.card_count} {book.card_count === 1 ? 'card' : 'cards'}</div>{/if}
     {#if showHistory && book.last_read_at}<div class="resume-label">{book.is_latest ? 'Continue reading' : 'Opened before'}</div>{/if}
     {#if book.rating_count}<div class="p">★ {(book.rating_average ?? 0).toFixed(1)} · {book.rating_count} {book.rating_count === 1 ? 'review' : 'reviews'}</div>{/if}
     <div class="genres">{#each book.genres as tag}<span>#{tag}</span>{/each}</div>

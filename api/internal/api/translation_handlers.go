@@ -103,6 +103,10 @@ func (s *Server) handleCardTranslations(w http.ResponseWriter, r *http.Request) 
 	}
 	defer tx.Rollback(ctx)
 	if cached != nil {
+		if err = s.store.SavePuriResult(ctx, u.ID, id, hash, store.PuriResult{Mode: "card_translate", Language: cached.Language, Content: cached.Content, Model: cached.Model}); err != nil {
+			httpx.InternalError(w, r, "save private translation", err)
+			return
+		}
 		httpx.JSON(w, 200, map[string]any{"translation": cached, "cached": true})
 		return
 	}
@@ -131,6 +135,10 @@ func (s *Server) handleCardTranslations(w http.ResponseWriter, r *http.Request) 
 	translation := store.Translation{Language: req.Language, Content: answer, Model: s.cfg.OpenRouterModel}
 	if err = store.SaveTranslation(ctx, tx, id, hash, translation); err != nil {
 		httpx.InternalError(w, r, "translation save", err)
+		return
+	}
+	if err = s.store.SavePuriResult(ctx, u.ID, id, hash, store.PuriResult{Mode: "card_translate", Language: translation.Language, Content: translation.Content, Model: translation.Model}); err != nil {
+		httpx.InternalError(w, r, "save private translation", err)
 		return
 	}
 	httpx.JSON(w, 200, map[string]any{"translation": translation, "cached": false})

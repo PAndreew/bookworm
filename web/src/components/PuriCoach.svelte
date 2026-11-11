@@ -13,7 +13,7 @@
   {#if translation}
     {#if translated}
       Here’s the card in French! Use <strong>Card language</strong> to switch back to Original.
-      <small>A prepared translation for this demo. No AI used. In Plus, saved translations don’t use another AI request.</small>
+      <small>A prepared translation for this demo. No AI used. Sign in to save your own translations, including BYOK, and reopen them without another AI request.</small>
     {:else}
       Now let’s translate a whole card! Click me and choose <strong>Translate card</strong> to see it in French.
       {#if expanded}<button class="explain" onclick={() => onTranslate?.()}>Translate card</button>{/if}

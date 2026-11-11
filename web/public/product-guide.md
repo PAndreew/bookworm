@@ -8,14 +8,9 @@ Yes. Every book in the current catalogue is free to read. The current catalogue 
 
 ## Can I try Potpuri without an account?
 
-Yes. The homepage links to ten-card previews of:
+Yes. The homepage offers a short guided demo of [A Christmas Carol by Charles Dickens](https://potpuri.cc/try/?book=gutenberg-46).
 
-- [A Christmas Carol by Charles Dickens](https://potpuri.cc/try/?book=gutenberg-46)
-- [Beyond Good and Evil by Friedrich Nietzsche](https://potpuri.cc/try/?book=gutenberg-4363)
-- [The Yellow Wallpaper by Charlotte Perkins Gilman](https://potpuri.cc/try/?book=the-yellow-wallpaper)
-- [A Connecticut Yankee in King Arthur's Court by Mark Twain](https://potpuri.cc/try/?book=gutenberg-86)
-
-The title card has no coaching bubble. Puri demonstrates word explanation on the first non-title card and a prepared French translation on the second non-title card. The remaining preview cards have no coaching bubbles. After ten cards, the preview offers account creation.
+After the title card, Puri demonstrates a word explanation and a prepared French translation. Continue reading opens the unrestricted full book without signup. There is no ten-card reading limit. Signed-out readers do not see the Friends, Quotes or You tabs.
 
 These demonstrations use prepared content and do not call a live AI service. Guest previews do not save account reading history or earn reading credits.
 
@@ -39,7 +34,7 @@ Books in common are distinct canonical books both readers have started or earned
 
 Puri is Potpuri's reading companion. Readers can ask about selected words or phrases, or translate a reading card into French, Spanish, or German. Plus/Pro retain included AI; membership card translations may be saved and reused.
 
-Free BYOK — for the brave — supports user-owned OpenAI Platform, Anthropic and OpenRouter API keys with 50 app-enforced requests per account per UTC calendar month. Your provider bills your API usage. Requests go directly from the browser to that provider; keys/model selections can be saved under You in this browser’s local storage after one-time acceptance. Provider model lists are fetched directly and sorted newest first. Saved keys remain accessible to browser scripts/extensions, so use a dedicated key and spending cap. BYOK translations stay in page memory and are cleared by reload/navigation. Failed/cancelled attempts count. This allowance is not a provider spending cap. ChatGPT/Codex subscription credentials are not accepted as API keys.
+Free BYOK — for the brave — supports user-owned OpenAI Platform, Anthropic and OpenRouter API keys with 50 app-enforced requests per account per UTC calendar month. Your provider bills your API usage. Requests go directly from the browser to that provider; keys/model selections can be saved under You in this browser’s local storage after one-time acceptance. Provider model lists are fetched directly and sorted newest first. Saved keys remain accessible to browser scripts/extensions, so use a dedicated key and spending cap. Signed-in readers’ explanations and translations, including BYOK, are saved privately to their own accounts and can be reloaded. BYOK results never enter the shared translation cache. Signed-out readers can configure BYOK directly in Puri; their results stay in page memory and are cleared by reload/navigation. Guest usage has no app monthly quota; provider limits and billing apply. Failed/cancelled attempts count. This allowance is not a provider spending cap. ChatGPT/Codex subscription credentials are not accepted as API keys.
 
 The membership AI service uses OpenRouter and Google Gemini. AI answers may be inaccurate. The current [privacy page](https://potpuri.cc/legal/privacy) describes what is sent to providers. Check the live app for current membership availability, pricing, and usage limits.
 

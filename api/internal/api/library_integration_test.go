@@ -103,6 +103,43 @@ func TestPersonalLibraryAndPositions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Free accounts retain their own BYOK outputs; results never cross readers.
+	var textCard store.ReaderCard
+	for _, card := range cards {
+		if card.Kind == "text" {
+			textCard = card
+			break
+		}
+	}
+	resultsPath := "/v1/cards/" + textCard.CardID + "/puri-results"
+	payload := func(content, source, mode string) string {
+		body, _ := json.Marshal(map[string]string{"mode": mode, "language": "French", "phrase": "A sentence", "content": content, "model": "BYOK · test/model", "source": source})
+		return string(body)
+	}
+	call("POST", resultsPath, payload("Bonjour", textCard.Content, "card_translate"), "", 401)
+	call("POST", resultsPath, payload("Bonjour", "changed source", "card_translate"), tokens[0], 400)
+	call("POST", resultsPath, payload("Bonjour", textCard.Content, "card_translate"), tokens[0], 200)
+	call("POST", resultsPath, payload("Autre traduction", textCard.Content, "card_translate"), tokens[1], 200)
+	call("POST", resultsPath, payload("An explanation", textCard.Content, "explain"), tokens[0], 200)
+	own := string(call("GET", resultsPath, "", tokens[0], 200))
+	if !strings.Contains(own, "Bonjour") || !strings.Contains(own, "An explanation") || strings.Contains(own, "Autre traduction") {
+		t.Fatal("private results missing or leaked", own)
+	}
+	otherResults := string(call("GET", resultsPath, "", tokens[1], 200))
+	if strings.Contains(otherResults, "Bonjour") || !strings.Contains(otherResults, "Autre traduction") {
+		t.Fatal("reader result isolation failed")
+	}
+	call("GET", resultsPath, "", "", 401)
+	var savedCount int
+	if err = pool.QueryRow(ctx, `SELECT count(*) FROM reader_puri_results WHERE card_id=$1 AND mode='card_translate'`, textCard.CardID).Scan(&savedCount); err != nil || savedCount != 2 {
+		t.Fatal("translations should have separate account-owned rows", savedCount, err)
+	}
+	if _, err = pool.Exec(ctx, `UPDATE reader_puri_results SET source_hash='old-source' WHERE card_id=$1`, textCard.CardID); err != nil {
+		t.Fatal(err)
+	}
+	if result := string(call("GET", resultsPath, "", tokens[0], 200)); strings.Contains(result, "Bonjour") {
+		t.Fatal("stale translation returned", result)
+	}
 	endpoint := "/v1/books/" + books[2].Slug + "/position"
 	call("POST", endpoint, fmt.Sprintf(`{"card_id":%q}`, cards[0].CardID), tokens[0], 200)
 	call("POST", endpoint, fmt.Sprintf(`{"card_id":%q}`, cards[2].CardID), tokens[0], 200)

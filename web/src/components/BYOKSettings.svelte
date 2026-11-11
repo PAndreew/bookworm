@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { clearBYOK, fetchBYOKModels, loadBYOK, providers, saveBYOK, type BYOKModel, type BYOKProvider } from '../lib/byok';
-  let { userId }: {userId:string} = $props();
+  let { userId, onSaved }: {userId:string; onSaved?: () => void} = $props();
   let provider=$state<BYOKProvider>('openai');
   let key=$state(''),model=$state(''),search=$state(''),message=$state('');
   let accepted=$state(false),agree=$state(false),saved=$state(false),busy=$state(false);
@@ -23,19 +23,19 @@
   }
   function save(){
     message='';
-    try{saveBYOK(userId,{provider,key,model},accepted||agree);accepted=true;agree=false;saved=true;message='Saved on this device.';}
+    try{saveBYOK(userId,{provider,key,model},accepted||agree);accepted=true;agree=false;saved=true;message='Saved on this device.';onSaved?.();}
     catch(e){message=e instanceof Error?e.message:'Could not save.';}
   }
   function forget(){
     controller?.abort();
-    try{clearBYOK(userId);key='';model='';models=[];saved=false;message='Saved key removed.';busy=false;}
+    try{clearBYOK(userId);key='';model='';models=[];saved=false;message='Saved key removed.';busy=false;onSaved?.();}
     catch(e){message=e instanceof Error?e.message:'Could not remove key.';}
   }
 </script>
 
 <section class="settings" id="byok" aria-labelledby="byok-title">
   <h2 id="byok-title">Your AI · bring your own key</h2>
-  <p>50 requests/month on Free. Your provider bills the API usage.</p>
+  <p>{userId === 'anonymous-device' ? 'No account needed. Answers are not saved; your provider’s limits apply.' : '50 requests/month on Free. Answers are saved privately to your account.'} Your provider bills the API usage.</p>
   <label for="byok-provider">Provider</label>
   <select id="byok-provider" bind:value={provider} onchange={changedProvider}>
     {#each Object.entries(providers) as [id,info]}<option value={id}>{info.name}</option>{/each}

@@ -82,15 +82,15 @@ const siteSchema = path === '/' ? {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
             <span>Library</span>
           </a>
-          <a href="/app/friends" class={path.startsWith('/app/friends') ? 'on' : ''}>
+          <a data-account-tab hidden href="/app/friends" class={path.startsWith('/app/friends') ? 'on' : ''}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>Friends</span>
           </a>
-          <a href="/app/highlights" class={path.startsWith('/app/highlights') ? 'on' : ''}>
+          <a data-account-tab hidden href="/app/highlights" class={path.startsWith('/app/highlights') ? 'on' : ''}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
             <span>Quotes</span>
           </a>
-          <a href="/app/me" class={path.startsWith('/app/me') ? 'on' : ''}>
+          <a data-account-tab hidden href="/app/me" class={path.startsWith('/app/me') ? 'on' : ''}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span>You</span>
           </a>
@@ -99,6 +99,12 @@ const siteSchema = path === '/' ? {
     }
 
     <script>
+      import { api } from '../lib/api';
+      const tabs = document.querySelector<HTMLElement>('.tabs');
+      if (tabs) api.me().then(() => {
+        tabs.dataset.authenticated = 'true';
+        tabs.querySelectorAll<HTMLElement>('[data-account-tab]').forEach(tab => tab.hidden = false);
+      }).catch(() => {});
       // Register the service worker so the app is installable and public-domain
       // books stay readable offline.
       if ('serviceWorker' in navigator) {
@@ -111,13 +117,15 @@ const siteSchema = path === '/' ? {
     </script>
 
     <style>
+      .tabs [hidden] { display: none; }
+      .tabs[data-authenticated] { grid-template-columns: repeat(4, 1fr); }
       .tabs {
         position: fixed;
         bottom: 0;
         left: 0;
         right: 0;
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: 1fr;
         background: var(--bg);
         backdrop-filter: blur(16px);
         border-top: 1px solid var(--border);

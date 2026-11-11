@@ -1,12 +1,16 @@
 # Direct-browser BYOK
 
+Signed-out readers can use BYOK directly without an account; provider limits and billing apply, with no app quota. Their results stay in page memory and are lost on navigation/reload. Guest settings use a separate device-local namespace and are not inherited by signed-in accounts.
+
 Free accounts can use OpenAI Platform, Anthropic or OpenRouter API keys for 50 app-enforced attempts per UTC calendar month. Paid accounts can also explicitly choose BYOK; Plus/Pro included inference and allowances are unchanged and separate. No automatic fallback.
 
 ## User flow
 
 Open **You → Your AI**, paste a dedicated API key, refresh the current model list, explicitly choose a model and accept the BYOK terms once. **Save on this device** stores the provider/key/model and acceptance in account-scoped `localStorage`; cookies are not used, so credentials are never automatically sent to the VPS. Reload/navigation retains saved settings. **Forget key** removes the credential but preserves one-time acceptance. A different account cannot load that account's key through the UI; this is application isolation, not encryption against same-origin scripts or someone accessing the browser profile. Shared-device users should forget the key before leaving.
 
-Puri contains only a compact model/allowance summary and a link back to You, not repeated consent/setup controls. Paid users retain a separate membership mode with no automatic funding switch. BYOK translations stay in page memory and disappear on navigation/reload.
+Signed-in Puri contains a compact model/allowance summary and a link back to You. Signed-out Puri includes key/model setup and an explicit not-saved warning. Paid users retain a separate membership mode with no automatic funding switch.
+
+All signed-in results, including BYOK explanations, phrase translations and full-card translations, are saved privately in `reader_puri_results`, keyed by user, card, source hash, mode, language and phrase hash. Different readers have separate rows even for the same card/language. Keys are never uploaded. Free accounts can read their own saved results without a subscription. Card translations reload in the language dropdown; explanations and phrase translations are available under Puri’s saved-results section. Source hashes prevent stale outputs after text changes. Account/card deletion cascades to these rows.
 
 Provider requests use fixed HTTPS endpoints, authorization headers, omitted cookies, rejected redirects, no caching, bounded input/output and a 40-second timeout. OpenAI uses the Responses API (`store:false`); Anthropic uses Messages; OpenRouter uses chat completions. Model lists come directly from each provider's Models endpoint, without consuming inference allowance; Anthropic pagination is followed by cursor on the fixed endpoint. Retired/non-text models are filtered where metadata permits, newest first, with no hardcoded default or automatic expensive model selection. A selected model may still have account-specific restrictions. OpenRouter requests deny data collection and require ZDR; model availability can be narrower as a result. Direct OpenAI/Anthropic requests use those providers' own privacy policies. Browser scripts/extensions can still steal active keys; no OS-keychain or malicious-operator protection is claimed.
 
@@ -21,7 +25,7 @@ OpenRouter API keys are supported in this release; browser OAuth PKCE is researc
 - Migration `0013_byok.sql` stores account/month/count only. Atomic UPSERT stops at 50 across tabs and replicas. New UTC months start with a fresh row.
 - A reservation is made immediately before each new provider attempt. Errors/cancellation after reservation count; locally cached card translations do not reserve again. BYOK never consumes the paid assistant counter or paid global capacity.
 - The server cannot prove inference occurred or prevent modified clients calling providers independently. This is an application allowance, not a security boundary or provider billing cap.
-- BYOK card translations remain in Reader state only. They are not POSTed to `/cards/{id}/translations` or synchronized between readers. Full-card generation uses original card text, not an existing translation.
+- Signed-in BYOK outputs are POSTed to `/cards/{id}/puri-results` and loaded from its authenticated GET endpoint, never from another reader’s rows. They do not enter the shared included-AI translation cache. Full-card generation uses original card text, not an existing translation. Included-AI results also get private account-owned copies, even when generated from the shared cache.
 
 ## License and publication
 

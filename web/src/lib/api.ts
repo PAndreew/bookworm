@@ -22,6 +22,7 @@ export interface BillingStatus {
  tier: 'free' | 'plus' | 'pro'; used: number; limit: number;
  subscription: {status:string;period_end:string;cancel_at_period_end:boolean} | null;
 }
+export interface PuriResult { mode: 'explain' | 'translate' | 'card_translate'; language: string; phrase: string; content: string; model: string; }
 export interface Translation { language: 'French' | 'Spanish' | 'German'; content: string; model: string; }
 export interface Highlight { id:string; page_id:string; start_off:number; end_off:number; quote:string; share_slug?:string|null; created_at?:string; book_title?:string; author?:string; }
 export interface Offer {available:boolean;remaining:number;limit?:number;price_eur?:number;requests_per_month?:number;}
@@ -164,6 +165,8 @@ export const api = {
   billing: () => request<BillingStatus>('/billing'),
   checkout: () => post<{url:string}>('/billing/checkout',{}),
   cancelSubscription: () => post<{message:string}>('/billing/cancel',{}),
+  puriResults: (id:string) => request<{results:PuriResult[]}>(`/cards/${encodeURIComponent(id)}/puri-results`),
+  savePuriResult: (id:string,result:PuriResult & {source:string}) => request<{saved:boolean}>(`/cards/${encodeURIComponent(id)}/puri-results`,{method:'POST',body:JSON.stringify(result)}),
   cardTranslations: (id:string) => request<{translations:Translation[]}>(`/cards/${encodeURIComponent(id)}/translations`),
   translateCard: (id:string,language:string,signal?:AbortSignal) => request<{translation:Translation;cached:boolean}>(`/cards/${encodeURIComponent(id)}/translations`,{method:'POST',body:JSON.stringify({language}),signal}),
 

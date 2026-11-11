@@ -64,5 +64,9 @@ func (s *Server) handleAssistant(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, 503, "assistant_unavailable", "The reading companion could not answer. Please try again shortly.")
 		return
 	}
+	if err := s.store.SavePuriResult(r.Context(), currentUser(r).ID, req.CardID, sourceHash(card.Content), store.PuriResult{Mode: req.Mode, Language: req.Language, Phrase: strings.TrimSpace(req.Phrase), Content: answer, Model: s.cfg.OpenRouterModel}); err != nil {
+		httpx.InternalError(w, r, "save explanation", err)
+		return
+	}
 	httpx.JSON(w, 200, map[string]string{"answer": answer, "model": s.cfg.OpenRouterModel})
 }

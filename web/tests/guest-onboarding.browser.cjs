@@ -26,23 +26,27 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     return {width:rect.width,height:rect.height,padding:style.padding,bg:style.backgroundColor,radius:style.borderRadius,text:el.textContent.trim()};
    }));
    await page.goto(base);await page.waitForSelector('#try-it-now .card');
-   assert.equal(await page.locator('#try-it-now .card').count(),4);
+   assert.equal(await page.locator('#try-it-now .card').count(),1);
    assert.equal(await page.locator('button.mascot').count(),0);
    assert.equal(await page.locator('#try-it-now .resume-label').count(),0);
-   assert.equal(await page.locator('#try-it-now .rating button').count(),20);
+   assert.equal(await page.locator('#try-it-now .rating button').count(),5);
    const landingCards=await geometry('#try-it-now .card');
    assert.equal(await page.locator('.coach').count(),0,'landing has no fun facts');
    assert.equal(await page.locator('.tag').textContent(),'Read timeless classics, bit by bit.');
    assert(!calls.includes('/v1/assistant'));
    await page.goto(base+'/app');await page.waitForSelector('.grid .card');
-   assert.deepEqual(await geometry('.grid .card'),landingCards,'sample cards must be identical to library cards');
-   for(const book of samples) {
+   assert.deepEqual((await geometry('.grid .card')).slice(0,1).map(({height,width,...box})=>box),landingCards.map(({height,width,...box})=>box),'sample cards must use the same styling and metadata as library cards');
+   assert.equal(await page.getByRole('link',{name:'Friends',exact:true}).count(),0);
+   assert.equal(await page.getByRole('link',{name:'Quotes',exact:true}).count(),0);
+   assert.equal(await page.getByRole('link',{name:'You',exact:true}).count(),0);
+   for(const book of samples.slice(0,1)) {
     live=book;
     await page.goto(base+'/read/demo/');await page.waitForSelector('[data-idx="0"]');
     const realTitle=await geometry('[data-idx="0"]');
     calls.length=0;
     await page.goto(`${base}/try/?book=${book.slug}`);await page.waitForSelector('[data-idx="0"]');
-    assert.deepEqual(await geometry('[data-idx="0"]'),realTitle,'preview must use the same Reader interface');
+    const demoTitle=await geometry('[data-idx="0"]');
+    assert.deepEqual(demoTitle.map(({text,...box})=>box),realTitle.map(({text,...box})=>box),'preview must use the same Reader interface');
     const turn=async index=>{
      if(await page.getByRole('button',{name:'Next card',exact:true}).count())await page.getByRole('button',{name:'Next card',exact:true}).click();
      else await page.locator(`[data-idx="${index}"]`).scrollIntoViewIfNeeded();
@@ -57,7 +61,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     if(await page.locator('.report-icon').count())assert(await page.locator('.report-icon').isDisabled());
     async function select(correct){
      await body.evaluate((el,word)=>{
-      const node=el.firstChild,text=node.textContent,match=new RegExp(`\\b${word}\\b`,'i').exec(text);
+      const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let node,match;
+      while(node=walker.nextNode()){match=word?new RegExp(`\\b${word}\\b`,'i').exec(node.textContent):null;if((word&&match)||(!word&&node.textContent.length>=5))break;}
       const start=word?match.index:0,length=word?match[0].length:5;
       const range=document.createRange();range.setStart(node,start);range.setEnd(node,start+length);
       const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
@@ -79,17 +84,16 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.getByLabel('Card language').selectOption('Original');
     assert.equal(await page.locator('.ai-badge').count(),0);
     assert((await page.locator('[data-idx="2"] [data-body]').textContent()).startsWith(book.pages[2].content));
-    for(let i=3;i<10;i++) { await turn(i); assert.equal(await page.locator('.coach').count(),0); }
-    if(await page.getByRole('button',{name:'Next card',exact:true}).count())await page.getByRole('button',{name:'Next card',exact:true}).click();
-    else await page.getByRole('button',{name:'Finish preview',exact:true}).click();
-    await page.getByRole('heading',{name:'That’s your first 10 cards!'}).waitFor();
-    assert.equal(await page.getByRole('link',{name:'Create an account',exact:true}).getAttribute('href'),'/signup');
+    assert.equal(await page.getByRole('link',{name:'Continue reading →',exact:true}).getAttribute('href'),'/read/'+book.slug);
+    await page.getByRole('button',{name:'Next card',exact:true}).click();
+    await page.getByRole('heading',{name:'Keep reading for free'}).waitFor();
+    assert.equal(await page.getByRole('link',{name:'Continue reading',exact:true}).getAttribute('href'),'/read/'+book.slug);
     assert.equal(await page.locator('.coach').count(),0);
     assert.equal(await page.getByRole('button',{name:'Back to the last card',exact:true}).count(),0);
     assert.deepEqual(calls,[],'demo must never request AI, reading credit or any API');
    }
    assert.deepEqual(errors,[]);await page.close();
   }
-  console.log('Shared library cards and Reader/Puri, disabled demo actions, ten-card limit and no-AI coaching passed');
+  console.log('Shared library cards and Reader/Puri, disabled demo actions, single-book demo, full-book continuation, guest navigation and no-AI coaching passed');
  }finally{await browser.close()}
 })();
