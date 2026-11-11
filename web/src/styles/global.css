@@ -16,6 +16,13 @@
 
 /* Google Fonts, self-hosted with their SIL Open Font Licenses. */
 @font-face {
+  font-family: 'Momo Trust Display';
+  src: url('/fonts/MomoTrustDisplay-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
   font-family: 'Fondamento';
   src: url('/fonts/Fondamento-Regular.ttf') format('truetype');
   font-weight: 400;
@@ -105,7 +112,7 @@ h1, h2, h3, .brand-text { font-family: var(--font-heading); }
 }
 .brand-heading { display: flex; align-items: center; gap: 8px; }
 .brand-heading img { flex-shrink: 0; }
-.brand-text { color: var(--text); }
+.brand-text { color: var(--text); font-family: 'Momo Trust Display', sans-serif; font-weight: 400; font-style: normal; font-synthesis: none; letter-spacing: normal; }
 .sr-only {
   position: absolute;
   width: 1px;

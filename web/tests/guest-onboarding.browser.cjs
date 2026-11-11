@@ -35,7 +35,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
    assert.equal(await page.locator('.tag').textContent(),'Read timeless classics, bit by bit.');
    assert(!calls.includes('/v1/assistant'));
    await page.goto(base+'/app');await page.waitForSelector('.grid .card');
-   assert.deepEqual((await geometry('.grid .card')).slice(0,1).map(({height,width,...box})=>box),landingCards.map(({height,width,...box})=>box),'sample cards must use the same styling and metadata as library cards');
+   assert.deepEqual((await geometry('.grid .card')).slice(0,1).map(({height,...box})=>box),landingCards.map(({height,...box})=>box),'sample cards must use the same styling and metadata as library cards');
    assert.equal(await page.getByRole('link',{name:'Friends',exact:true}).count(),0);
    assert.equal(await page.getByRole('link',{name:'Quotes',exact:true}).count(),0);
    assert.equal(await page.getByRole('link',{name:'You',exact:true}).count(),0);

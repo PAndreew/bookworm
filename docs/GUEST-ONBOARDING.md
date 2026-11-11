@@ -7,8 +7,8 @@ one book: A Christmas Carol. Old preview query parameters also open this demo.
 
 Landing tiles and the library both render `BookCard.svelte`, with the same
 stable pastel cover, title, author, card counts, genre tags,
-review summary and five rating stars. The single landing demo tile is centered;
-the library keeps its responsive multi-book grid. Landing tiles omit reading-history
+review summary and five rating stars. The landing demo tile uses the same
+responsive grid column sizing as library cards, not a wider standalone tile. Landing tiles omit reading-history
 labels and link to previews. Card metadata is included in the snapshot.
 
 `GuestReader.svelte` loads the single demo book. It passes a preview book to
