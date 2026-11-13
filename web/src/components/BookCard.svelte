@@ -42,7 +42,7 @@
   .card:hover { border-color: var(--border-bright); box-shadow: var(--shadow-lift); }
   .card.latest, .card.latest:hover { border: 2px solid #16a34a; padding: 17px; }
   .book-link { flex: 1; display: block; overflow-wrap: anywhere; }
-  .t { margin: 0; font-family: var(--font-heading); font-weight: 600; font-size: 1.05rem; line-height: 1.35; }
+  .t { margin: 0; font-family: var(--font-heading); font-weight: 400; font-synthesis: none; font-size: 1.05rem; line-height: 1.35; }
   .a { font-size: 0.78rem; margin-top: 9px; }
   .p { font-size: 0.7rem; margin-top: 6px; }
   .genres { display: flex; flex-wrap: wrap; gap: 5px 8px; margin: 14px 0; font-size: 0.68rem; line-height: 1.5; }

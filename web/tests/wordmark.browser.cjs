@@ -18,7 +18,19 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
    });
    assert(style.family.startsWith('"Momo Trust Display"'));
    assert.equal(style.weight,'400');assert.equal(style.style,'normal');assert.equal(style.synthesis,'none');assert(style.loaded);
+   const headings = await page.locator('h1, h2, h3').evaluateAll(els => els.map(el => ({family:getComputedStyle(el).fontFamily,weight:getComputedStyle(el).fontWeight})));
+   for (const heading of headings) {
+    assert(heading.family.startsWith('"Momo Trust Display"'), `${path}: heading font`);
+    assert.equal(heading.weight,'400', `${path}: heading weight`);
+   }
+   if (path === '/app') {
+    await page.locator('.signin').waitFor();
+    const button = await page.locator('.signin').evaluate(el => {const s=getComputedStyle(el);return {color:s.color,border:s.borderTopColor,background:s.backgroundColor};});
+    assert.equal(button.color,'rgb(21, 128, 61)');
+    assert.equal(button.border,button.color);
+    assert.equal(button.background,'rgba(0, 0, 0, 0)');
+   }
   }
-  console.log('Regular Momo Trust Display wordmark loaded on landing, library, login and signup');
+  console.log('Regular Momo Trust Display wordmarks and headings; green ghost library sign-in passed');
  } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1;});

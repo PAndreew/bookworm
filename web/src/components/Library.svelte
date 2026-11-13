@@ -177,7 +177,8 @@
   .streak { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius-pill); background: #7e22ce; color: #fff; font-weight: 650; font-size: 0.86rem; }
   .streak.risk { animation: breathe 2.4s ease-in-out infinite; }
   @keyframes breathe { 50% { opacity: 0.72; } }
-  .signin { padding: 8px 16px; border-radius: var(--radius-pill); border: 1px solid var(--border-bright); font-size: 0.85rem; }
+  .signin { padding: 8px 16px; border-radius: var(--radius-pill); border: 1px solid #15803d; background: transparent; color: #15803d; font-size: 0.85rem; }
+  .signin:hover { background: #f0fdf4; color: #166534; border-color: #166534; }
   .nudge { padding: 11px 15px; margin-bottom: 16px; border-radius: var(--radius-sm); background: var(--bg-card); border: 1px solid var(--border); font-size: 0.84rem; color: var(--text-dim); }
   .toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
   .filters { display: flex; gap: 8px; }
