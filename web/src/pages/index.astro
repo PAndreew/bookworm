@@ -26,7 +26,7 @@ import sampleBooks from '../lib/guest-books.json';
         <p>You can access every book in our catalogue for <strong>free</strong>.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></p>
         <p>Achieve <strong>streaks</strong> to strengthen your motivation.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></p>
         <p><strong>Connect with friends</strong>, see what they’re reading, and share your progress. Books help us create a common understanding of our world, <strong>widen our perspective</strong> and bring people closer.<span class="sunny-anchor" data-sunny-anchor aria-hidden="true"></span></p>
-        <p>We believe that generative AI can be used <strong>responsibly</strong> and can add meaningful value if it’s applied in the right place. <strong>Puri, our companion</strong>, can help you understand difficult concepts in a book, or translate passages so you can read in your mother tongue—or, quite the opposite, learn something new. You can use Puri <strong>without an account</strong> by bringing your own API key (<strong>BYOK</strong>); your provider bills the usage. Without an account, explanations and translations disappear when you leave or reload. Sign in to save your results privately, or choose Plus for included AI.</p>
+        <p>We believe that generative AI can be used <strong>responsibly</strong> and can add meaningful value if it’s applied in the right place. <strong>Puri, our companion</strong>, can help you understand difficult concepts in a book, or translate passages so you can read in your mother tongue. You can use Puri <strong>without an account</strong> by bringing your own API key (<strong>BYOK</strong>); your provider bills the usage. Without an account, explanations and translations disappear when you leave or reload. Sign in to save your results privately, or choose Plus for included AI.</p>
       </div>
     </section>
 
@@ -79,7 +79,8 @@ import sampleBooks from '../lib/guest-books.json';
   .try-books { width: 100%; margin-top: 64px; scroll-margin-top: 24px; }
   .try-books h2 { margin: 0 0 12px; font-size: 1.5rem; }
   .try-books > p { margin: 0 0 24px; color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; }
-  .sample-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; text-align: left; }
+  .sample-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; text-align: left; container-type: inline-size; }
+  .sample-grid :global(.card) { transform: translateX(calc(50cqw - 50%)); }
   footer { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; padding-top: 40px; font-size: 0.8rem; color: var(--text-faint); }
   footer a:hover { color: var(--accent); }
 </style>
