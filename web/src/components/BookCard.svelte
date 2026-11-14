@@ -6,6 +6,10 @@
     book: CardBook; href: string; rating?: number; saving?: boolean; signedIn?: boolean;
     locked?: boolean; showHistory?: boolean; onrate?: (stars: number) => void;
   } = $props();
+  function cardTitle(title: string) {
+    const characters = Array.from(title.replace(/\s+/g, ' ').trim());
+    return characters.length > 30 ? `${characters.slice(0, 30).join('').trimEnd()}…` : characters.join('');
+  }
   function cover(slug: string) {
     let h = 0;
     for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
@@ -15,7 +19,7 @@
 
 <article class="card" class:latest={showHistory && book.is_latest} style="background:{cover(book.slug)}">
   <a class="book-link" {href}>
-    <h2 class="t">{book.title}</h2>
+    <h2 class="t" title={book.title} aria-label={book.title}>{cardTitle(book.title)}</h2>
     <div class="a">{book.author}</div>
     {#if book.card_count}<div class="p">{book.card_count} {book.card_count === 1 ? 'card' : 'cards'}</div>{/if}
     {#if showHistory && book.last_read_at}<div class="resume-label">{book.is_latest ? 'Continue reading' : 'Opened before'}</div>{/if}
@@ -42,7 +46,7 @@
   .card:hover { border-color: var(--border-bright); box-shadow: var(--shadow-lift); }
   .card.latest, .card.latest:hover { border: 2px solid #16a34a; padding: 17px; }
   .book-link { flex: 1; display: block; overflow-wrap: anywhere; }
-  .t { margin: 0; font-family: var(--font-heading); font-weight: 400; font-synthesis: none; font-size: 1.05rem; line-height: 1.35; }
+  .t { margin: 0; font-family: var(--font-heading); font-weight: 400; font-synthesis: none; font-size: 1.05rem; line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
   .a { font-size: 0.78rem; margin-top: 9px; }
   .p { font-size: 0.7rem; margin-top: 6px; }
   .genres { display: flex; flex-wrap: wrap; gap: 5px 8px; margin: 14px 0; font-size: 0.68rem; line-height: 1.5; }
