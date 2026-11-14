@@ -41,6 +41,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   await page.goto(base+'/app');
   await page.waitForSelector('.card.latest');
   assert.equal(await page.locator('.resume').count(),0,'library must not contain the old resume button');
+  const controlStyle = await page.getByRole('button',{name:'Filter genres',exact:true}).evaluate(el => {
+    const style = getComputedStyle(el);
+    return {color:style.color, background:style.backgroundColor, border:style.borderTopColor};
+  });
+  assert.equal(controlStyle.border, 'rgb(255, 255, 255)');
+  assert.notEqual(controlStyle.color, controlStyle.background, 'white icons need a contrasting fill on the light page');
+  assert.notEqual(controlStyle.background, 'rgba(0, 0, 0, 0)', 'controls must remain visible on the light page');
   assert.equal(await page.locator('.card').first().locator('.p').first().textContent(), '100 cards', 'book cards show card counts without page counts');
   assert(!/\bpages\b/.test(await page.locator('.card').first().textContent()), 'book cards must not show page counts');
   assert.equal(await page.locator('.card').first().locator('h2').textContent(),'Latest Book');
