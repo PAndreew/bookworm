@@ -17,7 +17,7 @@ type LibraryBook struct {
 	RatingCount   int        `json:"rating_count"`
 }
 
-func (s *Store) ListLibraryBooks(ctx context.Context, viewer, license, search, genre, sort, direction string, mine bool, limit, offset int) ([]LibraryBook, error) {
+func (s *Store) ListLibraryBooks(ctx context.Context, viewer, license, search string, genres []string, sort, direction string, mine bool, limit, offset int) ([]LibraryBook, error) {
 	const q = `
  SELECT b.id,b.slug,b.title,b.author,b.description,b.cover_url,b.language,b.license,
  e.id,e.page_count,e.word_count,b.genres,e.reader_card_count,
@@ -31,7 +31,7 @@ func (s *Store) ListLibraryBooks(ctx context.Context, viewer, license, search, g
  LEFT JOIN LATERAL (SELECT avg(stars)::float8 AS average,count(*)::integer AS total FROM book_ratings WHERE book_id=b.id) reviews ON true
  WHERE ($1='' OR b.license=$1::license_kind)
  AND ($2='' OR lower(b.title || ' ' || b.author) LIKE $2 ESCAPE '\')
- AND ($3='' OR b.genres @> ARRAY[$3]::text[])
+ AND (COALESCE(cardinality($3::text[]),0)=0 OR b.genres && $3::text[])
  AND (NOT $8 OR rp.user_id IS NOT NULL)
  ORDER BY
  CASE WHEN $7='recent' AND $9='asc' AND ($8 OR rp.last_read_at >= now()-interval '1 month') THEN rp.last_read_at END ASC NULLS LAST,
@@ -48,7 +48,7 @@ func (s *Store) ListLibraryBooks(ctx context.Context, viewer, license, search, g
 	if search != "" {
 		pattern = "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(strings.ToLower(search)) + "%"
 	}
-	rows, err := s.pool.Query(ctx, q, license, pattern, genre, limit, offset, viewer, sort, mine, direction)
+	rows, err := s.pool.Query(ctx, q, license, pattern, genres, limit, offset, viewer, sort, mine, direction)
 	if err != nil {
 		return nil, err
 	}

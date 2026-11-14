@@ -5,12 +5,20 @@ books the reader opened within the past rolling calendar month lead the shelf,
 ordered newest first. Other titles follow alphabetically. The latest recent book
 has a green border. Explicit review/length sorting overrides this default order.
 
-**All / My books** sits beside the sort dropdown and its up/down direction
-button. My books is an independent toggle, combined with genre and search filters. It includes all opened books, even those older than a month.
-Signed-out users are directed to sign in. Turning it off restores the full shelf.
+Below the header, a Friends-style search bar sits alongside circular outlined
+filter and up/down sorting buttons. The filter panel offers genre checkboxes
+(matching any selected genre); the sorting panel offers attribute and direction.
+Search, genres and ordering apply to both shelves.
+
+**My books** is a horizontally scrolling shelf of all opened books, even those
+older than a month. **All books** retains the vertically scrolling grid below it.
+Each shelf fetches and paginates independently so personal books never depend on
+the current catalogue page. Signed-out users see a sign-in prompt in My books;
+readers with no opened books see an invitation to open one below.
 
 `GET /v1/books` accepts `sort=recent|rating|reviews|pages`,
-`direction=asc|desc` (default descending), and `mine=true`. The dropdown offers
+`direction=asc|desc` (default descending), and `mine=true`. Repeat `genre` to
+select multiple genres (OR semantics, filtered before pagination). The dropdown offers
 Recently read, Rating, Reviews, and Page count; the adjacent arrow toggles the
 ordering for every attribute and retains the direction when switching attributes.
 Rating uses community average stars, breaking ties by review count in the same
