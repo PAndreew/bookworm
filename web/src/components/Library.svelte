@@ -130,6 +130,7 @@
 </script>
 
 <div class="wrap">
+  <div class="library-controls">
   <header class="head">
     <h1 class="brand-heading"><img src="/glim.svg" alt="" width="32" height="32" /><span class="brand-text">Potpuri</span></h1>
     {#if signedIn}
@@ -162,6 +163,7 @@
       </button>
     </div>
   {/if}
+  </div>
 
   {#if signedIn && streak.pages_today < streak.pages_required}
     <div class="nudge">
@@ -222,7 +224,8 @@
 {/snippet}
 
 <style>
-  .wrap { container-type: inline-size; padding: calc(16px + env(safe-area-inset-top)) 16px 92px; max-width: 760px; margin: 0 auto; }
+  .wrap { container-type: inline-size; padding: 0 16px 92px; max-width: 760px; margin: 0 auto; }
+  .library-controls { position: sticky; top: 0; z-index: 20; margin: 0 -16px; padding: calc(16px + env(safe-area-inset-top)) 16px 1px; background: var(--bg); border-bottom: 1px solid var(--border); max-height: calc(100dvh - 80px - env(safe-area-inset-bottom)); overflow-y: auto; }
   .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
   h1 { margin: 0; font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; }
   .streak { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius-pill); background: #7e22ce; color: #fff; font-weight: 650; font-size: 0.86rem; }
