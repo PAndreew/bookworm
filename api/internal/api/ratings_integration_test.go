@@ -148,6 +148,18 @@ func TestRatingsAndGenres(t *testing.T) {
 			t.Fatalf("expected empty: %s", query)
 		}
 	}
+	var multi catalogResponse
+	json.Unmarshal(call("GET", "/v1/books?genre=fantasy&genre=science-fiction", "", "", 200), &multi)
+	if len(multi.Books) != 2 {
+		t.Fatal("multi-genre filter must match either selected genre")
+	}
+	var multiPage catalogResponse
+	json.Unmarshal(call("GET", "/v1/books?genre=fantasy&genre=science-fiction&limit=1", "", "", 200), &multiPage)
+	if len(multiPage.Books) != 1 || multiPage.NextOffset == nil {
+		t.Fatal("multi-genre filter must paginate on the server")
+	}
+	call("GET", "/v1/books?genre="+strings.Repeat("a", 65), "", "", 400)
+	call("GET", "/v1/books?"+strings.Repeat("genre=fantasy&", 51), "", "", 400)
 	call("GET", "/v1/books?license=invalid", "", "", 400)
 	call("GET", "/v1/books?q="+strings.Repeat("a", 201), "", "", 400)
 	var genreResponse struct {

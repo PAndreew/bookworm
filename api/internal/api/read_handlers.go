@@ -23,8 +23,22 @@ func (s *Server) handleListBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	search := strings.TrimSpace(r.URL.Query().Get("q"))
-	genre := r.URL.Query().Get("genre")
-	if utf8.RuneCountInString(search) > 200 || len(genre) > 64 {
+	genres := r.URL.Query()["genre"]
+	if len(genres) > 50 {
+		httpx.Error(w, http.StatusBadRequest, "bad_filter", "Too many genres.")
+		return
+	}
+	selectedGenres := make([]string, 0, len(genres))
+	for _, genre := range genres {
+		if len(genre) > 64 {
+			httpx.Error(w, http.StatusBadRequest, "bad_filter", "Genre is too long.")
+			return
+		}
+		if genre != "" {
+			selectedGenres = append(selectedGenres, genre)
+		}
+	}
+	if utf8.RuneCountInString(search) > 200 {
 		httpx.Error(w, http.StatusBadRequest, "bad_filter", "Search or genre is too long.")
 		return
 	}
@@ -62,7 +76,7 @@ func (s *Server) handleListBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Sort/filter before pagination; never expose someone else's progress.
-	books, err := s.store.ListLibraryBooks(r.Context(), viewerID(r), license, search, genre, sort, direction, mine, limit+1, offset)
+	books, err := s.store.ListLibraryBooks(r.Context(), viewerID(r), license, search, selectedGenres, sort, direction, mine, limit+1, offset)
 	if err != nil {
 		httpx.InternalError(w, r, "handleListBooks", err)
 		return
