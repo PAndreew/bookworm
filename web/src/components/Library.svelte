@@ -232,8 +232,8 @@
   .signin:hover { background: #f0fdf4; color: #166534; border-color: #166534; }
   .nudge { padding: 11px 15px; margin-bottom: 16px; border-radius: var(--radius-sm); background: var(--bg-card); border: 1px solid var(--border); font-size: 0.84rem; color: var(--text-dim); }
   .discovery { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
-  .icon-button { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid #fff; border-radius: 50%; background: #18181b; color: #fff; box-shadow: 0 0 0 1px #18181b; }
-  .icon-button.active { background: #fff; color: #18181b; }
+  .icon-button { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid #e5e7eb; border-radius: 50%; background: #fff; color: #000; }
+  .icon-button.active { border-color: #9ca3af; box-shadow: 0 0 0 1px #9ca3af; }
   .search { display: flex; align-items: center; gap: 10px; padding: 0 14px; min-width: 0; flex: 1; border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-faint); }
   .search input { flex: 1; width: 100%; min-width: 0; padding: 12px 0; border: none; background: transparent; color: var(--text); font-size: 0.9rem; font-family: inherit; }
   .search input:focus { outline: none; }
