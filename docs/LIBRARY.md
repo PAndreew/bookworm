@@ -3,12 +3,15 @@
 The library no longer has a separate Resume Reading button. By default, published
 books the reader opened within the past rolling calendar month lead the shelf,
 ordered newest first. Other titles follow alphabetically. The latest recent book
-has a green border. Explicit review/length sorting overrides this default order.
+has a green border. Below the header, the search bar sits between a native sort
+picker and the genre filter. The sort picker applies Longest first, Shortest
+first, or Recently read immediately. The genre filter opens a native multi-select
+that matches any selected genre. Search, genres and ordering apply to both shelves.
 
-Below the header, a Friends-style search bar sits alongside circular outlined
-filter and up/down sorting buttons. The filter panel offers genre checkboxes
-(matching any selected genre); the sorting panel offers attribute and direction.
-Search, genres and ordering apply to both shelves.
+Cards show the percentage of active text cards credited as read, or a checkmark
+and “Already read” when all are complete. Bookmark navigation does not count
+toward completion. When there are reads left to earn today's streak, a spinner
+notice appears for three seconds and can be dismissed with Cancel.
 
 **My books** is a horizontally scrolling shelf of all opened books, even those
 older than a month. **All books** retains the vertically scrolling grid below it.
@@ -18,10 +21,7 @@ readers with no opened books see an invitation to open one below.
 
 `GET /v1/books` accepts `sort=recent|rating|reviews|pages`,
 `direction=asc|desc` (default descending), and `mine=true`. Repeat `genre` to
-select multiple genres (OR semantics, filtered before pagination). The dropdown offers
-Recently read, Rating, Reviews, and Page count; the adjacent arrow toggles the
-ordering for every attribute and retains the direction when switching attributes.
-Rating uses community average stars, breaking ties by review count in the same
+select multiple genres (OR semantics, filtered before pagination). Rating uses community average stars, breaking ties by review count in the same
 direction; Reviews uses review count. Unrated books count as zero. Page count
 uses original `page_count`. Recent ordering keeps unopened/out-of-window books
 last in either direction (My books includes older opened books). Legacy

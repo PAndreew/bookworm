@@ -44,6 +44,7 @@ export interface Book {
   last_page_idx?: number | null;
   last_card_idx?: number | null;
   is_latest?: boolean;
+  read_percent?: number;
   rating_average?: number;
   rating_count?: number;
 }

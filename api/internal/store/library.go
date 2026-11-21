@@ -6,18 +6,21 @@ import (
 	"time"
 )
 
-// LibraryBook adds only the requesting reader's bookmarks to public metadata.
+// LibraryBook adds only the requesting reader's bookmarks and progress to public metadata.
 type LibraryBook struct {
 	Book
 	LastReadAt    *time.Time `json:"last_read_at"`
 	LastPageIdx   *int       `json:"last_page_idx"`
 	LastCardIdx   *int       `json:"last_card_idx"`
 	Latest        bool       `json:"is_latest"`
+	ReadPercent   int        `json:"read_percent"`
 	RatingAverage float64    `json:"rating_average"`
 	RatingCount   int        `json:"rating_count"`
 }
 
 func (s *Store) ListLibraryBooks(ctx context.Context, viewer, license, search string, genres []string, sort, direction string, mine bool, limit, offset int) ([]LibraryBook, error) {
+	// Match BookCompletion: count active text cards, including inherited coverage,
+	// not bookmark position or repeat reads. Round down so only full coverage is 100%.
 	const q = `
  SELECT b.id,b.slug,b.title,b.author,b.description,b.cover_url,b.language,b.license,
  e.id,e.page_count,e.word_count,b.genres,e.reader_card_count,
@@ -25,7 +28,13 @@ func (s *Store) ListLibraryBooks(ctx context.Context, viewer, license, search st
  COALESCE(rp.last_read_at >= now()-interval '1 month' AND rp.edition_id=(
  SELECT p.edition_id FROM reading_progress p JOIN book_editions pe ON pe.id=p.edition_id AND pe.state='published'
  WHERE p.user_id=NULLIF($6,'')::uuid ORDER BY p.last_read_at DESC,p.edition_id LIMIT 1),false),
- COALESCE(reviews.average,0),COALESCE(reviews.total,0)
+ COALESCE(reviews.average,0),COALESCE(reviews.total,0),
+ CASE WHEN rp.user_id IS NULL THEN 0 ELSE (
+ SELECT COALESCE(100*count(*) FILTER (WHERE EXISTS (
+  SELECT 1 FROM card_reads r WHERE r.card_id=c.id AND r.user_id=rp.user_id
+ ))/NULLIF(count(*),0),0)
+ FROM reader_cards c WHERE c.edition_id=e.id AND c.kind='text' AND NOT c.archived
+ ) END
  FROM books b JOIN book_editions e ON e.book_id=b.id AND e.state='published'
  LEFT JOIN reading_progress rp ON rp.edition_id=e.id AND rp.user_id=NULLIF($6,'')::uuid
  LEFT JOIN LATERAL (SELECT avg(stars)::float8 AS average,count(*)::integer AS total FROM book_ratings WHERE book_id=b.id) reviews ON true
@@ -56,7 +65,7 @@ func (s *Store) ListLibraryBooks(ctx context.Context, viewer, license, search st
 	books := []LibraryBook{}
 	for rows.Next() {
 		var b LibraryBook
-		if err := rows.Scan(&b.ID, &b.Slug, &b.Title, &b.Author, &b.Description, &b.CoverURL, &b.Language, &b.License, &b.EditionID, &b.PageCount, &b.WordCount, &b.Genres, &b.CardCount, &b.LastReadAt, &b.LastPageIdx, &b.LastCardIdx, &b.Latest, &b.RatingAverage, &b.RatingCount); err != nil {
+		if err := rows.Scan(&b.ID, &b.Slug, &b.Title, &b.Author, &b.Description, &b.CoverURL, &b.Language, &b.License, &b.EditionID, &b.PageCount, &b.WordCount, &b.Genres, &b.CardCount, &b.LastReadAt, &b.LastPageIdx, &b.LastCardIdx, &b.Latest, &b.RatingAverage, &b.RatingCount, &b.ReadPercent); err != nil {
 			return nil, err
 		}
 		books = append(books, b)

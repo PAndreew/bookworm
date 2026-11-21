@@ -167,6 +167,34 @@ func TestPersonalLibraryAndPositions(t *testing.T) {
 	if len(got) != 3 || got[0].Slug != books[2].Slug || !got[0].Latest || got[1].Slug != books[0].Slug {
 		t.Fatalf("recent ordering: %+v", got)
 	}
+	if got[0].ReadPercent != 0 {
+		t.Fatal("saving a position must not count as reading")
+	}
+	for _, day := range []string{"2026-10-07", "2026-10-08"} {
+		if _, err = pool.Exec(ctx, `INSERT INTO card_reads(user_id,card_id,local_day,metered) VALUES($1,$2,$3::text::date,false)`, users[0].ID, textCard.CardID, day); err != nil {
+			t.Fatal(err)
+		}
+	}
+	completion, err := st.BookCompletion(ctx, users[0].ID, books[2].EditionID)
+	if err != nil || completion.TotalCards <= 1 {
+		t.Fatalf("expected multiple text cards: %+v, %v", completion, err)
+	}
+	if b := list("", tokens[0])[0]; b.ReadPercent != 100/completion.TotalCards {
+		t.Fatalf("repeated reads must count once: got %d%%", b.ReadPercent)
+	}
+	if _, err = pool.Exec(ctx, `INSERT INTO card_reads(user_id,card_id,local_day,metered,inherited)
+ SELECT $1,id,'2026-10-08',false,true FROM reader_cards WHERE edition_id=$2 AND kind='text' AND NOT archived
+ ON CONFLICT DO NOTHING`, users[0].ID, books[2].EditionID); err != nil {
+		t.Fatal(err)
+	}
+	if b := list("", tokens[0])[0]; b.ReadPercent != 100 {
+		t.Fatalf("full text-card coverage should be 100%%: got %d%%", b.ReadPercent)
+	}
+	for _, b := range list("", tokens[1]) {
+		if b.ReadPercent != 0 {
+			t.Fatal("completion leaked to another reader")
+		}
+	}
 	got = list("&limit=1", tokens[0])
 	if len(got) != 1 || got[0].Slug != books[2].Slug {
 		t.Fatal("recency applied after pagination")
@@ -181,7 +209,7 @@ func TestPersonalLibraryAndPositions(t *testing.T) {
 	call("GET", "/v1/books?mine=true", "", "", 401)
 	got = list("", "")
 	for _, b := range got {
-		if b.LastReadAt != nil || b.LastCardIdx != nil || b.Latest {
+		if b.LastReadAt != nil || b.LastCardIdx != nil || b.Latest || b.ReadPercent != 0 {
 			t.Fatal("anonymous library leaked reading history")
 		}
 	}

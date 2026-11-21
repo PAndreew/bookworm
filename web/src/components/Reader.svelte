@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
   import { Heart, Highlighter, Share2, ChevronLeft, ChevronRight, Flag, Type, Flame, Lock } from '@lucide/svelte';
+  import LibraryIcon from './LibraryIcon.svelte';
   import { api, ApiError, type Page, type Translation, type Highlight } from '../lib/api';
   import { highlightRuns } from '../lib/reader-highlights';
   import ReadingCompanion from './ReadingCompanion.svelte';
@@ -363,7 +364,7 @@
 
 <div class="reader" class:demo={!!preview} style="--scale:{fontScale}; --font-read:{readerFamily}">
   <header class="bar">
-    <a href={preview ? '/#try-it-now' : '/app'} class="icon-btn" aria-label="Back to library"><ChevronLeft size={22} /></a>
+    <a href={preview ? '/#try-it-now' : '/app'} class="icon-btn" aria-label="Back to library"><LibraryIcon /></a>
     {#if canSavePosition && !preview}<button class="completion-control" onclick={openCompletion} aria-label="Reading completion">Read cards</button>{/if}
     <button class="icon-btn" onclick={() => (showType = !showType)} aria-label="Text appearance" aria-expanded={showType} aria-controls="reader-type-panel"><Type size={20} /></button>
   </header>

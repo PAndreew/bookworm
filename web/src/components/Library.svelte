@@ -1,21 +1,23 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { ArrowDown, ArrowUp, ArrowUpDown, Filter, Search, Flame } from '@lucide/svelte';
+  import { onMount, tick } from 'svelte';
+  import { ArrowUpDown, Filter, Search, Flame, LoaderCircle } from '@lucide/svelte';
   import BookCard from './BookCard.svelte';
   import { api, type Book } from '../lib/api';
 
   let books = $state<Book[]>([]);
   let loading = $state(true);
   let signedIn = $state(false);
-  let streak = $state({ current: 0, at_risk: false, pages_today: 0, pages_required: 3 });
+  let streak = $state({ current: 0, at_risk: false });
+  let cardsLeft = $state(0);
   let tier = $state<'free' | 'plus' | 'pro'>('free');
   let openedBooks = $state<Book[]>([]);
   let openedError = $state('');
   let openedOffset = $state<number | null>(null);
   let loadingOpened = $state(false);
-  let panel = $state<'genres' | 'sort' | null>(null);
+  let genresOpen = $state(false);
+  let genreButton: HTMLButtonElement;
+  let genreSelect: HTMLSelectElement;
   let sort = $state('recent');
-  let direction = $state<'asc' | 'desc'>('desc');
   let genre = $state<string[]>([]);
   let search = $state('');
   let ratings = $state<Record<string, number>>({});
@@ -37,16 +39,32 @@
       signedIn = true;
       tier = meRes.value.user.tier;
       ready = true;
-      const [streakRes, ratingsRes] = await Promise.allSettled([api.streak(), api.ratings()]);
-      if (streakRes.status === 'fulfilled') streak = streakRes.value;
-      if (ratingsRes.status === 'fulfilled') ratings = ratingsRes.value.ratings;
-      else message = 'Your ratings could not load. Please refresh before rating.';
+      void api.streak().then(result => {
+        streak = result;
+        // The streak endpoint uses legacy field names but also counts card reads.
+        cardsLeft = Math.max(0, result.pages_required - result.pages_today);
+      }).catch(() => {});
+      try { ratings = (await api.ratings()).ratings; }
+      catch { message = 'Your ratings could not load. Please refresh before rating.'; }
     }
     ready = true;
   });
 
+  $effect(() => {
+    if (!(cardsLeft > 0)) return;
+    const timer = setTimeout(() => { cardsLeft = 0; }, 3000);
+    return () => clearTimeout(timer);
+  });
+
+  async function toggleGenres() {
+    genresOpen = !genresOpen;
+    await tick();
+    if (genresOpen) genreSelect?.focus();
+    else genreButton?.focus();
+  }
+
   function query() {
-    return { license: 'public_domain', genre, q: search.trim(), sort, direction };
+    return { license: 'public_domain', genre, q: search.trim(), sort };
   }
 
   $effect(() => {
@@ -121,7 +139,7 @@
     try {
       const result = await api.rateBook(book.slug, stars);
       ratings[book.slug] = result.stars;
-      retry++; // Refresh review aggregates and any rating-based ordering.
+      retry++; // Refresh review aggregates.
       message = `Rated ${book.title} ${stars} out of 5 stars.`;
     } catch {
       message = 'Your rating could not be saved. Please try again.';
@@ -141,35 +159,34 @@
   </header>
 
   <div class="discovery">
-    <button class="icon-button" class:active={genre.length > 0} aria-label={genre.length ? `Filter genres (${genre.length} selected)` : 'Filter genres'} aria-expanded={panel === 'genres'} aria-controls="genre-panel" onclick={() => panel = panel === 'genres' ? null : 'genres'}><Filter size={18} /></button>
-    <button class="icon-button" aria-label="Sorting options" aria-expanded={panel === 'sort'} aria-controls="sort-panel" onclick={() => panel = panel === 'sort' ? null : 'sort'}><ArrowUpDown size={18} /></button>
-    <div class="search"><Search size={17} /><input type="search" aria-label="Search books or authors" placeholder="Find a book or author" maxlength="200" bind:value={search} /></div>
-  </div>
-  {#if panel === 'genres'}
-    <fieldset id="genre-panel" class="panel genres" onkeydown={(event) => { if (event.key === 'Escape') panel = null; }}>
-      <legend>Genres · match any selected</legend>
-      <button class="clear" onclick={() => genre = []}>All genres</button>
-      {#each genres as name}<label><input type="checkbox" value={name} bind:group={genre} /> {name}</label>{/each}
-      <button class="clear" onclick={() => panel = null}>Done</button>
-    </fieldset>
-  {:else if panel === 'sort'}
-    <div id="sort-panel" class="panel sorter" onkeydown={(event) => { if (event.key === 'Escape') panel = null; }} role="group" aria-label="Book sorting">
-      <label for="book-sort">Sort by</label>
-      <select id="book-sort" bind:value={sort}>
-        <option value="recent">Recently read</option><option value="rating">Rating</option><option value="reviews">Reviews</option><option value="pages">Page count</option>
+    <div class="icon-button sort-control">
+      <ArrowUpDown size={18} aria-hidden="true" />
+      <select aria-label="Sort by" title="Sort by" bind:value={sort}>
+        <option value="longest">Longest first</option>
+        <option value="shortest">Shortest first</option>
+        <option value="recent">Recently read</option>
       </select>
-      <button class="direction" aria-label={`Sort ${direction === 'asc' ? 'ascending' : 'descending'}; switch to ${direction === 'asc' ? 'descending' : 'ascending'}`} onclick={() => direction = direction === 'asc' ? 'desc' : 'asc'}>
-        {#if direction === 'asc'}<ArrowUp size={16} />{:else}<ArrowDown size={16} />{/if}
-      </button>
     </div>
-  {/if}
+    <div class="search"><Search size={17} /><input type="search" aria-label="Search books or authors" placeholder="Find a book or author" maxlength="200" bind:value={search} /></div>
+    <button class="icon-button" class:active={genre.length > 0} aria-label={genre.length ? `Filter genres (${genre.length} selected)` : 'Filter genres'} aria-expanded={genresOpen} aria-controls="genre-panel" bind:this={genreButton} onclick={toggleGenres}><Filter size={18} /></button>
+  </div>
+  <fieldset id="genre-panel" class="genres" hidden={!genresOpen} onkeydown={(event) => { if (event.key === 'Escape') void toggleGenres(); }}>
+    <legend>Genres · match any selected</legend>
+    <select multiple size="5" aria-label="Genres" bind:this={genreSelect} bind:value={genre}>
+      {#each genres as name}<option value={name}>{name}</option>{/each}
+    </select>
+    <div class="genre-actions">
+      <button class="pill" onclick={() => genre = []}>All genres</button>
+      <button class="pill" onclick={toggleGenres}>Done</button>
+    </div>
+  </fieldset>
   </div>
 
-  {#if signedIn && streak.pages_today < streak.pages_required}
+  {#if cardsLeft > 0}
     <div class="nudge">
-      {streak.pages_required - streak.pages_today} more
-      {streak.pages_required - streak.pages_today === 1 ? 'page' : 'pages'} today
-      {streak.current > 0 ? `to keep your ${streak.current} day streak` : 'to start a streak'}
+      <span class="spinner"><LoaderCircle size={18} aria-hidden="true" /></span>
+      <span role="status">{cardsLeft} {cardsLeft === 1 ? 'card' : 'cards'} left to {streak.current > 0 ? 'keep your streak' : 'start a streak'}</span>
+      <button class="pill" onclick={() => cardsLeft = 0}>Cancel</button>
     </div>
   {/if}
 
@@ -233,7 +250,11 @@
   @keyframes breathe { 50% { opacity: 0.72; } }
   .signin { padding: 8px 16px; border-radius: var(--radius-pill); border: 1px solid #15803d; background: transparent; color: #15803d; font-size: 0.85rem; }
   .signin:hover { background: #f0fdf4; color: #166534; border-color: #166534; }
-  .nudge { padding: 11px 15px; margin-bottom: 16px; border-radius: var(--radius-sm); background: var(--bg-card); border: 1px solid var(--border); font-size: 0.84rem; color: var(--text-dim); }
+  .nudge { position: fixed; z-index: 30; inset-inline: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); max-width: 480px; margin-inline: auto; display: flex; align-items: center; gap: 10px; padding: 11px 15px; border-radius: var(--radius-sm); background: var(--bg-card); border: 1px solid var(--border); box-shadow: var(--shadow-lift); font-size: 0.84rem; color: var(--text-dim); }
+  .nudge button { margin-inline-start: auto; }
+  .spinner { flex: none; display: grid; place-items: center; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
   .discovery { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
   .icon-button { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid #e5e7eb; border-radius: 50%; background: #fff; color: #000; }
   .icon-button.active { border-color: #9ca3af; box-shadow: 0 0 0 1px #9ca3af; }
@@ -242,12 +263,14 @@
   .search input:focus { outline: none; }
   .search:focus-within { border-color: var(--border-bright); }
   button:focus-visible, .horizontal:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
-  .panel { padding: 14px; margin: 0 0 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); }
-  .genres { display: flex; flex-wrap: wrap; gap: 12px 16px; max-height: 260px; overflow-y: auto; }
+  .sort-control { position: relative; }
+  .sort-control select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .sort-control:has(select:focus-visible) { outline: 2px solid var(--text); outline-offset: 3px; }
+  .genres { min-width: 0; padding: 14px; margin: 0 0 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); }
   .genres legend { color: var(--text-dim); font-size: 0.8rem; }
-  .genres label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
-  .clear { padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); }
-  .sorter { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+  .genres select { width: 100%; font: inherit; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
+  .genre-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .pill { padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--text); }
   .shelf-heading { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); margin: 26px 0 14px; font-weight: 600; }
   .horizontal, .grid { --card-columns: 2; --card-gap: 20px; display: grid; gap: var(--card-gap); }
   @container (max-width: 319px) { .horizontal, .grid { --card-columns: 1; } }
@@ -257,9 +280,6 @@
   .horizontal > :global(*) { min-width: 0; scroll-snap-align: start; }
   .shelf-empty { color: var(--text-faint); font-size: 0.85rem; padding: 12px 0; }
   .shelf-empty a { color: var(--text); text-decoration: underline; }
-  .sorter select { min-width: 0; max-width: 145px; padding: 7px 8px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg); color: var(--text); font-size: 0.82rem; }
-  .direction { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 50%; background: var(--bg); color: var(--text); }
-  .direction:hover { border-color: var(--border-bright); }
   .status { font-size: 0.82rem; color: var(--text-dim); }
   .status:empty { display: none; }
   .grid { grid-template-columns: repeat(var(--card-columns), minmax(0, 1fr)); }

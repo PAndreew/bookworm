@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Lock, Star } from '@lucide/svelte';
+  import { Check, Lock, Star } from '@lucide/svelte';
   import type { Book } from '../lib/api';
   type CardBook = Pick<Book, 'slug' | 'title' | 'author' | 'page_count' | 'genres' | 'license'> & Partial<Book>;
   let { book, href, rating = 0, saving = false, signedIn = false, locked = false, showHistory = true, onrate }: {
@@ -22,7 +22,12 @@
     <h2 class="t" title={book.title} aria-label={book.title}>{cardTitle(book.title)}</h2>
     <div class="a" title={book.author}>{book.author}</div>
     {#if book.card_count}<div class="p">{book.card_count} {book.card_count === 1 ? 'card' : 'cards'}</div>{/if}
-    {#if showHistory && book.last_read_at}<div class="resume-label">{book.is_latest ? 'Continue reading' : 'Opened before'}</div>{/if}
+    {#if showHistory}
+      <div class="resume-label">
+        {#if book.read_percent === 100}<Check size={14} aria-hidden="true" /> Already read
+        {:else}{book.read_percent ?? 0}% read{/if}
+      </div>
+    {/if}
     {#if book.rating_count}<div class="p">★ {(book.rating_average ?? 0).toFixed(1)} · {book.rating_count} {book.rating_count === 1 ? 'review' : 'reviews'}</div>{/if}
     <div class="genres">{#each book.genres as tag}<span>#{tag}</span>{/each}</div>
   </a>
@@ -57,5 +62,5 @@
   .card-footer { display: flex; flex: 0 0 auto; justify-content: flex-end; align-items: flex-end; min-height: 26px; }
   .card-footer:empty { display: none; }
   .lock { display: flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: var(--radius-pill); background: var(--bg); font-size: 0.66rem; color: var(--accent); font-weight: 600; }
-  .resume-label { margin-top: 8px; font-size: 0.72rem; color: #166534; font-weight: 600; }
+  .resume-label { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.72rem; color: #166534; font-weight: 600; }
 </style>
