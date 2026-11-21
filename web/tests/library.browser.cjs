@@ -45,9 +45,16 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   assert.equal(await notice.locator('.spinner svg').count(),1);
   await notice.getByRole('button',{name:'Cancel',exact:true}).click();
   await notice.waitFor({state:'hidden'});
+  // Record the DOM transitions in the page; reload can resolve after the notice appears.
+  await page.addInitScript(() => {
+    new MutationObserver(() => {
+      const isShown = !!document.querySelector('.nudge');
+      if (isShown && !performance.getEntriesByName('streak-shown').length) performance.mark('streak-shown');
+      if (!isShown && performance.getEntriesByName('streak-shown').length && !performance.getEntriesByName('streak-hidden').length) performance.mark('streak-hidden');
+    }).observe(document, {childList:true, subtree:true});
+  });
   await page.reload();
   await notice.waitFor({state:'visible'});
-  const noticeShown = Date.now();
   await page.waitForSelector('.card.latest');
   const footerIcon = await page.getByRole('link',{name:'Library',exact:true}).locator('path').getAttribute('d');
   assert.equal(await page.locator('.resume').count(),0,'library must not contain the old resume button');
@@ -98,7 +105,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await page.waitForFunction(expected => document.querySelector('.grid .card h2')?.textContent === expected, title);
   }
   await notice.waitFor({state:'hidden',timeout:4000});
-  assert(Date.now() - noticeShown >= 2750,'streak notice should stay visible for about three seconds');
+  const duration = await page.evaluate(() => performance.measure('streak-duration', 'streak-shown', 'streak-hidden').duration);
+  assert(duration >= 2750 && duration <= 4000, `expected a three-second streak notice, got ${duration}ms`);
   // Astro's preview lacks production Nginx's /read/:slug fallback.
   await page.route('**/read/recent', async route => {
     const response = await page.request.get(base + '/read/');
