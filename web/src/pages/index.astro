@@ -13,11 +13,7 @@ import sampleBooks from '../lib/guest-books.json';
       <h1 class="brand-heading"><img src="/glim.svg" alt="" width="48" height="48" /><span class="brand-text">Potpuri</span></h1>
       <RotatingTagline client:load />
 
-      <div class="cta-row">
-        <a class="primary" href="/signup">Start reading</a>
-        <span class="or">or</span>
-        <a class="secondary" href="/app">Browse the library</a>
-      </div>
+      <a class="primary" href="/app">Start reading</a>
 
       <ResumeReading client:load />
 
@@ -63,14 +59,8 @@ import sampleBooks from '../lib/guest-books.json';
   }
   .hero { --landing-accent: #0f766e; --landing-accent-hover: #115e59; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
   h1 { flex-direction: column; justify-content: center; gap: 12px; margin: 0 0 24px; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
-  .cta-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
-  .or { color: var(--text-faint); font-size: 0.85rem; }
-  @media (max-width: 560px) { .cta-row { flex-direction: column; gap: 10px; } }
-  .primary, .secondary { padding: 14px 28px; border-radius: var(--radius-pill); font-weight: 600; transition: background 0.2s, border-color 0.2s; }
-  .primary { background: var(--landing-accent); color: #fff; }
+  .primary { padding: 14px 28px; border-radius: var(--radius-pill); font-weight: 600; transition: background 0.2s; background: var(--landing-accent); color: #fff; }
   .primary:hover { background: var(--landing-accent-hover); }
-  .secondary { background: var(--bg); border: 1px solid var(--landing-accent); color: var(--landing-accent); }
-  .secondary:hover { background: #f0fdfa; border-color: var(--landing-accent-hover); }
   .points { padding: 0; margin: 44px 0 0; display: flex; flex-direction: column; gap: 22px; max-width: 580px; }
   .points p { margin: 0; font-size: 0.95rem; color: var(--text-dim); line-height: 1.7; }
   .points .mission { font-size: clamp(1.25rem, 3.5vw, 1.6rem); color: var(--text); line-height: 1.5; }
